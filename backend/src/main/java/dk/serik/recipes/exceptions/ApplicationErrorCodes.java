@@ -1,0 +1,42 @@
+package dk.serik.recipes.exceptions;
+
+public enum ApplicationErrorCodes {
+
+    UNHANDLED_EXCEPTION(0),
+    VALIDATION_EXCEPTION(20),
+    ID_IS_NULL(30),
+    RECIPE_NOT_FOUND(50),
+    RECIPE_DTO_IS_NULL(51),
+    RECIPE_ID_IS_NULL(52),
+    RECIPE_INGREDIENT_DTO_IS_NULL(60),
+    RECIPE_INGREDIENT_NOT_FOUND(61),
+    RECIPE_INGREDIENT_ALREADY_EXISTS(62),
+    RECIPE_INGREDIENTS_INVALID(63),
+    RECIPE_RATING_NOT_SUPPORTED(70),
+    CATEGORY_NOT_FOUND(100),
+    CATEGORY_IS_REQUIRED(101),
+    CATEGORY_DTO_IS_NULL(102),
+    CATEGORY_ID_IS_NULL(103),
+    INGREDIENT_DTO_IS_NULL(200),
+    INGREDIENT_ID_IS_NULL(201),
+    INGREDIENT_NOT_FOUND(210),
+    UNIT_DTO_IS_NULL(300),
+    UNIT_ID_IS_NULL(301),
+    UNIT_NOT_FOUND(310),
+    TAG_DTO_IS_NULL(401),
+    TAG_ID_IS_NULL(400),
+    TAG_NOT_FOUND(410),
+    RATING_DTO_IS_NULL(500),
+    RATING_ID_IS_NULL(501),
+    RATING_NOT_FOUND(510);
+
+    private final int code;
+
+    ApplicationErrorCodes(int code) {
+        this.code=code;
+    }
+
+    public int getCode() {
+        return this.code;
+    }
+}
