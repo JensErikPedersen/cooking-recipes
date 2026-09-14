@@ -1,0 +1,4 @@
+# Regenerate the seed-data changelog from a live database.
+# Supply credentials at run time - do not put them in this file.
+
+liquibase --driver=com.mysql.cj.jdbc.Driver   --changeLogFile=db.changelog.xml   --url="jdbc:mysql://localhost:3306/recipes?useUnicode=true&characterEncoding=UTF-8"   --username="$DB_USERNAME" --password="$DB_PASSWORD"   --diffTypes="data" generateChangeLog

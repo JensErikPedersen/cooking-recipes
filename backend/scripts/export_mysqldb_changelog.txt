@@ -1,0 +1,5 @@
+# How to create snapshot of recipes database schema #
+
+cd C:\dev\git\recipes\src\main\resources\db
+liquibase generate-changelog --changelog-file=db.changelog_1.0.xml
+copy db.changelog_1.0.xml to C:\dev\git\recipes\src\main\resources\db\changelog

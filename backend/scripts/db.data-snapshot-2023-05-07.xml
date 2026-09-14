@@ -1,0 +1,212 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:pro="http://www.liquibase.org/xml/ns/pro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-latest.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet author="jense (generated)" id="1683449306661-1">
+        <insert tableName="category">
+            <column name="id" value="14d4c0b0-46ea-498d-a3a5-56060a3d7a7c"/>
+            <column name="name" value="Brød"/>
+            <column name="description" value="Hverdags brød til morgen, middag og aften"/>
+            <column name="created" value="2023-04-23T22:02:11"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:11"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="category">
+            <column name="id" value="913a5159-3717-4b9d-a290-0158d31ea8aa"/>
+            <column name="name" value="Dessert"/>
+            <column name="description" value="Den søde afrundning på en god middag"/>
+            <column name="created" value="2023-04-23T22:02:11"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:11"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="category">
+            <column name="id" value="c5994e2b-93fa-43df-9cd7-90d8d4c9dcc0"/>
+            <column name="name" value="Hovedret"/>
+            <column name="description" value="Måltider som udgør hovedparten af et måltid"/>
+            <column name="created" value="2023-04-23T22:02:11"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:11"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="category">
+            <column name="id" value="fc87bd60-1c8e-436d-9806-5768027f91da"/>
+            <column name="name" value="Kager"/>
+            <column name="description" value="Kager til alle lejligheder"/>
+            <column name="created" value="2023-04-23T22:02:11"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:11"/>
+            <column name="updated_by" value=""/>
+        </insert>
+    </changeSet>
+    <changeSet author="jense (generated)" id="1683449306661-2">
+        <insert tableName="ingredient">
+            <column name="id" value="19165d8a-a1c7-423c-908a-d7f86e1aaf4c"/>
+            <column name="name" value="Kyllingebryst"/>
+            <column name="description" value="Magert kød af kyllingebryst"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="381e5cd5-0a5d-48d2-b69c-71516254937e"/>
+            <column name="name" value="Surdej"/>
+            <column name="description" value="Tynd surdej til bagning af lette brød"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="4a8819f6-2f7b-48ac-a5c1-20beb2e7e0b4"/>
+            <column name="name" value="Fuldkorns hvedemel"/>
+            <column name="description" value="Fuldkorns hvedemel med skaldele og kim"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="549ab6e6-f2d8-4ab3-8ba8-6bc7af82f2fb"/>
+            <column name="name" value="Hvedemel"/>
+            <column name="description" value="Sigtet hvedemel uden skaldele og kim"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="713ff039-25f2-471f-a1a4-ab8fc9efc8b0"/>
+            <column name="name" value="Gær"/>
+            <column name="description" value="Gær med god hæveevne"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="86a792c6-8432-470f-8ad1-b91a1499e91a"/>
+            <column name="name" value="Revet Mozarella"/>
+            <column name="description" value="Revel mozarella ost til ex. pizza topping"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="9d2b8e95-e897-470a-b1dd-0cf03fb01465"/>
+            <column name="name" value="Rugmel"/>
+            <column name="description" value="Groft rugmel med skaldele og kim"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="e00aec55-2eb7-4eeb-a594-0bbb948f09c1"/>
+            <column name="name" value="Vand"/>
+            <column name="description" value="Almindelig postevand fra hanen"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="ingredient">
+            <column name="id" value="e0aa2252-c5f1-4c87-b42c-9dd10486f366"/>
+            <column name="name" value="Salt"/>
+            <column name="description" value="Groft salt til madlavning"/>
+            <column name="created" value="2023-04-23T22:02:15"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:15"/>
+            <column name="updated_by" value=""/>
+        </insert>
+    </changeSet>
+    <changeSet author="jense (generated)" id="1683449306661-3">
+        <insert tableName="tag">
+            <column name="id" value="17a6448b-4efe-43f4-970b-8bf1ce2b754e"/>
+            <column name="label" value="Spicy"/>
+            <column name="created" value="2022-10-25T17:36:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2022-10-25T17:36:03"/>
+            <column name="updated_by" value="Majken"/>
+        </insert>
+        <insert tableName="tag">
+            <column name="id" value="1b24e657-01e7-4279-a6c4-4aa7840d771c"/>
+            <column name="label" value="Thai"/>
+            <column name="created" value="2022-10-25T17:35:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2022-10-25T17:35:03"/>
+            <column name="updated_by" value="Majken"/>
+        </insert>
+        <insert tableName="tag">
+            <column name="id" value="2b6560cc-77db-4c4e-a51a-8ee2786bdaf8"/>
+            <column name="label" value="Børnevenlig"/>
+            <column name="created" value="2022-10-25T17:41:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2022-10-25T17:41:03"/>
+            <column name="updated_by" value="Jens"/>
+        </insert>
+        <insert tableName="tag">
+            <column name="id" value="448b4e7b-d94a-439d-a4b5-db336936e0db"/>
+            <column name="label" value="Godt til kaffen"/>
+            <column name="created" value="2022-11-14T17:40:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2022-12-25T17:40:03"/>
+            <column name="updated_by" value="Jens"/>
+        </insert>
+        <insert tableName="tag">
+            <column name="id" value="d2f969f7-3cf0-4771-aea2-a55344b05e5a"/>
+            <column name="label" value="Mexi"/>
+            <column name="created" value="2022-10-25T17:40:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2022-10-25T17:40:03"/>
+            <column name="updated_by" value="Jens"/>
+        </insert>
+        <insert tableName="tag">
+            <column name="id" value="d495e037-f4d8-4342-aea5-8d5a51538553"/>
+            <column name="label" value="Godt til grillen"/>
+            <column name="created" value="2023-03-25T19:55:03"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-13T17:34:03"/>
+            <column name="updated_by" value="Majken"/>
+        </insert>
+    </changeSet>
+    <changeSet author="jense (generated)" id="1683449306661-4">
+        <insert tableName="unit">
+            <column name="id" value="615ba803-966f-43e5-8d2a-d38b5198a421"/>
+            <column name="label" value="tsk"/>
+            <column name="description" value="Teske"/>
+            <column name="created" value="2023-04-23T22:02:19"/>
+            <column name="created_by" value="Jens"/>
+            <column name="updated" value="2023-04-23T22:02:19"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="unit">
+            <column name="id" value="a7c8c9a8-04b4-4890-9082-cd7d4a175b71"/>
+            <column name="label" value="spsk"/>
+            <column name="description" value="Spiseske"/>
+            <column name="created" value="2023-04-23T22:02:19"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:19"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="unit">
+            <column name="id" value="b9cef3df-4bb5-49ab-8bde-5848d1363bce"/>
+            <column name="label" value="dl"/>
+            <column name="description" value="Deciliter"/>
+            <column name="created" value="2023-04-23T22:02:19"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:19"/>
+            <column name="updated_by" value=""/>
+        </insert>
+        <insert tableName="unit">
+            <column name="id" value="c5173731-3a7e-498c-84b1-b2d3abe68cef"/>
+            <column name="label" value="gr"/>
+            <column name="description" value="Gram"/>
+            <column name="created" value="2023-04-23T22:02:19"/>
+            <column name="created_by" value="Majken"/>
+            <column name="updated" value="2023-04-23T22:02:19"/>
+            <column name="updated_by" value=""/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>
