@@ -83,7 +83,7 @@ rather than trusted.
 
 | Installed | Version |
 |---|---|
-| Docker / Compose | 20.10.17 / v2.10.2 - from 2022; the user upgrades Docker Desktop before Part 2 |
+| Docker / Compose | 29.8.1 / v5.5.1, upgraded from 20.10.17 / v2.10.2 (2022) before Part 2 |
 | Node / npm | v22.23.2 / 10.8.3 - Next.js 16 needs Node 20.9 or newer |
 | Java | OpenJDK 25 (25+36) |
 | Maven wrapper | 3.9.11 |
