@@ -42,30 +42,30 @@ not touch the Java application's own versions at all - Spring Boot 4.1.1 and Jav
 recently and are out of scope, as are the Lombok and Jacoco pins, which carry comments in
 `pom.xml` explaining why they sit where they do.
 
-- [ ] Report installed versions: Docker and Docker Compose, Node and npm, Java, Maven wrapper, MySQL client if present
-- [ ] Report the latest stable versions to target for the new components only: Next.js, React,
+- [x] Report installed versions: Docker and Docker Compose, Node and npm, Java, Maven wrapper, MySQL client if present
+- [x] Report the latest stable versions to target for the new components only: Next.js, React,
       Tailwind CSS, Playwright
 
 **MySQL, which is the one real version decision in this part.**
 
-- [ ] Report the local server's version and, for the application accounts, which authentication
+- [x] Report the local server's version and, for the application accounts, which authentication
       plugin they use: `SELECT user, host, plugin FROM mysql.user WHERE user LIKE 'recipes%';`
-- [ ] Choose the `mysql` image tag. **Prefer the LTS line over an innovation release** - innovation
+- [x] Choose the `mysql` image tag. **Prefer the LTS line over an innovation release** - innovation
       releases are superseded every few months and are not what a database should sit on. Verify
       what the current LTS actually is against the official tags rather than assuming; at the time
       this plan was written that was 8.4, but confirm it
-- [ ] Record the authentication-plugin consequence, because it decides whether the existing
+- [x] Record the authentication-plugin consequence, because it decides whether the existing
       scripts still work. `mysql_native_password` is disabled by default from 8.4 and removed in
       9.x, and `backend/scripts/mysql_users.sql` and `mysql_reset_users.sql` both say
       `IDENTIFIED WITH mysql_native_password`. On a current image those scripts fail outright.
       The fix is plain `IDENTIFIED BY`, which yields `caching_sha2_password` - the default, and
       fully supported by mysql-connector-j. Fix the scripts here or record that Part 3's init
       script supersedes them
-- [ ] Note what the upgrade does **not** involve: no data migration and no in-place server
+- [x] Note what the upgrade does **not** involve: no data migration and no in-place server
       upgrade. The container starts from an empty volume and Liquibase builds the schema, so the
       version choice is just a tag. The laptop's own MySQL is a separate instance and Part 3 does
       not touch it
-- [ ] Confirm `./mvnw clean verify` passes, as the pre-change baseline. Note it needs no database:
+- [x] Confirm `./mvnw clean verify` passes, as the pre-change baseline. Note it needs no database:
       the suite runs on in-memory H2 in MySQL mode. That makes the baseline cheap, but it also
       means a green build says nothing about whether MySQL is reachable - Part 3 is the first
       thing that proves that
@@ -78,6 +78,33 @@ above applies.
 `git status` shows no modified files under `backend/`. Spot-check two numbers in the report against
 your own machine, for example `docker --version` and `node --version`, so the report is confirmed
 rather than trusted.
+
+### Result (2026-09-28)
+
+| Installed | Version |
+|---|---|
+| Docker / Compose | 20.10.17 / v2.10.2 - from 2022; the user upgrades Docker Desktop before Part 2 |
+| Node / npm | v22.23.2 / 10.8.3 - Next.js 16 needs Node 20.9 or newer |
+| Java | OpenJDK 25 (25+36) |
+| Maven wrapper | 3.9.11 |
+| MySQL client | not installed - SQL checks go through `docker compose exec mysql` |
+| Local MySQL server | removed, so the plugin query did not apply |
+
+Targets for the new components: `next` / `create-next-app` 16.3.6, `react` 19.3.0, `tailwindcss`
+4.3.3, `@playwright/test` 1.63.0. The latest `typescript` is 7.0.2, the native rewrite; Part 2 takes
+the version `create-next-app` installs rather than forcing 7.
+
+**MySQL tag: `mysql:9.7`.** The plan's assumption was stale: 9.7 became the LTS on 2026-04-21,
+superseding 8.4, and the official image's `lts` tag points at 9.7.2 while `latest` points at the
+26.7 innovation release. 9.7 has premier support to 2031-04 against 8.4's 2029-04, and Spring Boot
+4.1.1 manages mysql-connector-j 9.7.0, the matching line. Pinned to the minor version so patch
+releases arrive but the next LTS does not arrive silently, as it would with `mysql:lts`.
+
+**Account scripts.** `mysql_native_password` is removed in 9.x, so both account scripts fail on
+9.7. Not fixed: nothing will run them, since the local server is gone and the container creates the
+account from `.env`. They are deleted in Part 3.
+
+**Baseline.** `./mvnw clean verify` green: 230 unit tests, 63 integration tests, 0 failures.
 
 ---
 
@@ -201,6 +228,9 @@ leaves a container behind, the part is not done.
       and say so rather than quietly shipping empty tables
 - [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
       ever talks to the Next.js origin
+- [ ] Delete `backend/scripts/mysql_users.sql` and `mysql_reset_users.sql`. They use
+      `mysql_native_password`, which 9.7 no longer has, and the MySQL entrypoint now creates the
+      account (Part 0)
 - [ ] `backend/README.md` brought in line with the stack: drop the `recipesadmin` first-startup
       instruction and the manual account scripts, both superseded by the single account the MySQL
       entrypoint creates, and remove the link to the non-existent `docs/upgrade_to_java25.md`.
