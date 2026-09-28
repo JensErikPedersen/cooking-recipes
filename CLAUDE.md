@@ -22,6 +22,62 @@ backend but have no controller, and none will be added here.
 
 For the MVP, this runs locally in Docker containers.
 
+## Commands
+
+Only the backend commands work today. The stack, scripts, frontend and e2e arrive in Parts 2-3 of
+`docs/PLAN.md`; each part confirms its commands here as it lands.
+
+Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
+
+```bash
+scripts/start.sh                  # macOS/Linux: docker compose up -d --build
+scripts/stop.sh                   #              docker compose down
+scripts\start.ps1                 # Windows PowerShell
+scripts\stop.ps1
+docker compose ps                 # services and health
+docker compose logs -f backend    # follow one service's log
+docker compose down -v            # stop AND delete the database volume; next start reseeds
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes'   # SQL prompt
+```
+
+The app is at `http://localhost:3000`. The SQL prompt reads the password from the container's own
+environment, because `.env` is read by Compose, not loaded into your shell.
+
+Backend, from `backend/`. Tests run on in-memory H2 and need no database or Docker:
+
+```bash
+./mvnw clean verify                                  # all tests: unit (*Test) and integration (*IT)
+./mvnw test                                          # unit tests only
+./mvnw test -Dtest=RecipeServiceTest                 # one class, *Test or *IT alike
+./mvnw test -Dtest="CategoryServiceTest#contextIsOk" # one method
+./mvnw spring-boot:run                               # API on :8080, needs a reachable MySQL
+```
+
+Do not isolate an integration test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and
+runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD`, and
+`DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
+
+Frontend, from `frontend/` (Node 22). There are no frontend unit tests; Playwright covers behaviour:
+
+```bash
+npm install
+npm run dev                       # dev server on :3000 - the stack's frontend uses the same port
+npm run lint
+npm run build                     # the standalone build the Docker image runs
+```
+
+e2e, from `e2e/`. Runs against the stack, which must be up:
+
+```bash
+npm install
+npx playwright install chromium   # once per machine
+npx playwright test               # whole suite
+npx playwright test smoke.spec.ts # one spec
+npx playwright test --ui          # interactive runner
+```
+
+Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`.
+
 ## Technical Decisions
 
 - NextJS frontend. Use npm. Tailwind CSS for styling, no component library.

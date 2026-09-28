@@ -338,7 +338,7 @@ asserted by a test, not by inspection.
 **Verify it yourself.**
 
 ```powershell
-cd backend; .\mvnw verify -Dtest=AuthenticationIT -DfailIfNoTests=false
+cd backend; .\mvnw test -Dtest=AuthenticationIT
 ```
 
 Green means the session bean, the filter chain, CSRF and the audit stamping all hold together. That
@@ -498,7 +498,7 @@ Then delete the recipe, and confirm the ingredients and tags it referenced still
 pages - deleting a recipe must not take its ingredients with it.
 
 ```powershell
-cd backend; .\mvnw verify -Dtest=RecipeIT -DfailIfNoTests=false
+cd backend; .\mvnw test -Dtest=RecipeIT
 ```
 
 Read that test's source as well as its result. It is the only thing standing between a green build
