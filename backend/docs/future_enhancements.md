@@ -191,3 +191,57 @@ layers are already built and tested:
 **Value.** The feature the whole `recipe_rating` table exists for. Until then the guard keeps the
 limitation explicit at the API boundary rather than silent.
 
+---
+
+## Multiple users: the table will exist, the features will not
+
+**Status.** Not built yet. Authentication (`docs/PLAN.md` Part 4) adds the `app_user` table, a
+`UserDetailsService` backed by it, and a first-run `AdminBootstrap`, so from then on the schema
+supports multiple users. This section describes what will still be missing after Part 4:
+everything that would make a second user meaningful.
+
+**What is missing.**
+
+1. **No way to create a second account.** `AdminBootstrap` runs only while the table is empty, so
+   after first run the only route to another account is an INSERT by hand. Needs a user
+   administration screen, or at minimum a sign-up endpoint, both of which need roles enforced
+   first.
+2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
+   security chain authenticates every endpoint, but nothing authorises differently per role - an
+   ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
+   table is premature until a screen manages roles; enforcing `ROLE_ADMIN` on the destructive
+   endpoints is not.
+3. **Nothing is owned by anyone.** `created_by` records a username as free text, not a foreign key
+   to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
+   their audit trail. Turning it into a FK requires migrating every existing row and changing
+   every DTO that exposes it - do not do it as a side effect of something else.
+4. **No password change, no reset, no disable-in-the-UI.** The `enabled` column exists and is
+   honoured on login; nothing sets it.
+
+**Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
+trusted rather than read as a string.
+
+---
+
+## A single database account does all the work
+
+**What is missing.** The stack creates one MySQL account, and both Liquibase and the running
+application connect as it. That account therefore needs DDL rights permanently, because Liquibase
+creates tables at every startup where a changeset is pending - which means the runtime datasource
+can also drop them.
+
+**Why it was left.** Two accounts is the correct production shape, but for a local MVP it doubles
+the credentials in `.env` and adds an init script to maintain, in exchange for a boundary that
+nothing local crosses.
+
+**What it would take.** A `recipesadmin` account with DDL rights on the schema for
+`spring.liquibase.user` / `.password`, and `recipesuser` restricted to `SELECT, INSERT, UPDATE,
+DELETE` for the runtime datasource. MySQL's entrypoint cannot express this - setting
+`MYSQL_USER` / `MYSQL_PASSWORD` grants that account `ALL PRIVILEGES` on the schema - so both
+accounts have to be created by an init script mounted into
+`/docker-entrypoint-initdb.d`, which runs once while the data volume is empty.
+
+**Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
+deliberate act with its own credentials rather than something the runtime user could do by
+accident.
+

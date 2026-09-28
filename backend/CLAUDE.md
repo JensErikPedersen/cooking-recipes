@@ -1,0 +1,135 @@
+# Backend
+
+Spring Boot 4.1.1 on Java 25, MySQL, Liquibase-managed schema, Maven. Package root
+`dk.serik.recipes`. Project-wide rules live in the root `CLAUDE.md`; this file describes only what
+is in `backend/`.
+
+## Current state
+
+**No write works against real MySQL.** `created_by` is NOT NULL on all nine tables and on
+`BaseEntity`. Two places set it - `BaseEntityListener.prePersist`, and the `save` of every service
+except `RecipeServiceImpl`, which relies on the listener alone - and both read
+`Session.getUserName()`, which nothing ever populates, because nothing calls `setUserName`. Every POST and PUT therefore fails with `Column 'created_by' cannot be null`.
+
+The build is green regardless: controller slice tests stub `Session` with `@MockitoBean`, and the
+repository tests bypass the services entirely. Adding authentication (`docs/PLAN.md` Part 4) is
+what makes the application writable.
+
+## Layout
+
+| Package | Holds |
+|---|---|
+| `controllers` | Five `@RestController`s under `/api/v1/` |
+| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
+| `repository` | `JpaRepository` per entity, derived queries only |
+| `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
+| `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
+| `mapper` | Static entity/DTO converters |
+| `exceptions` | `ServiceException`, error codes, `@ControllerAdvice`, envelopes |
+| `bean` | `Session` - request-scoped, holds the username (see above) |
+| `validator` | `@UUID` + `UUIDValidator`. Tested, but **not referenced anywhere** |
+| `aspect` | `JpaLoggingAspect` - wraps every `JpaRepository` call for timing |
+
+## Conventions
+
+**Controllers are thin.** No try/catch, no validation logic. Id parsing, existence checks and
+argument validation all live in the service, which throws `ServiceException` carrying an
+`HttpStatus`; the advice turns that into the envelope. On `PUT` the path id is authoritative and
+any id in the body is overwritten, so a mismatched payload cannot update a different row. `POST`
+returns 201 with a `Location` header built from `ServletUriComponentsBuilder`.
+
+**Services** are `@Transactional` at class level (`READ_COMMITTED`, `REQUIRED`, 5s timeout), with
+read methods re-annotated `readOnly = true`. Ids arrive as `String` and go through
+`ServiceArguments.toUuid`, which converts a null or malformed id into a 400 - without it
+`UUID.fromString` would throw a raw `IllegalArgumentException` and surface as a 500.
+
+**DTOs** are immutable-ish: `@Getter` only, one `@Builder @Jacksonized` constructor, fields
+`private`. `BaseDTO` carries the four audit fields and formats timestamps as
+`yyyy-MM-dd HH:mm` - note that this **does not round-trip**, since the pattern has no offset, so
+assert on responses with `jsonPath` rather than deserialising back into a DTO. Bean Validation
+messages are keys resolved from `ValidationMessages.properties`.
+
+**Mappers** are static utility classes, `from(entity)` and `fromDto(dto)`, each null-guarded.
+No MapStruct.
+
+**Entities** extend `BaseIdentifierEntity` (UUID id stored as `varchar(36)`, `GenerationType.AUTO`)
+except `RecipeIngredient`, which uses a composite `RecipeIngredientPK`. `BaseEntity` is deliberately
+not `Comparable` - the comment there records why.
+
+## Errors
+
+Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`, and optionally
+`validationExceptions[]`. Codes are in `ApplicationErrorCodes`, grouped by domain in hundreds
+(recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s).
+
+Three handlers, and only three:
+
+| Exception | Result |
+|---|---|
+| `ServiceException` | its own `httpStatus` + envelope |
+| `ConstraintViolationException` | 400 + `validationExceptions[]` |
+| `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
+| anything else | 500, message replaced by a random reference id that is logged server-side |
+
+That last one is deliberate: raw exception text carries SQL, table and constraint names. The
+consequence is that anything unhandled looks identical to the client - see
+`docs/future_enhancements.md` for the two known cases (duplicate name should be 409,
+`HandlerMethodValidationException` from path variables would be 500).
+
+## Tests
+
+`./mvnw verify`. Surefire runs `*Test`, Failsafe runs `*IT`. Jacoco is wired in, and the
+`@{argLine}` it sets is load-bearing - if `prepare-agent` fails, both Surefire and Failsafe go down
+with it, not just the report.
+
+**Everything runs on in-memory H2 in MySQL mode**, not MySQL. `src/test/resources/application.properties`
+points Liquibase at `db.changelog-master-test.xml`, which includes the production changelog and
+then `db.dml-base-data.xml`. Consequences worth knowing:
+
+- H2 is not MySQL. Collation, unique-index behaviour on utf8 and error messages all differ.
+- `db.dml-base-data.xml` (28 inserts) seeds the lookup tables only - category, ingredient, rating,
+  tag, unit. It is consistent and working, unlike `scripts/db.data-snapshot-2023-08-07.xml`.
+- Recipe rows are loaded per test with `@Sql("/db/test-data/insert_recipes.sql")` and siblings,
+  not through Liquibase.
+
+Test layers, and what each one mocks:
+
+| Test | Kind | Mocked |
+|---|---|---|
+| `*ControllerTest` | `@WebMvcTest` | the service (`@MockitoBean`), `Session` |
+| `*ServiceTest` | Mockito | the repositories |
+| `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
+| `JsonContractIT` | `@SpringBootTest` | serialization contract only |
+
+**Nothing exercises controller to service to repository to database.** Every layer is verified
+against a mock of the layer beneath it, which is why the `created_by` failure above is invisible to
+a green build. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
+slice tests can pass while real serialization is broken - the same class of gap.
+
+## Build and run
+
+```powershell
+$env:DB_USERNAME="recipesuser"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+```
+
+`DB_PASSWORD` has no default. Spring does not error on an unresolved placeholder - it passes the
+literal text through - so a missing password surfaces as `Access denied for user 'recipesuser'`
+from Liquibase at startup, not as a configuration error. Add
+`-Dspring-boot.run.profiles=dev` for SQL and bind-value logging; do not enable it where real user
+data flows.
+
+Liquibase runs during Spring startup and **does not retry a refused connection**, so the database
+must be reachable before the application starts.
+
+## Gotchas
+
+- Do not define a `@Primary JsonMapper` bean. Jackson 3 is in use (`tools.jackson`), and the
+  advice classes build their own mappers; overriding the context mapper has broken write endpoints
+  before while slice tests stayed green.
+- Lombok is pinned **ahead** of the Spring Boot parent for JDK 25 support, and Jacoco ahead for
+  Java 25 class files. Both pins carry comments in `pom.xml`. Do not "tidy" them.
+- `RecipeService.addRecipeRating` throws `UnsupportedOperationException`, and a recipe write
+  carrying `recipeRatings` is rejected with `RECIPE_RATING_NOT_SUPPORTED` (70). Ratings are
+  readable but not writable, by decision - see `docs/future_enhancements.md`.
+- `CategoryJpaRepository.findAllByNameContains` is tested but unreachable: no service exposes it.
+  Same for the `@UUID` validator.

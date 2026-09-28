@@ -1,0 +1,36 @@
+# The only .gitignore in this repository. Patterns without a leading "/" match at any depth, so
+# they cover backend/ and frontend/ alike.
+
+# Build output
+target/
+.apt_generated/
+generated/
+
+# Compiled and packaged files
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Logs and JVM crash dumps
+*.log
+hs_err_pid*
+
+# IntelliJ
+*.iml
+.idea/
+
+# Eclipse
+.classpath
+.factorypath
+.metadata
+.project
+.settings
+.tern-project
+
+# Local developer overrides (credentials) - never commit
+application-local.properties
+.env

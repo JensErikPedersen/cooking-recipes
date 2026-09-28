@@ -1,0 +1,523 @@
+# Implementation plan
+
+Read `CLAUDE.md` first for the requirements, technical decisions and work process.
+
+Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
+completes, and record what was actually done underneath the part when it differs from the plan.
+
+## Shape of the work
+
+Parts 0-4 build the stack and the way in. From Part 5 onwards the work is sliced **vertically**:
+one entity is taken all the way from the database through the API to the UI and its Playwright
+coverage before the next one starts. The first slice is the expensive one because it establishes the patterns;
+the ones after it are replication.
+
+Auth lands in Part 4, **before** the first slice. This reverses an earlier decision, and the
+reason is a hard technical constraint rather than a preference: `created_by` is NOT NULL on all
+nine tables and on `BaseEntity` itself, and the only thing that populates it is
+`BaseEntityListener` reading the request-scoped `Session` bean - which nothing in the codebase
+ever writes to. Until sign in fills that bean in, **every INSERT through the API fails**. A CRUD
+slice built before auth could not create a single row, so it could not pass its own success
+criteria.
+
+| Part | Delivers | Entity |
+|---|---|---|
+| 0 | Version check, report only | - |
+| 1 | This plan, `backend/CLAUDE.md` | - |
+| 2 | Docker stack, Next.js scaffold, scripts | - |
+| 3 | Backend in the stack, schema, seed data | - |
+| 4 | Sign in and sign out | - |
+| 5 | First vertical slice | Category |
+| 6 | Replication slices | Unit, Tag, Ingredient |
+| 7 | Composite slice | Recipe |
+| 8 | Welcome page and full e2e sweep | - |
+
+---
+
+## Part 0: Verify software and versions
+
+Mostly check and report. The one thing actually decided here is the MySQL image tag, because
+Part 3 cannot write a compose file without it. Do not upgrade anything that already works, and do
+not touch the Java application's own versions at all - Spring Boot 4.1.1 and Java 25 were upgraded
+recently and are out of scope, as are the Lombok and Jacoco pins, which carry comments in
+`pom.xml` explaining why they sit where they do.
+
+- [ ] Report installed versions: Docker and Docker Compose, Node and npm, Java, Maven wrapper, MySQL client if present
+- [ ] Report the latest stable versions to target for the new components only: Next.js, React,
+      Tailwind CSS, Playwright
+
+**MySQL, which is the one real version decision in this part.**
+
+- [ ] Report the local server's version and, for the application accounts, which authentication
+      plugin they use: `SELECT user, host, plugin FROM mysql.user WHERE user LIKE 'recipes%';`
+- [ ] Choose the `mysql` image tag. **Prefer the LTS line over an innovation release** - innovation
+      releases are superseded every few months and are not what a database should sit on. Verify
+      what the current LTS actually is against the official tags rather than assuming; at the time
+      this plan was written that was 8.4, but confirm it
+- [ ] Record the authentication-plugin consequence, because it decides whether the existing
+      scripts still work. `mysql_native_password` is disabled by default from 8.4 and removed in
+      9.x, and `backend/scripts/mysql_users.sql` and `mysql_reset_users.sql` both say
+      `IDENTIFIED WITH mysql_native_password`. On a current image those scripts fail outright.
+      The fix is plain `IDENTIFIED BY`, which yields `caching_sha2_password` - the default, and
+      fully supported by mysql-connector-j. Fix the scripts here or record that Part 3's init
+      script supersedes them
+- [ ] Note what the upgrade does **not** involve: no data migration and no in-place server
+      upgrade. The container starts from an empty volume and Liquibase builds the schema, so the
+      version choice is just a tag. The laptop's own MySQL is a separate instance and Part 3 does
+      not touch it
+- [ ] Confirm `./mvnw clean verify` passes, as the pre-change baseline. Note it needs no database:
+      the suite runs on in-memory H2 in MySQL mode. That makes the baseline cheap, but it also
+      means a green build says nothing about whether MySQL is reachable - Part 3 is the first
+      thing that proves that
+
+**Success criteria.** A single report, ending in a chosen `mysql` tag with a reason. The only
+file that may change in `backend/` is the pair of account scripts, and only if the plugin change
+above applies.
+
+**Verify it yourself.** Nothing is built in this part, so the check is that nothing changed:
+`git status` shows no modified files under `backend/`. Spot-check two numbers in the report against
+your own machine, for example `docker --version` and `node --version`, so the report is confirmed
+rather than trusted.
+
+---
+
+## Part 1: Plan
+
+- [x] Agree the technical decisions and record them in `CLAUDE.md`
+- [x] Rename `AGENTS.md` to `CLAUDE.md`
+- [x] Write this plan
+- [x] Record the future multi-user schema extension in `backend/docs/future_enhancements.md`
+- [x] Write `backend/CLAUDE.md` describing the existing backend: package layout, the DTO and mapper
+      convention, the `ServiceException` plus `@ControllerAdvice` error envelope, the `Session`
+      bean and `BaseEntityListener` audit path, the Liquibase layout, and how to build and run
+- [x] User reviews and approves before any implementation starts
+
+Done beyond the plan: `backend/.gitignore` deleted in favour of a single root `.gitignore`. The
+backend copy had regained the `scripts/` rule that `f2bb1ed` removed, and two of its rules only
+worked because they were anchored to `backend/`. History rewritten to remove
+`backend/docs/mvn_cmd.md`, which held a database password, from the root commit; the GitHub repo
+was deleted and is recreated from the rewritten history.
+
+**Success criteria.** The user has accepted the plan. `backend/CLAUDE.md` describes code that
+actually exists, with no aspirational content.
+
+**Verify it yourself.** Read `CLAUDE.md` and this plan and confirm they say what you meant. Then
+pick two claims from `backend/CLAUDE.md` at random and check them against the code - for example,
+that the package layout listed really matches `backend/src/main/java/dk/serik/recipes/`, and that
+the error envelope it describes matches `ApplicationExceptionHandler`. If a claim is aspirational
+rather than true, say so; that is the failure mode worth catching here.
+
+---
+
+## Part 2: Scaffolding
+
+Infrastructure and a hello-world frontend. No backend and no database in this part - the point is
+to prove the container topology and the scripts before anything real depends on them.
+
+- [ ] `frontend/` scaffolded with `create-next-app`: TypeScript, App Router, Tailwind, ESLint
+- [ ] A placeholder page at `/` and a placeholder API route the page calls, so the hello-world
+      proves both a render and a fetch
+- [ ] `frontend/Dockerfile`, multi-stage, producing a Next.js standalone build
+- [ ] `docker-compose.yml` with the `frontend` service only for now, plus a named network
+- [x] `.env.example` committed, documenting every variable; `.env` gitignored. Pulled forward
+      during Part 1 while the credential decisions were fresh. It is the plan of record, not yet
+      proven: each part that consumes a variable confirms it is actually read, and anything
+      unreferenced by the end of Part 4 should be deleted from it
+- [ ] Extend the root `.gitignore` - the only one in the repository, already covering `target/`,
+      `.env` and the IDE files - with the frontend entries `node_modules/` and `.next/`. Fold in
+      whatever else the `.gitignore` written by `create-next-app` needs, then delete that file
+- [ ] `scripts/start.sh`, `scripts/stop.sh`, `scripts/start.ps1`, `scripts/stop.ps1` - thin
+      wrappers over `docker compose up -d --build` and `docker compose down`
+- [ ] Playwright installed and configured at `e2e/` in the repo root - not inside `frontend/`,
+      since it tests the whole stack rather than one service. `baseURL` from
+      `PLAYWRIGHT_BASE_URL`, defaulting to the Docker stack's `http://localhost:3000`
+- [ ] `frontend/CLAUDE.md` recording the frontend conventions as they are established
+- [ ] Minimal root `README.md`: prerequisites, copy `.env.example`, run the start script, the URL
+
+**Tests.** A Playwright smoke spec that loads `/` and asserts the placeholder content and the
+fetched value both render.
+
+**Success criteria.** From a clean checkout, the two documented commands - copy `.env.example`,
+run the start script - bring up a page at `http://localhost:3000`. The stop script leaves nothing running. The start script works
+on Windows PowerShell and on a POSIX shell.
+
+**Verify it yourself.**
+
+```powershell
+copy .env.example .env      # then fill in the values
+.\scripts\start.ps1
+```
+
+- `http://localhost:3000` renders the placeholder page, and the value it fetched is visible on it
+- `docker compose ps` lists the frontend service as running
+- `.\scripts\stop.ps1`, then `docker ps` lists nothing from this project
+
+The point of this part is the topology, not the page. If the page renders but the stop script
+leaves a container behind, the part is not done.
+
+---
+
+## Part 3: Backend and database in the stack
+
+- [ ] `spring-boot-starter-actuator` added to `pom.xml`, exposing `/actuator/health` only. It
+      earns its place here: a backend container that reports healthy only once Liquibase has
+      finished is worth more than the dependency costs, and Part 4 needs an open health endpoint
+      to exclude from authentication
+- [ ] `backend/Dockerfile`, multi-stage, Maven build then a JRE runtime image
+- [ ] `mysql` and `backend` services added to `docker-compose.yml`
+- [ ] MySQL healthcheck, and `backend` set to `depends_on: condition: service_healthy` - Liquibase
+      runs during Spring startup and does not retry a refused connection, so "container started"
+      is not sufficient
+- [ ] Backend healthcheck on `/actuator/health`, with `frontend` depending on it the same way.
+      "The JVM started" is not the same as "Liquibase finished and the API answers"
+- [ ] A single application database account created by the MySQL entrypoint from `.env`. Liquibase
+      runs as that account. A separate DDL account is deliberately not introduced for the MVP; it
+      is recorded as a future enhancement instead
+- [ ] `docker-compose.override.yml` for local development: publishes the backend and MySQL ports
+      to the host, and switches the backend to the `dev` profile
+- [ ] MySQL host port defaults to something other than 3306, since a local MySQL is usually
+      already bound there and the clash fails the whole stack
+- [ ] Seed data, in two halves. The lookup half already exists and is proven: the test suite loads
+      `src/test/resources/db/changelog/db.dml-base-data.xml` - 28 consistent inserts covering
+      category, ingredient, rating, tag and unit - on every run. Promote it to a main-source
+      changeset rather than rewriting it, and keep exactly one copy so the tests and the running
+      application cannot drift apart
+- [ ] The recipe half is the part that needs work. `backend/scripts/db.data-snapshot-2023-08-07.xml`
+      holds the same 28 lookup rows plus 33 more - 7 recipes, 12 `recipe_ingredient`, 10
+      `recipe_rating`, 4 `recipe_tag` - and is not wired into Liquibase. Those 33 are almost
+      certainly where the known inconsistency lives, since they are the half nothing has ever
+      loaded. Validate just them against the DDL - foreign key targets, missing parents, column
+      drift - and **report what is actually wrong before changing anything**
+- [ ] Cross-check against the second known-good source before repairing by hand:
+      `src/test/resources/db/test-data/insert_recipes.sql` and its siblings
+      (`insert_recipe_ingredients.sql`, `insert_recipe_tags.sql`, `insert_recipe_ratings.sql`) are
+      loaded per-test with `@Sql` and do work. Where the snapshot and the SQL fixtures disagree,
+      the fixtures are the ones with a passing test behind them
+- [ ] Drop the `recipe_rating` rows from the seed. Ratings are out of scope for this MVP and have
+      no controller, so seeding 10 rows nothing can read or write is dead data
+- [ ] Result: one `db.changelog_1.1.xml` included from the master changelog, carrying the lookup
+      rows plus repaired recipes, `recipe_ingredient` and `recipe_tag`. If the recipe half turns
+      out to be unsalvageable, ship the lookup half alone and hand-write two or three recipes -
+      and say so rather than quietly shipping empty tables
+- [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
+      ever talks to the Next.js origin
+- [ ] `backend/README.md` brought in line with the stack: drop the `recipesadmin` first-startup
+      instruction and the manual account scripts, both superseded by the single account the MySQL
+      entrypoint creates, and remove the link to the non-existent `docs/upgrade_to_java25.md`.
+      Kept minimal - the root `README.md` covers running the stack
+
+**Tests.** `./mvnw clean verify` passes. Watch for one specific breakage: `db.changelog-master-test.xml`
+includes the production master changelog **and then** `db.dml-base-data.xml`. Once the lookup rows
+move into a main-source changeset, that test changelog loads them twice and every test run dies on
+a duplicate primary key. Fix it by removing the second include, not by duplicating the data under a
+different id.
+
+Note also that tests run on in-memory H2 in MySQL mode, so a green suite does not prove the seed
+loads against real MySQL. Only the stack check below proves that.
+
+Against the running stack: `GET /api/v1/categories` returns 200 with a JSON array, through the
+frontend origin and directly against the backend port. A Playwright spec asserts the proxied call
+returns seeded rows.
+
+**Success criteria - this is the Docker definition of done.** From a clean checkout with an empty
+Docker volume, one start script produces a working stack: schema created by Liquibase, seed data
+present, API reachable through the proxy. Running the start script a second time preserves the
+data. `docker compose down -v` followed by a start rebuilds from empty without manual steps.
+
+**Verify it yourself.**
+
+```powershell
+docker compose down -v      # deliberately destroy the data volume
+.\scripts\start.ps1
+```
+
+- `docker compose ps` lists three services, with mysql marked healthy
+- `http://localhost:3000/api/v1/categories` in the browser returns a JSON array of seeded
+  categories - this proves the proxy, not just the backend
+- `Invoke-RestMethod http://localhost:8080/api/v1/categories` returns the same rows straight from
+  the backend, bypassing the proxy
+- the data survives a restart:
+
+```powershell
+.\scripts\stop.ps1
+.\scripts\start.ps1         # seeded rows are still there, not recreated
+```
+
+To look at the database directly at any point:
+
+```powershell
+docker compose exec mysql mysql -uroot -p"$env:MYSQL_ROOT_PASSWORD" recipes -e "select count(*) from category; select count(*) from recipe; select count(*) from recipe_ingredient;"
+```
+
+Seed data is the one thing worth checking in SQL here, because a half-loaded seed is invisible from
+the UI until Part 7. Expect four categories, and a non-zero recipe count with matching
+`recipe_ingredient` rows. Zero recipes with four categories means the lookup half loaded and the
+recipe half silently did not.
+
+---
+
+## Part 4: Sign in and sign out
+
+Ported from `my-recipes`, which already solved this. Read its `SecurityConfig`, `AuthController`,
+`SessionPopulatingFilter` and `AuthenticationIT` before writing anything - each carries comments
+recording a specific failure, and re-deriving them costs a day each.
+
+- [ ] `spring-boot-starter-security` added to `pom.xml`
+- [ ] `app_user` table as `db.changelog_1.2.xml`, after Part 3's seed changeset: id, username
+      unique, password hash, enabled, roles as a single comma-separated column, plus the standard
+      audit columns
+- [ ] `AppUser` entity, repository, and a `UserDetailsService` backed by it
+- [ ] `AdminBootstrap` creating the first account from environment-supplied credentials, and
+      **only while the table is empty**. No password hash is committed anywhere in this repository
+- [ ] `AuthController` with JSON login, logout and current-user endpoints
+- [ ] `SecurityConfig`: session cookie auth, `/api/v1/auth/login` and `/actuator/health` open
+      (the latter added in Part 3, and compose depends on it answering unauthenticated),
+      everything else authenticated, 401 and 403 returned as this application's own error envelope
+      rather than a redirect to a login page
+- [ ] CSRF stays ON, with `CookieCsrfTokenRepository.withHttpOnlyFalse()` and a `CsrfCookieFilter`
+      so the token cookie actually reaches the browser. Boot 4 / Security 7 extends CSRF to API
+      endpoints, and this app authenticates with a cookie the browser attaches automatically -
+      which is exactly the condition CSRF protection exists for. Do not disable it
+- [ ] `SessionPopulatingFilter`, registered after `AuthorizationFilter`, copying the authenticated
+      principal into the request-scoped `Session` bean. **This is the piece that makes any write
+      work at all.** It falls back to a non-null constant for unauthenticated paths, so no request
+      can ever put a null into the NOT NULL `created_by`
+- [ ] Login page and a route guard. The logout button goes in a minimal header created here -
+      the full app shell with navigation is Part 5, which expands this one rather than replacing
+      it
+
+**Tests.** An `AuthenticationIT` against the real application context with `@SpringBootTest` plus
+`@AutoConfigureMockMvc` - **not** a `@WebMvcTest` slice. The existing slice tests run with
+`addFilters = false` and stub `Session` with `@MockitoBean`, which is precisely why the null
+`created_by` bug is invisible to them today. Cover: anonymous request rejected with 401; CSRF
+cookie issued to an anonymous caller; bad credentials rejected without revealing whether the user
+exists; login succeeds and the session survives into the next request; current-user endpoint
+reports the logged-in user; a write without a CSRF token rejected; and the one that matters -
+**POST a category with a logged-in session and assert `createdBy` is the authenticated username**.
+Admin credentials come in as `@SpringBootTest(properties = ...)`, so `AdminBootstrap` is covered
+as a side effect.
+
+Playwright on top: unauthenticated lands on login, wrong credentials show an error, correct
+credentials enter, logout returns to login, back button does not re-enter. The login fixture is
+written here and every later slice builds on it.
+
+**Success criteria.** The app cannot be used without signing in, the API cannot be called without a
+session, and a row written through the API carries the authenticated username in `created_by` -
+asserted by a test, not by inspection.
+
+**Verify it yourself.**
+
+```powershell
+cd backend; .\mvnw verify -Dtest=AuthenticationIT -DfailIfNoTests=false
+```
+
+Green means the session bean, the filter chain, CSRF and the audit stamping all hold together. That
+is the honest check for this part - there are no entity pages yet, so there is nothing useful to
+click. What is worth reading rather than running is the test source: confirm each test asserts
+something you actually care about, and that none of them stubs `Session`.
+
+Then, in the browser: the app redirects you to login, the right credentials get you in, and logout
+puts you back. Confirm the first account exists and its password is not in the repo:
+
+```powershell
+docker compose exec mysql mysql -uroot -p"$env:MYSQL_ROOT_PASSWORD" recipes -e "select username, enabled, roles from app_user;"
+git grep -i "bcrypt" -- . ":(exclude)*.md"     # expect no committed hash
+```
+
+---
+
+## Part 5: First vertical slice - Category
+
+Category is the simplest entity: an id and a unique name. It carries the patterns every later
+slice copies, so the review of this part matters more than its size suggests. It is also the first
+part in which a write can succeed, since Part 4 supplied the session that `created_by` requires.
+
+- [ ] App shell: header, navigation menu, page layout, Tailwind base styles
+- [ ] `/categories` list page, reading the live API
+- [ ] `/categories/[id]` read-only view with Edit and Delete buttons
+- [ ] `/categories/new` and `/categories/[id]/edit` sharing one form component with Save and Cancel
+- [ ] The edit form additionally displays created date and created by, populated by the session
+      wired up in Part 4
+- [ ] After a successful save, the read-only view is shown - **populated by a fresh GET, not from
+      the save response or a client cache.** This is a testability decision as much as a
+      correctness one: a read view that echoes its own input cannot detect a backend that silently
+      drops a field, and every later slice's e2e depends on this one being honest
+- [ ] Delete asks for confirmation using an in-page dialog, never `window.confirm`
+- [ ] Server-side validation errors from the API error envelope are surfaced on the form field
+- [ ] A typed API client module, and the error envelope shape declared once
+
+**Tests.** Playwright, asserting what a user sees rather than what the database holds - the
+database is the backend tests' business. Cover: list renders seeded categories; open one and see
+read mode; create one and land on its read view; **navigate away and back**, and the new category
+is still listed and still reads correctly; edit it, navigate away and back, the change survived;
+delete it and it is gone from the list; a duplicate name shows the server's error on the form
+field; an empty name shows the validation message.
+
+The audit fields are asserted here too - open the edit form of a category created during the test
+and confirm created by shows the logged-in user. That is the UI-level expression of the Part 4
+session wiring, so no SQL is needed to prove it.
+
+**Success criteria.** Every Category operation works against the real database through the full
+stack, proven by a re-fetch rather than by the view rendered immediately after the write. The
+form, list, read view, API client and error handling are reusable as-is by the next slice.
+
+**Verify it yourself.** Click the whole thing through at `http://localhost:3000/categories`. The
+rule throughout: what the screen shows straight after a save proves nothing, because it may be
+showing you your own input back. Navigate away and return, or reload, and then believe it.
+
+- create a category, land on its read view, reload - still there
+- edit it, leave the page, come back - the new name stuck
+- open its edit form - created by shows the user you logged in as
+- try to save a second category with the same name; the server's error appears on the form field,
+  not as a crash or a silent no-op
+- try to save an empty name; the validation message appears
+- delete it, and it is gone from the list
+
+No database queries in this part. If the UI and the database could disagree here, that is a backend
+bug, and it is the backend tests' job to catch it - not something to paper over by checking both.
+
+---
+
+## Part 6: Replication slices - Unit, Tag, Ingredient
+
+One reviewable increment per entity, in ascending order of difficulty. Each reuses Part 5's
+components. If a slice needs a new shared abstraction, that is a signal Part 5 was under-designed -
+say so rather than working around it.
+
+- [ ] Unit: full CRUD, in list, read, create, edit, delete
+- [ ] Tag: full CRUD. Note tag names are deliberately not unique, unlike the others
+- [ ] Ingredient: full CRUD, including its description field
+
+**Tests.** The Category Playwright suite replicated per entity, adjusted for each entity's fields
+and for Tag's non-unique names, and keeping the navigate-away-and-back assertion rather than
+trusting the post-save view.
+
+**Success criteria.** Three entities working end to end. Any duplication across the four slices is
+either justified or factored out before Part 7.
+
+**Verify it yourself.** Run the same click-through as Part 5 against `/units`, `/tags` and
+`/ingredients`: create, leave and return, edit, leave and return, delete. Two things specific to
+this part:
+
+- Tag names are deliberately not unique - create two tags with the same name and confirm both save.
+  If the app rejects the second, the Category pattern was copied too literally
+- Ingredient has a description field as well as a name; confirm it round-trips
+
+Also worth a look: skim the diff for the three slices. If they are near-identical copies of the
+Category pages, that is the signal to factor something out before Recipe makes it worse.
+
+---
+
+## Part 7: Composite slice - Recipe
+
+The only genuinely hard slice: a Recipe has a Category, many Tags, and many Ingredients that each
+carry a Unit and a quantity.
+
+**The coverage gap this part must close first.** Recipe writes are currently tested at every layer
+against a mock of the layer beneath: `RecipeControllerTest` is a `@WebMvcTest` with the service
+mocked, `RecipeServiceTest` mocks the repositories, and `RecipeJpaRepositoryIT` skips the
+controller and service entirely. Nothing exercises controller to service to repository to database
+for a write, which is precisely the seam where a DTO's ingredients and tags get assembled into
+`recipe_ingredient` and `recipe_tag` rows. That failure mode is silent: every layer's test passes,
+the POST returns 200, and the relations are gone. `my-recipes` shipped exactly that bug with tags.
+Write `RecipeIT` before building any UI on top.
+
+- [ ] `RecipeIT` - `@SpringBootTest` against a real database, not a slice. POST a recipe with a
+      category, two tags and three ingredients; GET it back; assert every relation survived with
+      the right amount and unit. Then PUT to change the category, drop a tag and alter an
+      ingredient, and GET again. Then DELETE, and assert the `recipe_ingredient` and `recipe_tag`
+      rows went with it rather than being orphaned
+- [ ] Confirm from `RecipeIT` - not by reading the code - whether tags are writable through the
+      existing API. If they are silently discarded, that is a backend fix inside this part, not a
+      workaround in the frontend
+- [ ] Recipe list and read view, showing category, tags, and each ingredient with its quantity and
+      unit in a readable layout
+- [ ] Recipe form: category as a dropdown of existing categories, tags as a multi-select of
+      existing tags
+- [ ] Ingredient rows on the form: add a row, pick an ingredient from a dropdown, enter a quantity,
+      pick a unit from a dropdown, remove a row
+- [ ] Wire to the recipe ingredient sub-resource endpoints that already exist on `RecipeController`
+- [ ] Ratings are explicitly not built. The API returns `recipeRatings` on read and rejects them on
+      write with `RECIPE_RATING_NOT_SUPPORTED`; ensure the frontend never sends them
+
+**Tests.** Three layers, each owning what only it can see.
+
+1. **`RecipeIT`** carries relation integrity, as above. This is the load-bearing test of the part.
+2. **Playwright** covers the user's path: fill the form with a category, two tags and three
+   ingredients, save, land on the read-only view - then **navigate away and come back** and assert
+   every relation still renders. Edit to change the category, remove a tag, change one
+   ingredient's quantity and unit, and remove an ingredient; navigate away and back; assert. Then
+   delete. The navigate-away step is what makes this test worth having: read the page straight
+   after the save and it may just be echoing the form's own state, which would stay green over a
+   backend that dropped every tag.
+3. **One `page.route()` assertion** that the POST body carries no `recipeRatings`. A round-trip
+   cannot distinguish "the frontend did not send it" from "it was sent and ignored", so this is
+   the one request-shape assertion that earns its place. It does not justify adding Vitest - keep
+   it in Playwright.
+
+**Success criteria.** `RecipeIT` proves the relations persist; Playwright proves a user can produce
+and edit them through the UI and see them again on a fresh page load. Neither test inspects the
+database from the UI layer.
+
+**Verify it yourself.** Create a recipe with a category, two tags, and three ingredients that each
+have a quantity and a unit. Leave the page - go to the recipe list, or reload - then open it again.
+Every relation should still be there. Then edit it: change the category, remove one tag, change one
+ingredient's quantity and unit, remove another ingredient. Leave and return again.
+
+Then delete the recipe, and confirm the ingredients and tags it referenced still exist on their own
+pages - deleting a recipe must not take its ingredients with it.
+
+```powershell
+cd backend; .\mvnw verify -Dtest=RecipeIT -DfailIfNoTests=false
+```
+
+Read that test's source as well as its result. It is the only thing standing between a green build
+and silently discarded relations, so it is worth confirming it asserts on data fetched back from
+the API rather than on the object it just posted.
+
+---
+
+## Part 8: Welcome page and full sweep
+
+- [ ] Welcome page with a hardcoded short description of the application
+- [ ] Navigation menu linking all five entity types, with the signed-in user and logout visible
+- [ ] Empty states, loading states and a not-found page
+- [ ] Responsive check at phone width
+- [ ] Full Playwright suite runs green against a freshly built stack from an empty volume
+- [ ] `README.md` final pass, minimal
+- [ ] `backend/docs/future_enhancements.md` updated with anything deferred during Parts 2-7
+
+**Success criteria.** `docker compose down -v`, then the start script, then the full Playwright
+suite passes with no manual intervention.
+
+**Verify it yourself.** The full cold start, exactly as a new machine would do it:
+
+```powershell
+docker compose down -v
+.\scripts\start.ps1
+npx playwright test
+```
+
+Everything green, no manual step in between. Then read `README.md` and follow it literally, doing
+only what it says - if it is missing a step, you will find out here rather than in six months.
+
+---
+
+## Reference implementation
+
+`C:\projects\my-recipes` is an earlier, substantially complete attempt at this same application.
+It is a reference to borrow from. It was abandoned over process, not code: it was built too fast to
+verify step by step. Consult it for solved problems, do not copy its pace.
+
+Specifically worth consulting: the three-container compose topology, `.env.example`, the whole
+Spring Security setup ported wholesale in Part 4, the `next.config.ts` rewrites, and its repaired
+seed changeset - a third opinion on the recipe rows, alongside this repo's own broken snapshot and
+its working `@Sql` fixtures.
+
+Consulting it does not shorten the review of any part. A borrowed solution still has to be
+explained and accepted like any other.
+
+## Resolved
+
+- Reference implementation: `my-recipes` is an earlier attempt, approved for use as reference.
+- The multi-user schema note lives in `backend/docs/future_enhancements.md` in this repo.
