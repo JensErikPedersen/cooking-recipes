@@ -9,8 +9,12 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 
 - `app/` at the project root, no `src/`. Imports use the `@/*` alias.
 - Styling is Tailwind utility classes; `app/globals.css` holds the theme variables.
-- `/api` belongs to the backend: from Part 3 this server proxies it. Route handlers of this app
-  live outside `/api`, like the placeholder `app/hello/route.ts`.
+- `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
+  Route handlers of this app live outside `/api`, like the placeholder `app/hello/route.ts`.
+- The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
+  writes the URL into `.next/routes-manifest.json`. So `BACKEND_URL` is a Docker build argument,
+  derived by Compose from `APPLICATION_PORT`; setting it on the running container does nothing.
+  `npm run dev` falls back to `http://localhost:8080`, the backend the stack publishes.
 - The browser only ever talks to this origin, never to the backend directly. There is no CORS.
 - Data fetching: the placeholder uses a plain `fetch` in a client component. The pattern for real
   pages is decided in Part 5 and recorded here.

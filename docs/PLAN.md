@@ -354,7 +354,7 @@ ERROR lines in the backend log.
 
 ### 3b: The `/api` proxy
 
-- [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
+- [x] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
       ever talks to the Next.js origin
 
 **Tests.** A Playwright spec asserts `GET /api/v1/categories` through the frontend origin returns
@@ -363,6 +363,20 @@ ERROR lines in the backend log.
 **Verify it yourself.** `http://localhost:3000/api/v1/categories` in the browser returns the same
 JSON as `http://localhost:8080/api/v1/categories`. The first proves the proxy, the second the
 backend on its own.
+
+**Done.** Deviations and findings:
+
+- `next.config.ts` rewrites `/api/:path*` to `${BACKEND_URL}/api/:path*`. The destination is fixed
+  at build time, as `my-recipes` recorded: proven here by the built image's
+  `.next/routes-manifest.json` holding `http://backend:8080`, while `BACKEND_URL` is not set in the
+  running container at all. So Compose passes it as a build argument, and `npm run dev` on the host
+  falls back to `http://localhost:8080` - verified against the stack's published backend
+- `BACKEND_URL` is not in `.env`: `docker-compose.yml` derives it as `http://backend:${APPLICATION_PORT}`,
+  so it cannot drift from the port the backend listens on
+- A second spec asserts an unknown `/api` path gets the backend's JSON 404 (`errorCode` 10), not a
+  Next.js page - proving all of `/api` goes to the backend
+- Verified: 3 Playwright tests green. With only the backend stopped, both proxy specs fail - the
+  frontend answers 500 after about 8s - so they genuinely depend on the backend
 
 ### 3c: Seed data
 

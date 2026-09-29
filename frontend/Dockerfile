@@ -12,6 +12,9 @@ WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
+# A build argument, not a runtime variable: next.config.ts is evaluated by `next build`, and the
+# rewrite destination is fixed in the build output.
+ARG BACKEND_URL
 RUN npm run build
 
 # The standalone output carries its own minimal node_modules and server.js. Static assets are not

@@ -60,7 +60,7 @@ Frontend, from `frontend/` (Node 22). There are no frontend unit tests; Playwrig
 
 ```bash
 npm install
-npm run dev                       # dev server on :3000 - the stack's frontend uses the same port
+npm run dev                       # :3000, /api to localhost:8080 - stop the stack's frontend first
 npm run lint
 npm run build                     # the standalone build the Docker image runs
 ```

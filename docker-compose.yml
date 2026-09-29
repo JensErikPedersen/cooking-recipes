@@ -45,7 +45,11 @@ services:
       - recipes
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Derived, so it cannot drift from the port the backend actually listens on.
+        BACKEND_URL: http://backend:${APPLICATION_PORT:?APPLICATION_PORT is not set - copy .env.example to .env}
     ports:
       - "${FRONTEND_PORT:?FRONTEND_PORT is not set - copy .env.example to .env}:3000"
     depends_on:
