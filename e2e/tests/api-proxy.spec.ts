@@ -2,11 +2,12 @@ import { expect, test } from "@playwright/test";
 
 // The browser only ever talks to the frontend origin; /api is forwarded to the backend.
 
-test("the API is reachable through the frontend origin", async ({ request }) => {
+test("the API is reachable through the frontend origin and returns the seeded categories", async ({ request }) => {
   const response = await request.get("/api/v1/categories");
 
   expect(response.status()).toBe(200);
-  expect(Array.isArray(await response.json())).toBe(true);
+  const names = (await response.json()).map((category: { name: string }) => category.name);
+  expect(names).toEqual(expect.arrayContaining(["Brød", "Dessert", "Hovedret", "Kager"]));
 });
 
 test("an unknown API path is answered by the backend, not by Next.js", async ({ request }) => {

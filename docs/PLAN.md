@@ -380,26 +380,26 @@ backend on its own.
 
 ### 3c: Seed data
 
-- [ ] Seed data, in two halves. The lookup half already exists and is proven: the test suite loads
+- [x] Seed data, in two halves. The lookup half already exists and is proven: the test suite loads
       `src/test/resources/db/changelog/db.dml-base-data.xml` - 28 consistent inserts covering
       category, ingredient, rating, tag and unit - on every run. Promote it to a main-source
       changeset rather than rewriting it, and keep exactly one copy so the tests and the running
       application cannot drift apart
-- [ ] The recipe half is the part that needs work. `backend/scripts/db.data-snapshot-2023-08-07.xml`
+- [x] The recipe half is the part that needs work. `backend/scripts/db.data-snapshot-2023-08-07.xml`
       holds the same 28 lookup rows plus 33 more - 7 recipes, 12 `recipe_ingredient`, 10
       `recipe_rating`, 4 `recipe_tag` - and is not wired into Liquibase. Those 33 are almost
       certainly where the known inconsistency lives, since they are the half nothing has ever
       loaded. Validate just them against the DDL - foreign key targets, missing parents, column
       drift - and **report what is actually wrong before changing anything**. This is a stop
       point: the repair approach is agreed before any data changes
-- [ ] Cross-check against the second known-good source before repairing by hand:
+- [x] Cross-check against the second known-good source before repairing by hand:
       `src/test/resources/db/test-data/insert_recipes.sql` and its siblings
       (`insert_recipe_ingredients.sql`, `insert_recipe_tags.sql`, `insert_recipe_ratings.sql`) are
       loaded per-test with `@Sql` and do work. Where the snapshot and the SQL fixtures disagree,
       the fixtures are the ones with a passing test behind them
-- [ ] Drop the `recipe_rating` rows from the seed. Ratings are out of scope for this MVP and have
+- [x] Drop the `recipe_rating` rows from the seed. Ratings are out of scope for this MVP and have
       no controller, so seeding 10 rows nothing can read or write is dead data
-- [ ] Result: one `db.changelog_1.1.xml` included from the master changelog, carrying the lookup
+- [x] Result: one `db.changelog_1.1.xml` included from the master changelog, carrying the lookup
       rows plus repaired recipes, `recipe_ingredient` and `recipe_tag`. If the recipe half turns
       out to be unsalvageable, ship the lookup half alone and hand-write two or three recipes -
       and say so rather than quietly shipping empty tables
@@ -447,6 +447,35 @@ Seed data is the one thing worth checking in SQL here, because a half-loaded see
 the UI until Part 7. Expect four categories, and a non-zero recipe count with matching
 `recipe_ingredient` rows. Zero recipes with four categories means the lookup half loaded and the
 recipe half silently did not.
+
+**Done.** Deviations and findings:
+
+- **The report, before any change.** The snapshot has one defect: Liquibase exported it in
+  alphabetical table order, so `recipe_ingredient` precedes `unit` and `recipe_tag` precedes `tag`.
+  Proven on MySQL 9.7 in a scratch copy of the schema: loaded as-is, all 12 `recipe_ingredient` rows
+  fail `FK_recipe_ingredient_unit` and all 4 `recipe_tag` rows fail `FK_recipe_tag_tag`; reordered,
+  all 51 rows load. No missing parents, no column drift. Its lookup half is identical to
+  `db.dml-base-data.xml`, and its recipe half matches the `@Sql` fixtures on every business column -
+  they differ only in audit metadata. Content is thin but valid: 2 of 7 recipes have ingredients and
+  the instructions are one-line stubs. Kept as-is, by decision, metadata included
+- **Found: the plan's approach would have broken ~25 tests.** They load the same 7 recipes with
+  `@Sql`, and the test suite runs the production changelog, so seeding recipes there collides on the
+  primary key. Agreed fix (option A): the recipe changeSets carry `contextFilter="!test"`, and the
+  test properties set `spring.liquibase.contexts=test`. Proven load-bearing: with the context
+  switched off, all 13 tests in `RecipeJpaRepositoryIT` error on a duplicate primary key
+- `db.dml-base-data.xml` moved with `git mv` to `db.changelog_1.1.xml`, changeSet ids unchanged,
+  followed by the snapshot's changeSets -4, -5 and -7, byte-identical apart from the filter. -6,
+  `recipe_rating`, is left out
+- `db.changelog-master-test.xml` deleted rather than trimmed: without its second include it only
+  wrapped the production master, so the test properties now point at that directly
+- `my-recipes` has no seed data; the "Reference implementation" section below is corrected
+- Verified: `./mvnw clean verify` green, 235 unit and 63 integration tests; each test context runs 28
+  changeSets and filters out 3. From an empty volume the stack runs all 31 and holds 4 categories,
+  7 recipes, 12 `recipe_ingredient` and 4 `recipe_tag` rows; a recipe reads back through the proxy
+  with its category, tag and every ingredient with amount and unit. A restart runs 0 changeSets and
+  keeps the rows. The proxy spec now asserts the four seeded categories; 3 Playwright tests green
+- Heads-up for Part 7: `my-recipes` had to make `recipe_tag.created_by` nullable because Hibernate's
+  `@ManyToMany` insert has no value for it, so every tag write was a 500. `RecipeIT` should confirm
 
 ---
 
@@ -704,9 +733,9 @@ It is a reference to borrow from. It was abandoned over process, not code: it wa
 verify step by step. Consult it for solved problems, do not copy its pace.
 
 Specifically worth consulting: the three-container compose topology, `.env.example`, the whole
-Spring Security setup ported wholesale in Part 4, the `next.config.ts` rewrites, and its repaired
-seed changeset - a third opinion on the recipe rows, alongside this repo's own broken snapshot and
-its working `@Sql` fixtures.
+Spring Security setup ported wholesale in Part 4, and the `next.config.ts` rewrites. It has no seed
+data: checked in 3c, its `db.changelog_1.1.xml` creates `app_user` and relaxes
+`recipe_tag.created_by`, and nothing else - an earlier note here calling it a repaired seed was wrong.
 
 Consulting it does not shorten the review of any part. A borrowed solution still has to be
 explained and accepted like any other.

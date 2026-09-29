@@ -85,14 +85,16 @@ consequence is that anything unhandled looks identical to the client - see
 with it, not just the report.
 
 **Everything runs on in-memory H2 in MySQL mode**, not MySQL. `src/test/resources/application.properties`
-points Liquibase at `db.changelog-master-test.xml`, which includes the production changelog and
-then `db.dml-base-data.xml`. Consequences worth knowing:
+points Liquibase at the production master changelog, with `spring.liquibase.contexts=test`.
+Consequences worth knowing:
 
 - H2 is not MySQL. Collation, unique-index behaviour on utf8 and error messages all differ.
-- `db.dml-base-data.xml` (28 inserts) seeds the lookup tables only - category, ingredient, rating,
-  tag, unit. It is consistent and working, unlike `scripts/db.data-snapshot-2023-08-07.xml`.
-- Recipe rows are loaded per test with `@Sql("/db/test-data/insert_recipes.sql")` and siblings,
-  not through Liquibase.
+- `db.changelog_1.1.xml` is the seed. Its 28 lookup rows - category, ingredient, rating, tag,
+  unit - load in tests and in the application alike, from this one copy.
+- Its recipe, `recipe_ingredient` and `recipe_tag` changeSets carry `contextFilter="!test"`. Tests
+  load those same recipes per test with `@Sql("/db/test-data/insert_recipes.sql")` and siblings
+  instead; without the filter every such test dies on a duplicate primary key. With no context set,
+  as in the running application, they load.
 
 Test layers, and what each one mocks:
 
