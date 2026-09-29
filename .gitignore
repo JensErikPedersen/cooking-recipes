@@ -21,6 +21,10 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
+# Playwright output
+playwright-report/
+test-results/
+
 # Logs and JVM crash dumps
 *.log
 hs_err_pid*

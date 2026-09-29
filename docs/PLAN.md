@@ -226,10 +226,10 @@ leaves a container behind, the step is not done.
 
 ### 2c: Playwright
 
-- [ ] Playwright installed and configured at `e2e/` in the repo root - not inside `frontend/`,
+- [x] Playwright installed and configured at `e2e/` in the repo root - not inside `frontend/`,
       since it tests the whole stack rather than one service. `baseURL` from
       `PLAYWRIGHT_BASE_URL`, defaulting to the Docker stack's `http://localhost:3000`
-- [ ] `frontend/CLAUDE.md` recording the frontend conventions established in 2a and 2b
+- [x] `frontend/CLAUDE.md` recording the frontend conventions established in 2a and 2b
 
 **Tests.** A Playwright smoke spec that loads `/` and asserts the placeholder content and the
 fetched value both render.
@@ -237,6 +237,22 @@ fetched value both render.
 **Verify it yourself.** With the stack up, `npx playwright test` from `e2e/` is green. Then stop
 the stack and run it again: it must fail, which proves it tests the stack rather than passing
 regardless.
+
+**Done.** Deviations and findings:
+
+- `e2e/` is its own npm package: `@playwright/test` 1.63.0 and `@types/node` 22, matching the host
+  Node. `npm test` runs `playwright test`
+- Chromium only for now. Firefox and WebKit are one line each in `playwright.config.ts` if wanted
+- The config never starts the stack itself - it tests whatever is running, which is the point.
+  Traces are kept for failed tests; the HTML report is written but not opened automatically.
+  `playwright-report/` and `test-results/` are gitignored
+- The smoke spec asserts the heading by role and the fetched message by its text. The server HTML
+  says `Loading...` (proven in 2a), so the second assertion can only pass after the browser fetch
+- Verified: green against the running stack; with the stack stopped it fails on
+  `net::ERR_CONNECTION_REFUSED`
+- `frontend/CLAUDE.md` keeps its generated `@AGENTS.md` import. `next dev` only refreshes the
+  block inside `AGENTS.md` and leaves `CLAUDE.md` alone - checked in
+  `next/dist/server/lib/generate-agent-files.js`, so the conventions added below the import survive
 
 ---
 
