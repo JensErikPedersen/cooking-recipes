@@ -141,32 +141,56 @@ rather than true, say so; that is the failure mode worth catching here.
 Infrastructure and a hello-world frontend. No backend and no database in this part - the point is
 to prove the container topology and the scripts before anything real depends on them.
 
-- [ ] `frontend/` scaffolded with `create-next-app`: TypeScript, App Router, Tailwind, ESLint
-- [ ] A placeholder page at `/` and a placeholder API route the page calls, so the hello-world
-      proves both a render and a fetch
-- [ ] `frontend/Dockerfile`, multi-stage, producing a Next.js standalone build
-- [ ] `docker-compose.yml` with the `frontend` service only for now, plus a named network
+Split into three steps, each committed and accepted on its own, so that a failure points at one
+layer: the app, the container, or the test harness.
+
 - [x] `.env.example` committed, documenting every variable; `.env` gitignored. Pulled forward
       during Part 1 while the credential decisions were fresh. It is the plan of record, not yet
       proven: each part that consumes a variable confirms it is actually read, and anything
       unreferenced by the end of Part 4 should be deleted from it
-- [ ] Extend the root `.gitignore` - the only one in the repository, already covering `target/`,
+
+### 2a: Next.js app on the host
+
+- [x] `frontend/` scaffolded with `create-next-app`: TypeScript, App Router, Tailwind, ESLint
+- [x] A placeholder page at `/` and a placeholder route handler the page calls from the browser,
+      so the hello-world proves both a render and a fetch. The route lives outside `/api`, which
+      Part 3 hands to the backend in its entirety
+- [x] Extend the root `.gitignore` - the only one in the repository, already covering `target/`,
       `.env` and the IDE files - with the frontend entries `node_modules/` and `.next/`. Fold in
       whatever else the `.gitignore` written by `create-next-app` needs, then delete that file
+
+**Verify it yourself.** From `frontend/`: `npm run dev`, then `http://localhost:3000` shows the
+placeholder page and the value it fetched. `npm run lint` and `npm run build` pass.
+
+**Done.** `create-next-app@16.3.6` with its defaults: no `src/` directory, `@/*` import alias,
+Turbopack, no React Compiler. Deviations and findings:
+
+- React raised from the scaffold's 19.2.8 to the latest 19.3.0; Next.js accepts any 19.x
+- ESLint stays on 9 despite npm flagging it unsupported: the plugins inside `eslint-config-next`
+  (`eslint-plugin-react`, `jsx-a11y`, `import`) do not accept ESLint 10 even at their latest
+- TypeScript is the scaffold's 5.9.3, as decided in Part 0
+- The placeholder is `app/hello/route.ts` returning a fixed JSON message, fetched by `app/page.tsx`
+  in the browser. Both are replaced when the real pages arrive
+- Removed: the scaffold's `README.md`, its `.gitignore` (merged into the root file, except `.env*`,
+  which would have ignored `.env.example`), and the five demo SVGs in `public/`, which left it empty
+- Kept: the generated `AGENTS.md` and a `CLAUDE.md` that imports it. They point agents at the
+  Next.js docs bundled in `node_modules/next/dist/docs/`, and `next dev` re-creates the block
+  anyway. 2c adds the frontend conventions to that `CLAUDE.md`
+- Proven, not assumed: served HTML shows `Loading...`, and the DOM after JavaScript runs (headless
+  Edge) shows the fetched message. `/hello` builds as dynamic, so the value is fetched at request
+  time rather than frozen at build time
+
+### 2b: The frontend in Docker
+
+- [ ] `frontend/Dockerfile`, multi-stage, producing a Next.js standalone build
+- [ ] `docker-compose.yml` with the `frontend` service only for now, plus a named network
 - [ ] `scripts/start.sh`, `scripts/stop.sh`, `scripts/start.ps1`, `scripts/stop.ps1` - thin
       wrappers over `docker compose up -d --build` and `docker compose down`
-- [ ] Playwright installed and configured at `e2e/` in the repo root - not inside `frontend/`,
-      since it tests the whole stack rather than one service. `baseURL` from
-      `PLAYWRIGHT_BASE_URL`, defaulting to the Docker stack's `http://localhost:3000`
-- [ ] `frontend/CLAUDE.md` recording the frontend conventions as they are established
 - [ ] Minimal root `README.md`: prerequisites, copy `.env.example`, run the start script, the URL
 
-**Tests.** A Playwright smoke spec that loads `/` and asserts the placeholder content and the
-fetched value both render.
-
 **Success criteria.** From a clean checkout, the two documented commands - copy `.env.example`,
-run the start script - bring up a page at `http://localhost:3000`. The stop script leaves nothing running. The start script works
-on Windows PowerShell and on a POSIX shell.
+run the start script - bring up a page at `http://localhost:3000`. The stop script leaves nothing
+running. The start script works on Windows PowerShell and on a POSIX shell.
 
 **Verify it yourself.**
 
@@ -179,8 +203,22 @@ copy .env.example .env      # then fill in the values
 - `docker compose ps` lists the frontend service as running
 - `.\scripts\stop.ps1`, then `docker ps` lists nothing from this project
 
-The point of this part is the topology, not the page. If the page renders but the stop script
-leaves a container behind, the part is not done.
+The point of this step is the topology, not the page. If the page renders but the stop script
+leaves a container behind, the step is not done.
+
+### 2c: Playwright
+
+- [ ] Playwright installed and configured at `e2e/` in the repo root - not inside `frontend/`,
+      since it tests the whole stack rather than one service. `baseURL` from
+      `PLAYWRIGHT_BASE_URL`, defaulting to the Docker stack's `http://localhost:3000`
+- [ ] `frontend/CLAUDE.md` recording the frontend conventions established in 2a and 2b
+
+**Tests.** A Playwright smoke spec that loads `/` and asserts the placeholder content and the
+fetched value both render.
+
+**Verify it yourself.** With the stack up, `npx playwright test` from `e2e/` is green. Then stop
+the stack and run it again: it must fail, which proves it tests the stack rather than passing
+regardless.
 
 ---
 

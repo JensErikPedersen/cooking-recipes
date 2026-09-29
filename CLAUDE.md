@@ -24,7 +24,7 @@ For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-Only the backend commands work today. The stack, scripts, frontend and e2e arrive in Parts 2-3 of
+The backend and frontend commands work today. The stack, scripts and e2e arrive in Parts 2-3 of
 `docs/PLAN.md`; each part confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:

@@ -15,6 +15,12 @@ generated/
 *.tar.gz
 *.rar
 
+# Next.js - dependencies, build output, generated types
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
 # Logs and JVM crash dumps
 *.log
 hs_err_pid*
