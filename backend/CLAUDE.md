@@ -108,8 +108,11 @@ slice tests can pass while real serialization is broken - the same class of gap.
 
 ## Build and run
 
+Normally in the Docker stack. On the host, against the stack's MySQL on port 3307 - stop the stack's
+backend first, since both use 8080:
+
 ```powershell
-$env:DB_USERNAME="recipesuser"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
 ```
 
 `DB_PASSWORD` has no default. Spring does not error on an unresolved placeholder - it passes the
@@ -120,6 +123,17 @@ data flows.
 
 Liquibase runs during Spring startup and **does not retry a refused connection**, so the database
 must be reachable before the application starts.
+
+## Docker
+
+- `Dockerfile` builds with the official `maven:3.9.11-eclipse-temurin-25` image rather than
+  `./mvnw`: the wrapper jar is gitignored, so a clean checkout does not have it. Keep the Maven
+  version in step with `.mvn/wrapper/maven-wrapper.properties`.
+- `lombok.config` must be in the build context. Without it `@Jacksonized` emits Jackson 2
+  annotations and every write DTO fails to deserialise at runtime, with a green build.
+- The runtime image installs `curl` solely for the Compose healthcheck on `/actuator/health`, the
+  only actuator endpoint exposed. It answers only once Liquibase has finished.
+- The container runs as the unprivileged `recipes` user.
 
 ## Gotchas
 

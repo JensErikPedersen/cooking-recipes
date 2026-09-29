@@ -1,11 +1,61 @@
-# Values come from .env next to this file, which Compose reads automatically.
+# Values come from .env next to this file, which Compose reads automatically. Local development
+# also loads docker-compose.override.yml on top of this file, automatically.
 services:
+  mysql:
+    image: mysql:9.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is not set - copy .env.example to .env}
+      # The entrypoint creates this database and this account, with all privileges on it, only
+      # while the volume is empty. Liquibase and the application both connect as this account.
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set - copy .env.example to .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # TCP via 127.0.0.1, not the socket: during first-run initialisation the entrypoint runs a
+      # temporary server with networking off, which would answer a socket ping too early.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -u root --silent"]
+      interval: 5s
+      start_period: 60s
+      start_interval: 2s
+    networks:
+      - recipes
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APPLICATION_PORT: ${APPLICATION_PORT}
+    depends_on:
+      # Liquibase runs during Spring startup and does not retry a refused connection.
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      # Answers only after Liquibase has finished and the application context is up.
+      test: ["CMD", "curl", "-fsS", "http://localhost:${APPLICATION_PORT}/actuator/health"]
+      interval: 5s
+      start_period: 90s
+      start_interval: 2s
+    networks:
+      - recipes
+
   frontend:
     build: ./frontend
     ports:
       - "${FRONTEND_PORT:?FRONTEND_PORT is not set - copy .env.example to .env}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - recipes
+
+volumes:
+  mysql-data:
 
 networks:
   recipes:

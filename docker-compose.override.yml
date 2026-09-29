@@ -1,0 +1,14 @@
+# Local development, loaded automatically on top of docker-compose.yml.
+services:
+  mysql:
+    # For a GUI client or a host-side ./mvnw spring-boot:run. DB_HOST_PORT is not 3306, where a
+    # local MySQL usually already listens; inside the network MySQL stays on 3306.
+    ports:
+      - "${DB_HOST_PORT}:3306"
+
+  backend:
+    ports:
+      - "${APPLICATION_PORT}:${APPLICATION_PORT}"
+    # SQL and bind-value logging. Bind values put user data in the log - development only.
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

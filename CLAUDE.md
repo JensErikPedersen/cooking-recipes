@@ -24,8 +24,7 @@ For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-All commands below work today, but the stack holds only the frontend until Part 3 of
-`docs/PLAN.md`. Each part confirms its commands here as it lands.
+All commands below work today. Each part of `docs/PLAN.md` confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 

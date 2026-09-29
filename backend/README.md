@@ -4,16 +4,22 @@ A RESTful recipe application — Spring Boot 4.1.1 on Java 25, MySQL, Liquibase-
 
 ## Running it
 
-Credentials are **not** in the repository. `DB_PASSWORD` has no default, so set it before starting:
+Normally as part of the Docker stack - see the root `README.md`. On first start the `mysql`
+container creates the database and its one account from `.env`, and Liquibase builds the schema
+when the application starts. There is no manual database setup.
+
+To run the backend on the host instead, against the stack's MySQL, stop the stack's backend first
+(`docker compose stop backend`) - both use port 8080. Spring Boot does not read `.env`, so set the
+variables yourself:
 
 ```bash
 # Bash
-DB_USERNAME=recipesuser DB_PASSWORD=... ./mvnw spring-boot:run
+DB_PORT=3307 DB_PASSWORD=... ./mvnw spring-boot:run
 ```
 
 ```powershell
 # PowerShell
-$env:DB_USERNAME="recipesuser"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
 ```
 
 Without `DB_PASSWORD` the application fails at startup with `Access denied for user 'recipesuser'`.
@@ -27,23 +33,6 @@ Without `DB_PASSWORD` the application fails at startup with `Access denied for u
 
 Add `-Dspring-boot.run.profiles=dev` for SQL statement and bind-value logging. Do not enable it in
 production: bind-value logging writes user data to the log.
-
-### First-time database setup
-
-```bash
-mysql -u root -p < scripts/mysql_users.sql   # edit the password placeholders first
-```
-
-That script starts with `DROP DATABASE`, so it is for a first install only. To create or repair the
-accounts on a database that already has data, use the non-destructive variant:
-
-```bash
-mysql -u root -p < scripts/mysql_reset_users.sql
-```
-
-Liquibase owns the schema and applies it at startup — there is no manual DDL step. It runs as the
-configured datasource user, so the **first** startup needs `DB_USERNAME=recipesadmin`, which holds
-the DDL grants; `recipesuser` has DML only and is the right account once the schema exists.
 
 ## Building and testing
 
@@ -95,4 +84,3 @@ them is rejected with `400`, and there are no rating endpoints. See
 | [CLAUDE.md](CLAUDE.md) | Architecture, conventions and the traps worth knowing before changing code |
 | [docs/code-review.md](docs/code-review.md) | Full code review, findings and what has been resolved |
 | [docs/future_enhancements.md](docs/future_enhancements.md) | Deliberately deferred work, with scope notes |
-| [docs/upgrade_to_java25.md](docs/upgrade_to_java25.md) | Staged plan for moving to Java 25 and Spring Boot 4.1 |

@@ -258,24 +258,95 @@ regardless.
 
 ## Part 3: Backend and database in the stack
 
-- [ ] `spring-boot-starter-actuator` added to `pom.xml`, exposing `/actuator/health` only. It
+Split into three steps, each committed and accepted on its own: the containers and schema, then
+the proxy, then the seed data.
+
+### 3a: MySQL and backend in the stack
+
+- [x] `spring-boot-starter-actuator` added to `pom.xml`, exposing `/actuator/health` only. It
       earns its place here: a backend container that reports healthy only once Liquibase has
       finished is worth more than the dependency costs, and Part 4 needs an open health endpoint
       to exclude from authentication
-- [ ] `backend/Dockerfile`, multi-stage, Maven build then a JRE runtime image
-- [ ] `mysql` and `backend` services added to `docker-compose.yml`
-- [ ] MySQL healthcheck, and `backend` set to `depends_on: condition: service_healthy` - Liquibase
+- [x] `backend/Dockerfile`, multi-stage, Maven build then a JRE runtime image
+- [x] `mysql` and `backend` services added to `docker-compose.yml`
+- [x] MySQL healthcheck, and `backend` set to `depends_on: condition: service_healthy` - Liquibase
       runs during Spring startup and does not retry a refused connection, so "container started"
       is not sufficient
-- [ ] Backend healthcheck on `/actuator/health`, with `frontend` depending on it the same way.
+- [x] Backend healthcheck on `/actuator/health`, with `frontend` depending on it the same way.
       "The JVM started" is not the same as "Liquibase finished and the API answers"
-- [ ] A single application database account created by the MySQL entrypoint from `.env`. Liquibase
+- [x] Start scripts use `up --wait`, so they return once every service is healthy rather than
+      merely started - closing the race found in 2b
+- [x] A single application database account created by the MySQL entrypoint from `.env`. Liquibase
       runs as that account. A separate DDL account is deliberately not introduced for the MVP; it
       is recorded as a future enhancement instead
-- [ ] `docker-compose.override.yml` for local development: publishes the backend and MySQL ports
+- [x] `docker-compose.override.yml` for local development: publishes the backend and MySQL ports
       to the host, and switches the backend to the `dev` profile
-- [ ] MySQL host port defaults to something other than 3306, since a local MySQL is usually
+- [x] MySQL host port defaults to something other than 3306, since a local MySQL is usually
       already bound there and the clash fails the whole stack
+- [x] Delete `backend/scripts/mysql_users.sql` and `mysql_reset_users.sql`. They use
+      `mysql_native_password`, which 9.7 no longer has, and the MySQL entrypoint now creates the
+      account (Part 0)
+- [x] `backend/README.md` brought in line with the stack: drop the `recipesadmin` first-startup
+      instruction and the manual account scripts, both superseded by the single account the MySQL
+      entrypoint creates, and remove the link to the non-existent `docs/upgrade_to_java25.md`.
+      Kept minimal - the root `README.md` covers running the stack
+
+**Tests.** `./mvnw clean verify` still passes. The existing Playwright smoke test stays green,
+now behind a frontend that waits for the backend.
+
+**Verify it yourself.**
+
+```powershell
+docker compose down -v      # deliberately destroy the data volume
+.\scripts\start.ps1         # returns only once all three services are healthy
+docker compose ps           # three services, mysql and backend marked healthy
+Invoke-RestMethod http://localhost:8080/api/v1/categories      # empty: schema, no seed yet
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -e "show tables"'
+```
+
+The last command lists the nine application tables plus Liquibase's two, proving Liquibase ran
+against real MySQL - the first time anything has.
+
+**Done.** Deviations and findings:
+
+- `backend/Dockerfile` builds with `maven:3.9.11-eclipse-temurin-25`, matching the wrapper, rather
+  than `./mvnw` - the wrapper jar is gitignored, so a clean checkout lacks it. Runtime is
+  `eclipse-temurin:25-jre` plus `curl` for the healthcheck, as the unprivileged `recipes` user. The
+  fat jar runs as is; the layered extraction `my-recipes` used is an optimisation left out
+- MySQL healthcheck pings over TCP (`-h 127.0.0.1`), so the temporary server the entrypoint runs
+  during first-run initialisation, with networking off, cannot report healthy early. It uses
+  `CMD-SHELL` so the password is actually expanded: `my-recipes` used exec form, where
+  `$MYSQL_ROOT_PASSWORD` stays literal and the check only passed because `mysqladmin ping` returns
+  success even on access denied
+- `start_interval: 2s` polls fast while a service starts, then settles to every 5s
+- Server default collation kept: `utf8mb4` / `utf8mb4_0900_ai_ci`. The old account script created
+  the schema as `utf8mb4_unicode_ci`; nothing in the changelog depends on either
+- Verified from an empty volume: all three services up in 1m45 including image builds, mysql and
+  backend healthy, backend connected first time (0 restarts, no connection errors), Liquibase ran
+  all 23 changesets, `GET :8080/api/v1/categories` returns `[]`, the account uses
+  `caching_sha2_password`. Stop and start keeps the volume and runs 0 changesets; a warm start takes
+  16s. The Playwright smoke test passes straight after a start, so the 2b race is closed
+- Verified the host-side run documented in `backend/README.md`: `./mvnw spring-boot:run` with
+  `DB_PORT=3307` against the stack's MySQL, with the stack's backend stopped
+- Found, pre-existing and not fixed here: **every unknown URL returns 500**, not 404. Spring raises
+  `NoResourceFoundException` for a path nothing handles, and `ApplicationExceptionHandler`'s
+  catch-all turns it into a 500 and an ERROR log line with a stack trace. Seen on
+  `/actuator/info`, `/api/v1/nope` and `/nothing-here`
+
+### 3b: The `/api` proxy
+
+- [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
+      ever talks to the Next.js origin
+
+**Tests.** A Playwright spec asserts `GET /api/v1/categories` through the frontend origin returns
+200 with a JSON array. 3c tightens it to seeded rows.
+
+**Verify it yourself.** `http://localhost:3000/api/v1/categories` in the browser returns the same
+JSON as `http://localhost:8080/api/v1/categories`. The first proves the proxy, the second the
+backend on its own.
+
+### 3c: Seed data
+
 - [ ] Seed data, in two halves. The lookup half already exists and is proven: the test suite loads
       `src/test/resources/db/changelog/db.dml-base-data.xml` - 28 consistent inserts covering
       category, ingredient, rating, tag and unit - on every run. Promote it to a main-source
@@ -286,7 +357,8 @@ regardless.
       `recipe_rating`, 4 `recipe_tag` - and is not wired into Liquibase. Those 33 are almost
       certainly where the known inconsistency lives, since they are the half nothing has ever
       loaded. Validate just them against the DDL - foreign key targets, missing parents, column
-      drift - and **report what is actually wrong before changing anything**
+      drift - and **report what is actually wrong before changing anything**. This is a stop
+      point: the repair approach is agreed before any data changes
 - [ ] Cross-check against the second known-good source before repairing by hand:
       `src/test/resources/db/test-data/insert_recipes.sql` and its siblings
       (`insert_recipe_ingredients.sql`, `insert_recipe_tags.sql`, `insert_recipe_ratings.sql`) are
@@ -298,15 +370,6 @@ regardless.
       rows plus repaired recipes, `recipe_ingredient` and `recipe_tag`. If the recipe half turns
       out to be unsalvageable, ship the lookup half alone and hand-write two or three recipes -
       and say so rather than quietly shipping empty tables
-- [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only
-      ever talks to the Next.js origin
-- [ ] Delete `backend/scripts/mysql_users.sql` and `mysql_reset_users.sql`. They use
-      `mysql_native_password`, which 9.7 no longer has, and the MySQL entrypoint now creates the
-      account (Part 0)
-- [ ] `backend/README.md` brought in line with the stack: drop the `recipesadmin` first-startup
-      instruction and the manual account scripts, both superseded by the single account the MySQL
-      entrypoint creates, and remove the link to the non-existent `docs/upgrade_to_java25.md`.
-      Kept minimal - the root `README.md` covers running the stack
 
 **Tests.** `./mvnw clean verify` passes. Watch for one specific breakage: `db.changelog-master-test.xml`
 includes the production master changelog **and then** `db.dml-base-data.xml`. Once the lookup rows
@@ -317,14 +380,13 @@ different id.
 Note also that tests run on in-memory H2 in MySQL mode, so a green suite does not prove the seed
 loads against real MySQL. Only the stack check below proves that.
 
-Against the running stack: `GET /api/v1/categories` returns 200 with a JSON array, through the
-frontend origin and directly against the backend port. A Playwright spec asserts the proxied call
-returns seeded rows.
+The 3b Playwright spec is tightened to assert the proxied call returns seeded rows.
 
-**Success criteria - this is the Docker definition of done.** From a clean checkout with an empty
-Docker volume, one start script produces a working stack: schema created by Liquibase, seed data
-present, API reachable through the proxy. Running the start script a second time preserves the
-data. `docker compose down -v` followed by a start rebuilds from empty without manual steps.
+**Success criteria - this is the Docker definition of done for Part 3.** From a clean checkout
+with an empty Docker volume, one start script produces a working stack: schema created by
+Liquibase, seed data present, API reachable through the proxy. Running the start script a second
+time preserves the data. `docker compose down -v` followed by a start rebuilds from empty without
+manual steps.
 
 **Verify it yourself.**
 
@@ -333,11 +395,8 @@ docker compose down -v      # deliberately destroy the data volume
 .\scripts\start.ps1
 ```
 
-- `docker compose ps` lists three services, with mysql marked healthy
 - `http://localhost:3000/api/v1/categories` in the browser returns a JSON array of seeded
-  categories - this proves the proxy, not just the backend
-- `Invoke-RestMethod http://localhost:8080/api/v1/categories` returns the same rows straight from
-  the backend, bypassing the proxy
+  categories
 - the data survives a restart:
 
 ```powershell
@@ -348,7 +407,7 @@ docker compose down -v      # deliberately destroy the data volume
 To look at the database directly at any point:
 
 ```powershell
-docker compose exec mysql mysql -uroot -p"$env:MYSQL_ROOT_PASSWORD" recipes -e "select count(*) from category; select count(*) from recipe; select count(*) from recipe_ingredient;"
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -e "select count(*) from category; select count(*) from recipe; select count(*) from recipe_ingredient;"'
 ```
 
 Seed data is the one thing worth checking in SQL here, because a half-loaded seed is invisible from
