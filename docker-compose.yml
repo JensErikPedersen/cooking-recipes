@@ -1,0 +1,11 @@
+# Values come from .env next to this file, which Compose reads automatically.
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:?FRONTEND_PORT is not set - copy .env.example to .env}:3000"
+    networks:
+      - recipes
+
+networks:
+  recipes:

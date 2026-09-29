@@ -182,11 +182,11 @@ Turbopack, no React Compiler. Deviations and findings:
 
 ### 2b: The frontend in Docker
 
-- [ ] `frontend/Dockerfile`, multi-stage, producing a Next.js standalone build
-- [ ] `docker-compose.yml` with the `frontend` service only for now, plus a named network
-- [ ] `scripts/start.sh`, `scripts/stop.sh`, `scripts/start.ps1`, `scripts/stop.ps1` - thin
+- [x] `frontend/Dockerfile`, multi-stage, producing a Next.js standalone build
+- [x] `docker-compose.yml` with the `frontend` service only for now, plus a named network
+- [x] `scripts/start.sh`, `scripts/stop.sh`, `scripts/start.ps1`, `scripts/stop.ps1` - thin
       wrappers over `docker compose up -d --build` and `docker compose down`
-- [ ] Minimal root `README.md`: prerequisites, copy `.env.example`, run the start script, the URL
+- [x] Minimal root `README.md`: prerequisites, copy `.env.example`, run the start script, the URL
 
 **Success criteria.** From a clean checkout, the two documented commands - copy `.env.example`,
 run the start script - bring up a page at `http://localhost:3000`. The stop script leaves nothing
@@ -205,6 +205,24 @@ copy .env.example .env      # then fill in the values
 
 The point of this step is the topology, not the page. If the page renders but the stop script
 leaves a container behind, the step is not done.
+
+**Done.** Deviations and findings:
+
+- Image based on `node:24-slim`, following the official Next.js `with-docker` example reduced to
+  npm. Node 24 is the current LTS; the host stays on Node 22 for `npm run dev`, which Next.js 16
+  accepts equally. The server runs as the unprivileged `node` user; the image is 287 MB
+- `next.config.ts` sets `output: "standalone"`. `frontend/.dockerignore` keeps the host's
+  `node_modules` out of the build context - it holds Windows binaries
+- `docker-compose.yml` requires `FRONTEND_PORT` with `:?`, so starting without `.env` fails at
+  once with "copy .env.example to .env" instead of a confusing port error
+- The scripts use `--project-directory` rather than `-f`, so they work from any directory and
+  Compose still picks up `docker-compose.override.yml` automatically once Part 3 adds it
+- `.gitattributes` keeps `*.sh` at LF, and both `.sh` scripts are committed executable
+- Verified: all four scripts, each run from a different directory; page, `/hello` and CSS served
+  from the container; each stop leaves no container or network behind
+- Found: the start script returns when the container starts, about a second before the server
+  answers. Harmless by hand, but a Playwright run straight after a start can race it. Part 3's
+  healthchecks plus `up --wait` close it
 
 ### 2c: Playwright
 
