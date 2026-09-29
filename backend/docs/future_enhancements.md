@@ -24,6 +24,12 @@ Since Spring Framework 6.1 (Spring Boot 3.2+), Spring MVC applies built-in metho
 
 **Why it was left.** Controllers currently omit `@UUID` on path variables, so the gap is not reachable. Malformed ids are already rejected with a proper 400 by `ServiceArguments.toUuid` in the service layer (see resolved finding M8), and `CategoryControllerTest.shouldReturn400ForMalformedId` proves it end to end. Adding the annotation without first adding the handler would have turned a working 400 into a 500.
 
+**Update 2026-09-29.** No longer a 500: `HandlerMethodValidationException` implements
+`ErrorResponse` (via `ResponseStatusException`), and the catch-all now passes an `ErrorResponse`'s
+own status through. It would be a 400 - but with only Spring's generic detail, no
+`validationExceptions[]`. The dedicated handler below is still what gives it the same shape as the
+other two validation handlers.
+
 **What it would take.**
 
 1. Add a handler to `ApplicationExceptionHandler`:

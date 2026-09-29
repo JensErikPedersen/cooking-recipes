@@ -3,6 +3,7 @@ package dk.serik.recipes.exceptions;
 public enum ApplicationErrorCodes {
 
     UNHANDLED_EXCEPTION(0),
+    REQUEST_REJECTED(10),
     VALIDATION_EXCEPTION(20),
     ID_IS_NULL(30),
     RECIPE_NOT_FOUND(50),

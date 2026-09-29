@@ -333,6 +333,25 @@ against real MySQL - the first time anything has.
   catch-all turns it into a 500 and an ERROR log line with a stack trace. Seen on
   `/actuator/info`, `/api/v1/nope` and `/nothing-here`
 
+### 3a.1: Correct status for rejected requests
+
+Added after 3a found every unknown URL returning 500.
+
+- [x] Root cause: `ApplicationExceptionHandler`'s catch-all on `Exception` also caught Spring
+      MVC's own rejections, which already carry their status. `FrameworkErrorStatusTest`, written
+      first, proved four cases all returned 500: unknown path (404), wrong method (405), wrong
+      media type (415) and malformed JSON (400)
+- [x] Fix at that level, not per status: the catch-all first checks for `ErrorResponse`, the
+      interface those exceptions share, and returns its status with Spring's client-safe detail
+      under the new code `REQUEST_REJECTED` (10). Malformed JSON is not an `ErrorResponse`, so
+      `HttpMessageNotReadableException` gets its own 400 handler with a fixed message
+- [x] Side effect, recorded in `future_enhancements.md`: `HandlerMethodValidationException` is an
+      `ErrorResponse` too, so that known case would now be a 400 instead of a 500
+
+**Verified.** `./mvnw clean verify` green, 235 unit and 63 integration tests. Against the stack:
+`/api/v1/nope` 404, `DELETE /api/v1/categories` 405, malformed JSON 400, all in the envelope, and no
+ERROR lines in the backend log.
+
 ### 3b: The `/api` proxy
 
 - [ ] `frontend` proxies `/api/*` to the backend via `next.config.ts` rewrites, so the browser only

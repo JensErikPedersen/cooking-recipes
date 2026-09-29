@@ -62,19 +62,21 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 `validationExceptions[]`. Codes are in `ApplicationErrorCodes`, grouped by domain in hundreds
 (recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s).
 
-Three handlers, and only three:
-
 | Exception | Result |
 |---|---|
 | `ServiceException` | its own `httpStatus` + envelope |
 | `ConstraintViolationException` | 400 + `validationExceptions[]` |
 | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
+| Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
+| `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
 | anything else | 500, message replaced by a random reference id that is logged server-side |
 
-That last one is deliberate: raw exception text carries SQL, table and constraint names. The
+The `ErrorResponse` branch sits inside the catch-all, which checks for it first: without it every
+unknown URL was a 500 with an ERROR stack trace in the log. `FrameworkErrorStatusTest` covers it.
+
+The 500 is deliberate: raw exception text carries SQL, table and constraint names. The
 consequence is that anything unhandled looks identical to the client - see
-`docs/future_enhancements.md` for the two known cases (duplicate name should be 409,
-`HandlerMethodValidationException` from path variables would be 500).
+`docs/future_enhancements.md` for the known case (duplicate name should be 409).
 
 ## Tests
 
