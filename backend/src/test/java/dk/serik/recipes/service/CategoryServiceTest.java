@@ -8,6 +8,7 @@ import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mockutil.MockCategoryUtil;
 import dk.serik.recipes.model.Category;
 import dk.serik.recipes.repository.CategoryJpaRepository;
+import dk.serik.recipes.repository.RecipeJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ public class CategoryServiceTest {
 	
 	@Mock
 	private CategoryJpaRepository repository;
+
+	@Mock
+	private RecipeJpaRepository recipeRepository;
 
 	@Mock
 	private Session session;
@@ -237,6 +241,57 @@ public class CategoryServiceTest {
                 .hasMessageContaining("is not a valid UUID")
                 .extracting("code", "httpStatus")
                 .containsExactly(ApplicationErrorCodes.CATEGORY_ID_IS_NULL.getCode(), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("Given the name is taken, When saving a Category, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectSaveOfDuplicateName() {
+        when(repository.findByName("Dessert")).thenReturn(Optional.of(MockCategoryUtil.mockDessert()));
+
+        assertThatThrownBy(() -> service.save(MockCategoryUtil.mockToBeSavedDessertDTO()))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("A category named 'Dessert' already exists")
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given another Category has the name, When updating, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectUpdateToAnotherCategorysName() {
+        when(repository.findById(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8aa"))).thenReturn(Optional.of(MockCategoryUtil.mockDessert()));
+        when(repository.findByName("Dessert")).thenReturn(Optional.of(MockCategoryUtil.dessertToBeSaved()));  // same name, other id
+
+        assertThatThrownBy(() -> service.update(MockCategoryUtil.mockToBeUpdatedDessertDTO()))
+                .isInstanceOf(ServiceException.class)
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given the name belongs to the Category itself, When updating, Then it is saved")
+    public void shouldAllowUpdateKeepingItsOwnName() {
+        when(repository.findById(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8aa"))).thenReturn(Optional.of(MockCategoryUtil.mockDessert()));
+        when(repository.findByName("Dessert")).thenReturn(Optional.of(MockCategoryUtil.mockDessert()));
+        when(repository.save(any())).thenReturn(MockCategoryUtil.mockUpdatedDessert());
+
+        assertThat(service.update(MockCategoryUtil.mockToBeUpdatedDessertDTO())).isNotNull();
+        verify(repository).save(any());
+    }
+
+    @Test
+    @DisplayName("Given recipes use the Category, When deleting, Then a conflict naming the count is reported and nothing is deleted")
+    public void shouldRejectDeleteOfCategoryInUse() {
+        when(repository.findById(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8aa"))).thenReturn(Optional.of(MockCategoryUtil.mockDessert()));
+        when(recipeRepository.countByCategoryId(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8aa"))).thenReturn(2L);
+
+        assertThatThrownBy(() -> service.delete("913a5159-3717-4b9d-a290-0158d31ea8aa"))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("Category 'Dessert' is used by 2 recipes and cannot be deleted")
+                .extracting("code", "httpStatus")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_IN_USE.getCode(), HttpStatus.CONFLICT);
+        verify(repository, never()).delete(any());
     }
 
     @Test

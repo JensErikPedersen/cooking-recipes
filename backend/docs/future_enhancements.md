@@ -108,6 +108,12 @@ Three specific problems:
 
 ## A duplicate name returns 500 instead of 409
 
+**Update 2026-10-01.** Done for Category in Part 5a, as described below, plus a check that refuses
+to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`
+handler is in place for every entity, so a duplicate Unit or Ingredient name is already a 409 with
+the generic `DATA_CONFLICT` code. What remains is their service pre-checks, for a message that names
+the field; Part 6 adds them.
+
 **What is wrong.** `name` is declared `unique = true` on four entities - `Category`, `Ingredient`,
 `Recipe` and `Unit` - but no service checks for an existing name before saving. The unique
 constraint is therefore enforced only by the database, and the resulting

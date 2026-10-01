@@ -14,4 +14,6 @@ public interface RecipeJpaRepository extends JpaRepository<Recipe, UUID> {
 	
 	List<Recipe> findAllByNameContains(String name);
 
+	long countByCategoryId(UUID categoryId);
+
 }

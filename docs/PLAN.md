@@ -630,9 +630,72 @@ you in, and logout puts you back.
 
 ## Part 5: First vertical slice - Category
 
-Category is the simplest entity: an id and a unique name. It carries the patterns every later
+Category is the simplest entity: an id, a unique name and an optional description. It carries the patterns every later
 slice copies, so the review of this part matters more than its size suggests. It is also the first
 part in which a write can succeed, since Part 4 supplied the session that `created_by` requires.
+
+Split into four steps, each committed and accepted on its own:
+
+- **5a** - backend: a duplicate name and deleting a category in use answer 409, not 500
+- **5b** - navigation menu, the typed API client, the list and the read view
+- **5c** - the shared create/edit form, audit fields, field errors, a fresh GET after save
+- **5d** - Edit and Delete on the read view, delete through an in-page confirmation dialog
+
+### 5a: Conflicts answer 409
+
+The UI tests below need the server's error for a duplicate name, and the backend had none: no
+service checked, the unique index refused at commit, and the `DataIntegrityViolationException` fell
+through to the 500 handler (`backend/docs/future_enhancements.md`). Deleting a category a recipe
+uses hit the same path through `FK_recipe_category`, and every seeded category is in use.
+
+- [x] Category POST and PUT with a name another category has: 409, code
+      `CATEGORY_ALREADY_EXISTS` (104), reported on the `name` field in `validationExceptions`, the
+      shape a 400 already uses. A PUT keeping its own name still succeeds
+- [x] DELETE of a category recipes use: 409, code `CATEGORY_IN_USE` (105), "Category 'Brød' is
+      used by 3 recipes and cannot be deleted"
+- [x] Any other `DataIntegrityViolationException`: 409, code `DATA_CONFLICT` (40), generic message,
+      the raw text logged only. Covers Unit and Ingredient until Part 6 gives them their own checks
+
+**Tests.** `CategoryIT`, `@SpringBootTest` through MockMvc to H2, with no transaction around the
+test - one would postpone the commit, and with it the violation, past the asserted response. Unit
+tests for the service checks and for the handler.
+
+**Verify it yourself.**
+
+```powershell
+cd backend; .\mvnw test -Dtest=CategoryIT
+```
+
+Against the stack, signed in through the browser and then in its dev tools console:
+
+```js
+const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
+const post = (b) => fetch("/api/v1/categories", {method: "POST", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify(b)}).then(async r => [r.status, await r.json()]);
+await post({name: "Dessert"});    // 409, errorCode 104, validationExceptions on name
+await fetch("/api/v1/categories/14d4c0b0-46ea-498d-a3a5-56060a3d7a7c", {method: "DELETE", headers: {"X-XSRF-TOKEN": t}}).then(r => r.json());   // Brød: 409, used by 3 recipes
+```
+
+**Done.** Deviations and findings:
+
+- Proven before fixing: `CategoryIT` failed three tests with 500, each logged as an unhandled
+  `DataIntegrityViolationException` - two unique-index violations on `category.name`, one on
+  `FK_recipe_category`. With only the general handler added they became 409 with code 40, which
+  showed it catches the exception raised at commit; the service checks then made them 104 and 105
+- `ServiceException` gained an optional `field`; the handler reports it as a `validationExceptions`
+  entry, so the frontend handles a 400 and a 409 on a field the same way
+- `RecipeJpaRepository.countByCategoryId` feeds the in-use check
+- On MySQL, through the proxy: duplicate, a different-case duplicate (the collation is
+  case-insensitive, and the check and the index agree since both use it), rename to a seeded name,
+  keep own name, delete seeded Brød, delete an unused one - all as above. A duplicate Unit name is
+  409 with code 40. No unhandled exception in the log
+- `./mvnw clean verify` green: 242 unit, 81 integration
+- Known, not changed: `BaseDTO` writes dates as `yyyy-MM-dd HH:mm` without an offset (UTC in the
+  stack), and the DTOs cannot read that format back, as `backend/CLAUDE.md` records. The frontend
+  therefore sends only the editable fields, and 5c decides how to label the time zone
+- Found, not changed: `config/TestingConfiguration` is referenced by no test - a `@TestConfiguration`
+  is excluded from component scanning - so it is dead. Its constructor call was updated to compile
+
+### 5b-5d
 
 - [ ] App shell: header, navigation menu, page layout, Tailwind base styles
 - [ ] `/categories` list page, reading the live API
@@ -653,7 +716,8 @@ database is the backend tests' business. Cover: list renders seeded categories; 
 read mode; create one and land on its read view; **navigate away and back**, and the new category
 is still listed and still reads correctly; edit it, navigate away and back, the change survived;
 delete it and it is gone from the list; a duplicate name shows the server's error on the form
-field; an empty name shows the validation message.
+field; an empty name shows the validation message; deleting a category a recipe uses shows the
+server's reason and leaves it listed.
 
 The audit fields are asserted here too - open the edit form of a category created during the test
 and confirm created by shows the logged-in user. That is the UI-level expression of the Part 4

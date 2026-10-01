@@ -14,9 +14,11 @@ public class ServiceException extends RuntimeException implements Serializable {
     private int code;
     private String description;
     private HttpStatus httpStatus;
+    /** The request field at fault, if any. Reported as a validation error on that field. */
+    private String field;
 
     @Builder
-    public ServiceException(String message, int code, String description, HttpStatus httpStatus) {
+    public ServiceException(String message, int code, String description, HttpStatus httpStatus, String field) {
         super(message);
         this.message = message;
         this.code = code;
@@ -24,6 +26,7 @@ public class ServiceException extends RuntimeException implements Serializable {
         // never leave this null: ResponseEntity rejects a null status, which would turn
         // an intended 4xx into an opaque 500 in ApplicationExceptionHandler
         this.httpStatus = Objects.requireNonNullElse(httpStatus, HttpStatus.INTERNAL_SERVER_ERROR);
+        this.field = field;
     }
 
     /**
@@ -45,6 +48,7 @@ public class ServiceException extends RuntimeException implements Serializable {
                 ", code=" + code +
                 ", description='" + description + '\'' +
                 ", httpStatus=" + httpStatus +
+                ", field='" + field + '\'' +
                 '}';
     }
 }

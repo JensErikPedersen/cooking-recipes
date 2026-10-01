@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,10 @@ public class ApplicationExceptionHandler {
                 .description(ex.getDescription())
                 .errorCode(ex.getCode())
                 .build();
+        // Same shape as a Bean Validation failure, so a client shows both on the field the same way.
+        if (ex.getField() != null) {
+            exceptionEnvelope.addValidationException(new ValidationExceptionEnvelope(ex.getField(), ex.getMessage()));
+        }
         return new ResponseEntity<>(exceptionEnvelope, ex.getHttpStatus());
     }
 
@@ -66,6 +71,19 @@ public class ApplicationExceptionHandler {
     public ResponseEntity<ExceptionEnvelope> handleUnreadableBody(HttpMessageNotReadableException ex) {
         logger.info("Request rejected: {}", ex.getMessage());
         return rejected(HttpStatus.BAD_REQUEST, "The request body could not be read");
+    }
+
+    // A database constraint no service checks first, or a write that lost the race against one it
+    // does. Raised at commit, after the service has returned. The message names tables and
+    // constraints, so it is logged and not echoed.
+    @ExceptionHandler(value = { DataIntegrityViolationException.class })
+    @ResponseBody
+    public ResponseEntity<ExceptionEnvelope> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        logger.warn("Data integrity violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ExceptionEnvelope.builder()
+                .message("The change conflicts with existing data")
+                .errorCode(ApplicationErrorCodes.DATA_CONFLICT.getCode())
+                .build());
     }
 
     private ResponseEntity<ExceptionEnvelope> rejected(HttpStatusCode status, String message) {

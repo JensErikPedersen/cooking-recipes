@@ -7,6 +7,7 @@ import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mapper.CategoryMapper;
 import dk.serik.recipes.model.Category;
 import dk.serik.recipes.repository.CategoryJpaRepository;
+import dk.serik.recipes.repository.RecipeJpaRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
 	
 	private CategoryJpaRepository categoryJpaRepository;
+
+	private RecipeJpaRepository recipeJpaRepository;
 
 	private Session session;
 
@@ -71,6 +74,7 @@ public class CategoryServiceImpl implements CategoryService {
 		if(Objects.isNull(categoryDto)) {
 			throw ServiceException.badRequest(ApplicationErrorCodes.CATEGORY_DTO_IS_NULL, "CategoryDTO is null");
 		}
+		rejectDuplicateName(categoryDto.getName(), null);
 		Category entity = new Category();
 		entity.setDescription(categoryDto.getDescription());
 		entity.setName(categoryDto.getName());
@@ -83,10 +87,41 @@ public class CategoryServiceImpl implements CategoryService {
 	public boolean delete(String id) {
 		Optional<Category> toBeDeleted = categoryJpaRepository.findById(ServiceArguments.toUuid(id, ApplicationErrorCodes.CATEGORY_ID_IS_NULL, "Category"));
 		if(toBeDeleted.isPresent()) {
+			rejectDeleteInUse(toBeDeleted.get());
 			categoryJpaRepository.delete(toBeDeleted.get());
 			return true;
 		}
 		return false;
+	}
+
+	// The unique index on name rejects a duplicate anyway, but only at commit and without saying
+	// which field; checking first lets the error name it. ownId excludes the row being updated, so
+	// keeping its own name is not a collision.
+	private void rejectDuplicateName(String name, UUID ownId) {
+		categoryJpaRepository.findByName(name)
+				.filter(existing -> !existing.getId().equals(ownId))
+				.ifPresent(existing -> {
+					throw ServiceException.builder()
+							.message(String.format("A category named '%s' already exists", name))
+							.code(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode())
+							.httpStatus(HttpStatus.CONFLICT)
+							.field("name")
+							.build();
+				});
+	}
+
+	// recipe.category_id is a RESTRICT foreign key, so the database refuses this delete regardless;
+	// checking first gives a reason the user can act on.
+	private void rejectDeleteInUse(Category category) {
+		long recipes = recipeJpaRepository.countByCategoryId(category.getId());
+		if (recipes > 0) {
+			throw ServiceException.builder()
+					.message(String.format("Category '%s' is used by %d %s and cannot be deleted",
+							category.getName(), recipes, recipes == 1 ? "recipe" : "recipes"))
+					.code(ApplicationErrorCodes.CATEGORY_IN_USE.getCode())
+					.httpStatus(HttpStatus.CONFLICT)
+					.build();
+		}
 	}
 
 	@Override
@@ -97,6 +132,7 @@ public class CategoryServiceImpl implements CategoryService {
 		Optional<Category> optional = categoryJpaRepository.findById(ServiceArguments.toUuid(dto.getId(), ApplicationErrorCodes.CATEGORY_ID_IS_NULL, "Category"));
 		if(optional.isPresent()) {
 			Category managedCategory = optional.get();
+			rejectDuplicateName(dto.getName(), managedCategory.getId());
 			managedCategory.setName(dto.getName());
 			managedCategory.setDescription(dto.getDescription());
 			Category savedCategory = categoryJpaRepository.save(managedCategory);

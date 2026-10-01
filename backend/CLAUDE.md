@@ -78,19 +78,24 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 
 | Exception | Result |
 |---|---|
-| `ServiceException` | its own `httpStatus` + envelope |
+| `ServiceException` | its own `httpStatus` + envelope; its optional `field` becomes a `validationExceptions[]` entry |
 | `ConstraintViolationException` | 400 + `validationExceptions[]` |
 | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
 | Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
 | `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
+| `DataIntegrityViolationException` (a database constraint, raised at commit) | 409, code `DATA_CONFLICT` (40), generic message; the raw text is logged only |
 | anything else | 500, message replaced by a random reference id that is logged server-side |
 
 The `ErrorResponse` branch sits inside the catch-all, which checks for it first: without it every
 unknown URL was a 500 with an ERROR stack trace in the log. `FrameworkErrorStatusTest` covers it.
 
 The 500 is deliberate: raw exception text carries SQL, table and constraint names. The
-consequence is that anything unhandled looks identical to the client - see
-`docs/future_enhancements.md` for the known case (duplicate name should be 409).
+consequence is that anything unhandled looks identical to the client.
+
+A service that can say *why* a write conflicts checks before writing and throws a 409 of its own:
+`CategoryServiceImpl` rejects a duplicate name (104, on field `name`) and deleting a category
+recipes use (105). The database constraint behind each stays the backstop, caught by the
+`DataIntegrityViolationException` handler. Unit and Ingredient have only the backstop until Part 6.
 
 ## Tests
 
@@ -119,9 +124,11 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
+| `CategoryIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); category writes against the real constraints |
 
-**Only `AuthenticationIT` exercises controller to service to repository to database**, and only for
-a category write. Everything else is verified against a mock of the layer beneath it - which is how
+**Only `AuthenticationIT` and `CategoryIT` exercise controller to service to repository to
+database**, and only for category writes. Neither runs in a test transaction: it would postpone the
+commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
 the null `created_by` stayed invisible to a green build until Part 4. Recipe writes get the same
 end-to-end test as `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
 slice tests can pass while real serialization is broken - the same class of gap.
