@@ -97,6 +97,7 @@ export const categories = {
   create: (input: CategoryInput) => request<Category>("POST", "/categories", input),
   update: (id: string, input: CategoryInput) =>
     request<Category>("PUT", `/categories/${encodeURIComponent(id)}`, input),
+  remove: (id: string) => request<void>("DELETE", `/categories/${encodeURIComponent(id)}`),
 };
 
 export const auth = {

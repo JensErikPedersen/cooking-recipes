@@ -784,8 +784,32 @@ The categories you create stay until 5d gives you a Delete button; remove them t
 
 ### 5d: Delete
 
-- [ ] Delete button on the read view
-- [ ] Delete asks for confirmation using an in-page dialog, never `window.confirm`
+- [x] Delete button on the read view
+- [x] Delete asks for confirmation using an in-page dialog, never `window.confirm`
+
+**Tests.** Playwright, added to `categories.spec.ts`: confirm a delete, land on the list without it,
+and its URL then shows not found; cancel the dialog and the category survives a reload; delete
+seeded Brød and the dialog shows the server's reason with only an OK button, and Brød is still listed.
+
+**Verify it yourself.** Open a category you created, Delete: a dialog on the page asks. Cancel
+keeps it; Delete removes it and shows the list without it. Then open Brød and confirm a delete:
+"Category 'Brød' is used by 3 recipes and cannot be deleted", in the dialog, with OK as
+the only button, and Brød stays.
+
+**Done.** Deviations and findings:
+
+- `DeleteButton` is the reusable piece: the button, a native `<dialog>` opened with
+  `showModal()` - modal, Escape closes it, and it is a `dialog` role named by its heading - the
+  server's refusal shown inside it, and the list after a delete. It needs `m-auto`: Tailwind's
+  preflight zeroes every margin, including the one the browser centres a modal with
+- After a refusal the dialog shows the reason and only an OK button: offering Delete again would
+  only repeat the refusal. Raised in review
+- The e2e cleanup accepts a 404, since a delete test removes its own category
+- Verified: lint and build clean; 23 Playwright tests green; the dialog with the in-use refusal
+  checked in a screenshot. After the run the stack held the four seeded categories, plus a "Suppe"
+  created by hand - not by the tests, whose names all start with "E2E"
+
+### Part 5 as a whole
 
 **Tests.** Playwright, asserting what a user sees rather than what the database holds - the
 database is the backend tests' business. Cover: list renders seeded categories; open one and see
@@ -817,6 +841,12 @@ showing you your own input back. Navigate away and return, or reload, and then b
 
 No database queries in this part. If the UI and the database could disagree here, that is a backend
 bug, and it is the backend tests' job to catch it - not something to paper over by checking both.
+
+**Done.** Every test listed above is in `categories.spec.ts`, 13 tests, and every write is checked
+after leaving the page or reloading. For Part 6 to reuse as-is: `lib/api.ts` (one client object per
+entity, `fieldErrors`), `EntityForm`, `TextField`, `DetailList`, `PageHeader`, `NotFound`,
+`DeleteButton`, `ErrorMessage`, the button styles, and on the backend the 409 pattern of 5a. An
+entity adds its client object, its `<Entity>Form`, four small pages, a menu entry and its spec.
 
 ---
 

@@ -181,3 +181,50 @@ test("cancel leaves the new-category form without saving", async ({ page }) => {
   await expect(main(page).getByRole("link", { name: "Kager", exact: true })).toBeVisible();
   await expect(main(page).getByRole("link", { name, exact: true })).toHaveCount(0);
 });
+
+test("delete asks first, in the page, and after confirming the category is gone", async ({ page }) => {
+  const name = uniqueName();
+  const id = await createCategory(page, name, "To be deleted");
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  const dialog = page.getByRole("dialog", { name: `Delete category "${name}"?` });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Delete" }).click();
+
+  await expect(page).toHaveURL("/categories");
+  await expect(main(page).getByRole("link", { name: "Kager", exact: true })).toBeVisible();
+  await expect(main(page).getByRole("link", { name, exact: true })).toHaveCount(0);
+  await page.goto(`/categories/${id}`);
+  await expect(page.getByRole("heading", { name: "Category not found" })).toBeVisible();
+});
+
+test("cancelling the delete dialog keeps the category", async ({ page }) => {
+  const name = uniqueName();
+  await createCategory(page, name, "Kept");
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await expectReadView(page, name, "Kept");
+});
+
+test("a category recipes use cannot be deleted, and the dialog says why", async ({ page }) => {
+  await page.goto("/categories");
+  await main(page).getByRole("link", { name: "Brød", exact: true }).click();
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  const dialog = page.getByRole("dialog", { name: 'Delete category "Brød"?' });
+  await dialog.getByRole("button", { name: "Delete" }).click();
+
+  await expect(dialog.getByRole("alert")).toHaveText("Category 'Brød' is used by 3 recipes and cannot be deleted");
+  // Refused, the dialog offers only OK - Delete again would just repeat the refusal.
+  await expect(dialog.getByRole("button")).toHaveText(["OK"]);
+  await dialog.getByRole("button", { name: "OK" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Brød" })).toBeVisible();
+  await openFromMenu(page);
+  await expect(main(page).getByRole("link", { name: "Brød", exact: true })).toBeVisible();
+});

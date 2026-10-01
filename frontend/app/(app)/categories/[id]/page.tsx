@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError, categories, type Category } from "@/lib/api";
+import { DeleteButton } from "@/components/delete-button";
 import { DetailList } from "@/components/detail-list";
 import { ErrorMessage } from "@/components/error-message";
 import { NotFound } from "@/components/not-found";
@@ -34,6 +35,12 @@ export default function CategoryPage({ params }: PageProps<"/categories/[id]">) 
         <Link href={`/categories/${category.id}/edit`} className={secondaryButton}>
           Edit
         </Link>
+        <DeleteButton
+          what="category"
+          name={category.name}
+          remove={() => categories.remove(category.id)}
+          listHref="/categories"
+        />
       </PageHeader>
       <DetailList
         rows={[
