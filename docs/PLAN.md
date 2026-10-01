@@ -695,11 +695,43 @@ await fetch("/api/v1/categories/14d4c0b0-46ea-498d-a3a5-56060a3d7a7c", {method: 
 - Found, not changed: `config/TestingConfiguration` is referenced by no test - a `@TestConfiguration`
   is excluded from component scanning - so it is dead. Its constructor call was updated to compile
 
-### 5b-5d
+### 5b: Navigation, list and read view
 
-- [ ] App shell: header, navigation menu, page layout, Tailwind base styles
-- [ ] `/categories` list page, reading the live API
-- [ ] `/categories/[id]` read-only view with Edit and Delete buttons
+- [x] App shell: header, navigation menu, page layout, Tailwind base styles
+- [x] `/categories` list page, reading the live API
+- [x] `/categories/[id]` read-only view. Its Edit and Delete buttons come with what they do, in 5d
+- [x] A typed API client module, and the error envelope shape declared once. It holds what each
+      step uses, so it grows in 5c and 5d
+
+**Tests.** Playwright, `categories.spec.ts`: the menu leads to the list, which shows the seeded
+categories; opening one shows it in read mode; an unknown id shows not found.
+
+**Verify it yourself.** At `http://localhost:3000`, click Categories in the header: the four seeded
+categories are listed and the menu entry is marked. Open one: its name and description, and no
+input fields. Change the id in the address bar to `00000000-0000-0000-0000-000000000000`: "Category
+not found", with a link back.
+
+**Done.** Deviations and findings:
+
+- Pages are client components fetching in `useEffect` through `lib/api.ts`, as `AppShell` already
+  did - recorded in `frontend/CLAUDE.md`. Server-side fetching would have to forward the session and
+  CSRF cookies to the backend's internal address, for no gain behind a sign-in
+- No data-loading hook: each page's fetch is three lines, and the shared pieces are what renders
+  around it - `ErrorMessage` for a failed call and `DetailList` for a read view's labelled fields
+- `AppShell` gains the menu, one entry per entity added by its slice so no link leads nowhere, with
+  `aria-current` on the current section, and the `<main>` page area every page renders into
+- The list sorts by name in the browser. The API returns rows in primary key order, which for the
+  seed happens to be alphabetical - random UUIDs - so a test of the order waits for 5c, which
+  creates categories that break it
+- `globals.css`: light only. The scaffold's dark scheme inverted the text but not the components'
+  fixed greys, so a hovered Log out button was light text on a light grey. Its `Arial` override is
+  gone too, so the Geist font the root layout already loads is the one in use
+- Verified: lint and build clean; 13 Playwright tests green; the list and read view checked in a
+  screenshot
+
+### 5c-5d
+
+- [ ] Edit and Delete buttons on the read view
 - [ ] `/categories/new` and `/categories/[id]/edit` sharing one form component with Save and Cancel
 - [ ] The edit form additionally displays created date and created by, populated by the session
       wired up in Part 4

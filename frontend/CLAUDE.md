@@ -23,8 +23,17 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed, sending a 401 to
   `/login`. `proxy.ts` (Next 16's name for middleware) redirects requests without a `JSESSIONID`
   cookie before any page renders. Neither is the security - the backend answers 401 regardless.
-- Data fetching: the placeholder uses a plain `fetch` in a client component. The pattern for real
-  pages is decided in Part 5 and recorded here.
+- Data fetching: pages are client components that call `lib/api.ts` in a `useEffect`, holding the
+  result and any error in state, and rendering nothing until it arrives. Not server components: they
+  would have to forward the session and CSRF cookies to the backend's internal address.
+  `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
+  uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
+- Shared pieces for every entity: `ErrorMessage` renders a failed call (the backend's message is
+  written for the user), `DetailList` the labelled fields of a read view. A 404 on a read view
+  renders its own "not found" with a link back to the list.
+- `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
+  and the `<main>` every page renders into. Pages start at their `<h1>`.
+- Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
 - No frontend unit tests. Behaviour is covered by Playwright in `/e2e`, which asserts what a user
   sees - roles and visible text - rather than markup.
 

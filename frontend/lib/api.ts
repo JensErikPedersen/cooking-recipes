@@ -62,6 +62,28 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * The audit fields every entity carries. The backend writes dates as "yyyy-MM-dd HH:mm" in UTC,
+ * with no offset, and cannot read them back - so they are display-only and never sent.
+ */
+interface Audited {
+  id: string;
+  created: string;
+  createdBy: string;
+  updated?: string;
+  updatedBy?: string;
+}
+
+export interface Category extends Audited {
+  name: string;
+  description?: string;
+}
+
+export const categories = {
+  list: () => request<Category[]>("GET", "/categories"),
+  get: (id: string) => request<Category>("GET", `/categories/${encodeURIComponent(id)}`),
+};
+
 export const auth = {
   me: () => request<AuthenticatedUser>("GET", "/auth/me"),
   login: (username: string, password: string) =>
