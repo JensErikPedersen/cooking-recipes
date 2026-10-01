@@ -29,7 +29,10 @@ public enum ApplicationErrorCodes {
     TAG_NOT_FOUND(410),
     RATING_DTO_IS_NULL(500),
     RATING_ID_IS_NULL(501),
-    RATING_NOT_FOUND(510);
+    RATING_NOT_FOUND(510),
+    AUTHENTICATION_REQUIRED(600),
+    BAD_CREDENTIALS(601),
+    ACCESS_DENIED(602);
 
     private final int code;
 

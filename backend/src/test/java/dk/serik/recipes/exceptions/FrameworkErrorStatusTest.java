@@ -5,6 +5,7 @@ import dk.serik.recipes.service.CategoryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,6 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * own HTTP status; the catch-all in ApplicationExceptionHandler must not turn it into a 500.
  */
 @WebMvcTest(CategoryController.class)
+// The security chain is AuthenticationIT's business; these tests are about the controller.
+@AutoConfigureMockMvc(addFilters = false)
 public class FrameworkErrorStatusTest {
 
     private static final String BASE = "/api/v1/categories";

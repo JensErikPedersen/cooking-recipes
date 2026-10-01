@@ -103,11 +103,10 @@ Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`.
 A working backend is available in `backend/`. It exposes CRUD under `/api/v1/` for categories,
 ingredients, recipes, tags and units. It has no security, no Docker setup, and is a pure backend.
 
-Note that **no write works today**. `created_by` is NOT NULL on all nine tables and on
+Note that at the start **no write worked**. `created_by` is NOT NULL on all nine tables and on
 `BaseEntity`; the only thing that sets it is `BaseEntityListener` reading the `Session` bean, and
-nothing in the codebase calls `setUserName()`. Every POST and PUT against real MySQL therefore
-fails. The controller slice tests do not catch it because they stub `Session` with `@MockitoBean`
-and run with `addFilters = false`. Sign in (Part 4) is what makes the application writable.
+nothing in the codebase called `setUserName()`. Every POST and PUT against real MySQL therefore
+failed. Sign in (Part 4) made the application writable - see `backend/CLAUDE.md`, Authentication.
 
 ## Coding standards
 

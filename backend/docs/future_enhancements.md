@@ -199,12 +199,11 @@ limitation explicit at the API boundary rather than silent.
 
 ---
 
-## Multiple users: the table will exist, the features will not
+## Multiple users: the table exists, the features do not
 
-**Status.** Not built yet. Authentication (`docs/PLAN.md` Part 4) adds the `app_user` table, a
-`UserDetailsService` backed by it, and a first-run `AdminBootstrap`, so from then on the schema
-supports multiple users. This section describes what will still be missing after Part 4:
-everything that would make a second user meaningful.
+**Status.** Part 4 added the `app_user` table, a `UserDetailsService` backed by it, and a first-run
+`AdminBootstrap`, so the schema supports multiple users. What is missing is everything that would
+make a second user meaningful.
 
 **What is missing.**
 

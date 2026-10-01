@@ -485,29 +485,37 @@ Ported from `my-recipes`, which already solved this. Read its `SecurityConfig`, 
 `SessionPopulatingFilter` and `AuthenticationIT` before writing anything - each carries comments
 recording a specific failure, and re-deriving them costs a day each.
 
-- [ ] `spring-boot-starter-security` added to `pom.xml`
-- [ ] `app_user` table as `db.changelog_1.2.xml`, after Part 3's seed changeset: id, username
+Split into two steps, each committed and accepted on its own: the backend, proven by
+`AuthenticationIT` and the API, then the frontend.
+
+No user administration: one account, created on first run, as `CLAUDE.md` Limitations states. The
+backend needs a lookup by username and the bootstrap insert, and no CRUD endpoints for users.
+
+### 4a: Backend authentication
+
+- [x] `spring-boot-starter-security` added to `pom.xml`
+- [x] `app_user` table as `db.changelog_1.2.xml`, after Part 3's seed changeset: id, username
       unique, password hash, enabled, roles as a single comma-separated column, plus the standard
       audit columns
-- [ ] `AppUser` entity, repository, and a `UserDetailsService` backed by it
-- [ ] `AdminBootstrap` creating the first account from environment-supplied credentials, and
+- [x] `AppUser` entity, repository, and a `UserDetailsService` backed by it
+- [x] `AdminBootstrap` creating the first account from environment-supplied credentials, and
       **only while the table is empty**. No password hash is committed anywhere in this repository
-- [ ] `AuthController` with JSON login, logout and current-user endpoints
-- [ ] `SecurityConfig`: session cookie auth, `/api/v1/auth/login` and `/actuator/health` open
+- [x] `AuthController` with JSON login, logout and current-user endpoints
+- [x] `SecurityConfig`: session cookie auth, `/api/v1/auth/login` and `/actuator/health` open
       (the latter added in Part 3, and compose depends on it answering unauthenticated),
       everything else authenticated, 401 and 403 returned as this application's own error envelope
       rather than a redirect to a login page
-- [ ] CSRF stays ON, with `CookieCsrfTokenRepository.withHttpOnlyFalse()` and a `CsrfCookieFilter`
+- [x] CSRF stays ON, with `CookieCsrfTokenRepository.withHttpOnlyFalse()` and a `CsrfCookieFilter`
       so the token cookie actually reaches the browser. Boot 4 / Security 7 extends CSRF to API
       endpoints, and this app authenticates with a cookie the browser attaches automatically -
       which is exactly the condition CSRF protection exists for. Do not disable it
-- [ ] `SessionPopulatingFilter`, registered after `AuthorizationFilter`, copying the authenticated
+- [x] `SessionPopulatingFilter`, registered after `AuthorizationFilter`, copying the authenticated
       principal into the request-scoped `Session` bean. **This is the piece that makes any write
       work at all.** It falls back to a non-null constant for unauthenticated paths, so no request
       can ever put a null into the NOT NULL `created_by`
-- [ ] Login page and a route guard. The logout button goes in a minimal header created here -
-      the full app shell with navigation is Part 5, which expands this one rather than replacing
-      it
+- [x] Existing controller slice tests kept green now that security is on the classpath
+- [x] The Playwright proxy specs sign in through the API first, since `/api` now requires a
+      session. This is the seed of the login fixture 4b completes
 
 **Tests.** An `AuthenticationIT` against the real application context with `@SpringBootTest` plus
 `@AutoConfigureMockMvc` - **not** a `@WebMvcTest` slice. The existing slice tests run with
@@ -520,32 +528,76 @@ reports the logged-in user; a write without a CSRF token rejected; and the one t
 Admin credentials come in as `@SpringBootTest(properties = ...)`, so `AdminBootstrap` is covered
 as a side effect.
 
-Playwright on top: unauthenticated lands on login, wrong credentials show an error, correct
-credentials enter, logout returns to login, back button does not re-enter. The login fixture is
-written here and every later slice builds on it.
-
-**Success criteria.** The app cannot be used without signing in, the API cannot be called without a
-session, and a row written through the API carries the authenticated username in `created_by` -
-asserted by a test, not by inspection.
-
 **Verify it yourself.**
 
 ```powershell
 cd backend; .\mvnw test -Dtest=AuthenticationIT
 ```
 
-Green means the session bean, the filter chain, CSRF and the audit stamping all hold together. That
-is the honest check for this part - there are no entity pages yet, so there is nothing useful to
-click. What is worth reading rather than running is the test source: confirm each test asserts
-something you actually care about, and that none of them stubs `Session`.
+Green means the session bean, the filter chain, CSRF and the audit stamping all hold together.
+What is worth reading rather than running is the test source: confirm each test asserts something
+you actually care about, and that none of them stubs `Session`.
 
-Then, in the browser: the app redirects you to login, the right credentials get you in, and logout
-puts you back. Confirm the first account exists and its password is not in the repo:
+Against the stack: `http://localhost:3000/api/v1/categories` now answers 401, and the first account
+exists without its password being in the repo:
 
 ```powershell
-docker compose exec mysql mysql -uroot -p"$env:MYSQL_ROOT_PASSWORD" recipes -e "select username, enabled, roles from app_user;"
-git grep -i "bcrypt" -- . ":(exclude)*.md"     # expect no committed hash
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -e "select username, enabled, roles from app_user"'
+git grep -nE '\$2[aby]\$[0-9]{2}\$'          # a bcrypt hash; expect no output
 ```
+
+**Done.** Deviations and findings:
+
+- Ported from `my-recipes`, simplified where it was defensive: no null-body check (a missing body is
+  already a 400 since 3a.1), no separate "account disabled" message (it would reveal the account
+  exists), no configurable roles property, no unreachable 401 branch in `currentUser()`
+- **No `CsrfCookieFilter`.** `csrf.spa()` in Spring Security 7.1.1 replaces the hand-built
+  repository and handler, and its handler reads the token on every request - proven by a stack
+  trace from the repository's `saveToken`: `CsrfFilter` -> `SpaCsrfTokenRequestHandler.handle` ->
+  `getParameterName()` -> the cookie is written. With the filter removed all 12 tests still pass;
+  `shouldIssueCsrfCookieToAnonymousCaller` stays as the guard should a later version change it
+- `SessionPopulatingFilter` is built inside `SecurityConfig` rather than being a `@Component`: Boot
+  would register a component filter a second time outside the security chain, and web slices would
+  pick it up
+- `AuthenticationIT` obtains the CSRF token the way a browser does - the `XSRF-TOKEN` cookie from an
+  earlier response, sent back as `X-XSRF-TOKEN` - not with MockMvc's `csrf()` helper, which writes
+  straight into the repository and would hide a missing cookie. 12 tests: the plan's list plus
+  health staying open, login itself needing a CSRF token, and logout ending the session. The
+  `created_by` assertion reads the row back with a separate GET
+- Each guard proven load-bearing: without `SessionPopulatingFilter` the category POST is a 500
+  (`createdBy is set to: null`); without saving the context the session does not survive
+- The 6 `@WebMvcTest` classes failed 67 tests on the default security (401 on reads, 403 on writes)
+  and now run with `addFilters = false`, as in `my-recipes`
+- The Playwright proxy specs sign in through `e2e/support/api.ts` - fetch the cookie, POST the
+  credentials with the header - reading the account from the repository's `.env` via
+  `process.loadEnvFile`. A new spec asserts an anonymous `/api` call is a 401
+- Verified against the stack: `AdminBootstrap` created `admin` with a `{bcrypt}` hash and skipped on
+  restart; anonymous `/api` is 401, health 200; through the proxy, sign in, POST a category, read it
+  back and the MySQL row says `created_by = admin`; logout makes the session a 401. `./mvnw clean
+  verify` green: 235 unit, 75 integration. 4 Playwright tests green
+- Found, not fixed: a POST's `Location` header says `http://backend:8080/...`, the internal address,
+  because the backend builds it from the `Host` the proxy sends. The response body carries the id,
+  so nothing needs the header yet. `server.forward-headers-strategy=framework` would fix it if Part 5
+  wants it
+- `backend/CLAUDE.md` gains an Authentication section; its claim that the slice tests mock `Session`
+  was never true and is corrected. The root `CLAUDE.md` "no write works today" is now past tense
+
+### 4b: Sign in and sign out in the browser
+
+- [ ] Login page and a route guard. The logout button goes in a minimal header created here -
+      the full app shell with navigation is Part 5, which expands this one rather than replacing
+      it
+
+**Tests.** Playwright: unauthenticated lands on login, wrong credentials show an error, correct
+credentials enter, logout returns to login, back button does not re-enter. The login fixture is
+completed here and every later slice builds on it.
+
+**Success criteria for Part 4.** The app cannot be used without signing in, the API cannot be
+called without a session, and a row written through the API carries the authenticated username in
+`created_by` - asserted by a test, not by inspection.
+
+**Verify it yourself.** In the browser: the app redirects you to login, the right credentials get
+you in, and logout puts you back.
 
 ---
 

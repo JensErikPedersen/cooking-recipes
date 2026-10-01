@@ -4,29 +4,40 @@ Spring Boot 4.1.1 on Java 25, MySQL, Liquibase-managed schema, Maven. Package ro
 `dk.serik.recipes`. Project-wide rules live in the root `CLAUDE.md`; this file describes only what
 is in `backend/`.
 
-## Current state
+## Authentication
 
-**No write works against real MySQL.** `created_by` is NOT NULL on all nine tables and on
-`BaseEntity`. Two places set it - `BaseEntityListener.prePersist`, and the `save` of every service
-except `RecipeServiceImpl`, which relies on the listener alone - and both read
-`Session.getUserName()`, which nothing ever populates, because nothing calls `setUserName`. Every POST and PUT therefore fails with `Column 'created_by' cannot be null`.
+Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `/api` needs a
+session except `POST /api/v1/auth/login`; `/actuator/health` is open for Compose. 401 and 403 come
+back in the error envelope (codes 600-602), never as a redirect.
 
-The build is green regardless: controller slice tests stub `Session` with `@MockitoBean`, and the
-repository tests bypass the services entirely. Adding authentication (`docs/PLAN.md` Part 4) is
-what makes the application writable.
+- **Audit stamping depends on it.** `created_by` is NOT NULL on all nine tables. It is set by
+  `BaseEntityListener.prePersist` and by the `save` of every service except `RecipeServiceImpl`,
+  all reading `Session.getUserName()`. `SessionPopulatingFilter`, inside the security chain after
+  authorization, is what fills that request-scoped bean. It is created in `SecurityConfig`, not a
+  `@Component`, so Boot does not register it twice and web slices do not pick it up.
+- **Login saves the context explicitly** (`AuthServiceImpl`): Spring Security 6+ no longer does, and
+  without it the next request is anonymous again.
+- **CSRF**: `csrf.spa()` - token in a readable `XSRF-TOKEN` cookie, sent back as `X-XSRF-TOKEN`.
+  In Security 7.1 its handler reads the token on every request, which writes the cookie; no extra
+  filter is needed. Login and logout are CSRF-protected too.
+- **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller method.
+- **One account**, created by `AdminBootstrap` with plain SQL from `app.admin.username` /
+  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty. Plain SQL because JPA
+  would fire `BaseEntityListener`, which needs a request. No user administration - by decision.
 
 ## Layout
 
 | Package | Holds |
 |---|---|
-| `controllers` | Five `@RestController`s under `/api/v1/` |
+| `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` |
 | `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
 | `repository` | `JpaRepository` per entity, derived queries only |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
 | `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
 | `mapper` | Static entity/DTO converters |
 | `exceptions` | `ServiceException`, error codes, `@ControllerAdvice`, envelopes |
-| `bean` | `Session` - request-scoped, holds the username (see above) |
+| `config` | `SecurityConfig`, `SessionPopulatingFilter`, `AdminBootstrap` (see Authentication) |
+| `bean` | `Session` - request-scoped, holds the username (see Authentication) |
 | `validator` | `@UUID` + `UUIDValidator`. Tested, but **not referenced anywhere** |
 | `aspect` | `JpaLoggingAspect` - wraps every `JpaRepository` call for timing |
 
@@ -100,14 +111,16 @@ Test layers, and what each one mocks:
 
 | Test | Kind | Mocked |
 |---|---|---|
-| `*ControllerTest` | `@WebMvcTest` | the service (`@MockitoBean`), `Session` |
+| `*ControllerTest` | `@WebMvcTest`, `addFilters = false` | the service (`@MockitoBean`); no security chain |
 | `*ServiceTest` | Mockito | the repositories |
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
+| `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
 
-**Nothing exercises controller to service to repository to database.** Every layer is verified
-against a mock of the layer beneath it, which is why the `created_by` failure above is invisible to
-a green build. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
+**Only `AuthenticationIT` exercises controller to service to repository to database**, and only for
+a category write. Everything else is verified against a mock of the layer beneath it - which is how
+the null `created_by` stayed invisible to a green build until Part 4. Recipe writes get the same
+end-to-end test as `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
 slice tests can pass while real serialization is broken - the same class of gap.
 
 ## Build and run

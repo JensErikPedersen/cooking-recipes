@@ -31,6 +31,9 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       APPLICATION_PORT: ${APPLICATION_PORT}
+      # The first account, created by AdminBootstrap only while app_user is empty.
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:?APP_ADMIN_USERNAME is not set - copy .env.example to .env}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is not set - copy .env.example to .env}
     depends_on:
       # Liquibase runs during Spring startup and does not retry a refused connection.
       mysql:
