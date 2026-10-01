@@ -638,8 +638,9 @@ Split into four steps, each committed and accepted on its own:
 
 - **5a** - backend: a duplicate name and deleting a category in use answer 409, not 500
 - **5b** - navigation menu, the typed API client, the list and the read view
-- **5c** - the shared create/edit form, audit fields, field errors, a fresh GET after save
-- **5d** - Edit and Delete on the read view, delete through an in-page confirmation dialog
+- **5c** - the shared create/edit form, audit fields, field errors, a fresh GET after save, and
+  the Edit button that leads to it
+- **5d** - Delete on the read view, through an in-page confirmation dialog
 
 ### 5a: Conflicts answer 409
 
@@ -699,7 +700,7 @@ await fetch("/api/v1/categories/14d4c0b0-46ea-498d-a3a5-56060a3d7a7c", {method: 
 
 - [x] App shell: header, navigation menu, page layout, Tailwind base styles
 - [x] `/categories` list page, reading the live API
-- [x] `/categories/[id]` read-only view. Its Edit and Delete buttons come with what they do, in 5d
+- [x] `/categories/[id]` read-only view. Its Edit and Delete buttons come with what they do, in 5c and 5d
 - [x] A typed API client module, and the error envelope shape declared once. It holds what each
       step uses, so it grows in 5c and 5d
 
@@ -729,19 +730,62 @@ not found", with a link back.
 - Verified: lint and build clean; 13 Playwright tests green; the list and read view checked in a
   screenshot
 
-### 5c-5d
+### 5c: One form for create and edit
 
-- [ ] Edit and Delete buttons on the read view
-- [ ] `/categories/new` and `/categories/[id]/edit` sharing one form component with Save and Cancel
-- [ ] The edit form additionally displays created date and created by, populated by the session
+- [x] `/categories/new` and `/categories/[id]/edit` sharing one form component with Save and Cancel
+- [x] The edit form additionally displays created date and created by, populated by the session
       wired up in Part 4
-- [ ] After a successful save, the read-only view is shown - **populated by a fresh GET, not from
+- [x] After a successful save, the read-only view is shown - **populated by a fresh GET, not from
       the save response or a client cache.** This is a testability decision as much as a
       correctness one: a read view that echoes its own input cannot detect a backend that silently
       drops a field, and every later slice's e2e depends on this one being honest
+- [x] Server-side validation errors from the API error envelope are surfaced on the form field
+- [x] The read view's Edit button, and the list's New category button
+
+**Tests.** Playwright, added to `categories.spec.ts`: create, with the read view's own GET awaited,
+then leave through the menu and return, and reload; edit, leave and return, the old name gone from
+the list; the edit form's created by is the signed-in user and its created time, read as UTC, is
+now; a duplicate name and an empty name each show the server's message as the name field's
+description; Cancel saves nothing; the list sorts, with the API's response served reversed.
+
+**Verify it yourself.** At `http://localhost:3000/categories`:
+
+- New category, a name and a description, Save: the read view. Reload - still there
+- Edit, change both, Save; go to Categories and open it again - the change stuck
+- Open its edit form: Created is now in UTC, Created by is the user you signed in as
+- New category named `Dessert`: "A category named 'Dessert' already exists" under the Name field
+- New category with no name: "Category name is required" under the Name field
+
+The categories you create stay until 5d gives you a Delete button; remove them then.
+
+**Done.** Deviations and findings:
+
+- The Edit button moved here from 5d: it only links to the edit form, which is unreachable without
+  it. 5d keeps Delete
+- `EntityForm` is the frame every entity's form reuses: the audit fields of an existing entity,
+  submit, Save and Cancel, the error that belongs to no field, and the navigation to the read view
+  after a save. `CategoryForm` supplies only its fields and state; new and edit pages wrap it.
+  Also shared now: `TextField` (label, input, the server's error tied by `aria-describedby`),
+  `PageHeader`, `NotFound`, and the button styles in `components/styles.ts`
+- No validation in the browser. The server's rules and messages are the only ones, and a 400 and
+  the 5a 409 reach the field through the same `fieldErrors()`. A cleared description is sent as
+  absent, so it is stored as none rather than as an empty string
+- Dates: proven with a throwaway test against the application's `JsonMapper` that Jackson writes
+  the time in the backend JVM's zone, not in UTC - `Europe/Copenhagen` on this host. Decided: shown
+  as-is with a "UTC" label, and the backend image now sets `TZ=UTC` so the label stays true. The
+  e2e test checks the label against the clock. The proper fix is in
+  `backend/docs/future_enhancements.md`
+- Playwright removes what it creates, through `e2e/support/api.ts` after each test - housekeeping
+  only, never part of what a test proves. The stack's database held only the four seeded
+  categories after the run
+- The sort test proven load-bearing: with the sort removed from the list page, it fails
+- Verified: lint and build clean; 20 Playwright tests green; the edit form with a field error and
+  the read view checked in screenshots
+
+### 5d: Delete
+
+- [ ] Delete button on the read view
 - [ ] Delete asks for confirmation using an in-page dialog, never `window.confirm`
-- [ ] Server-side validation errors from the API error envelope are surfaced on the form field
-- [ ] A typed API client module, and the error envelope shape declared once
 
 **Tests.** Playwright, asserting what a user sees rather than what the database holds - the
 database is the backend tests' business. Cover: list renders seeded categories; open one and see

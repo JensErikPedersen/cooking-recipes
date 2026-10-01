@@ -161,6 +161,29 @@ route by which raw persistence errors reach the exception handler of last resort
 
 ---
 
+## Dates carry no time zone, and do not round-trip
+
+**What is wrong.** `BaseDTO` formats `created` and `updated` with `@JsonFormat(pattern =
+"yyyy-MM-dd HH:mm")`. Two consequences:
+
+1. **No zone.** Jackson writes the time in the zone the `OffsetDateTime` carries, which is the
+   backend JVM's. Proven in Part 5c with a throwaway test against the application's `JsonMapper`:
+   16:51 at +02:00 came out as `"2026-10-01 16:51"` on a host in `Europe/Copenhagen`. The same
+   moment from the container reads 14:51. The client cannot tell which.
+2. **No round trip.** `@Jacksonized` deserializes through the builder, which does not carry the
+   format, so the API cannot read back a date it wrote; a client that PUTs a fetched object
+   unchanged gets a 400.
+
+**Workaround in place.** The backend image sets `TZ=UTC`, and the frontend shows the value with a
+"UTC" label and never sends the audit fields.
+
+**What it would take.** Drop the pattern so the dates serialize as ISO-8601 with an offset
+(`2026-10-01T14:51:00Z`), which also round-trips; have the frontend format them in the browser's
+local time; drop the "UTC" label. Assert the format in `JsonContractIT`. It changes the API
+contract, so frontend and backend move together.
+
+---
+
 ## Recipe ratings: read-only, deferred to a later version
 
 **Decision.** Ratings are out of scope for this version by choice. What exists is deliberate, not

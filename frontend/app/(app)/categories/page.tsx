@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { categories, type Category } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
+import { PageHeader } from "@/components/page-header";
+import { primaryButton } from "@/components/styles";
 
 export default function CategoriesPage() {
   const [list, setList] = useState<Category[]>();
@@ -15,7 +17,11 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Categories</h1>
+      <PageHeader title="Categories">
+        <Link href="/categories/new" className={primaryButton}>
+          New category
+        </Link>
+      </PageHeader>
       {error ? (
         <ErrorMessage error={error} />
       ) : (

@@ -161,6 +161,8 @@ must be reachable before the application starts.
 - The runtime image installs `curl` solely for the Compose healthcheck on `/actuator/health`, the
   only actuator endpoint exposed. It answers only once Liquibase has finished.
 - The container runs as the unprivileged `recipes` user.
+- `ENV TZ=UTC` is load-bearing. Dates leave the API in the JVM's zone without an offset, and the
+  frontend labels them UTC; the base image is UTC already, the line keeps it so.
 
 ## Gotchas
 

@@ -1,15 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import Link from "next/link";
 import { ApiError, categories, type Category } from "@/lib/api";
-import { DetailList } from "@/components/detail-list";
+import { CategoryForm } from "@/components/category-form";
 import { ErrorMessage } from "@/components/error-message";
 import { NotFound } from "@/components/not-found";
 import { PageHeader } from "@/components/page-header";
-import { secondaryButton } from "@/components/styles";
 
-export default function CategoryPage({ params }: PageProps<"/categories/[id]">) {
+export default function EditCategoryPage({ params }: PageProps<"/categories/[id]/edit">) {
   const { id } = use(params);
   const [category, setCategory] = useState<Category>();
   const [error, setError] = useState<unknown>();
@@ -30,17 +28,8 @@ export default function CategoryPage({ params }: PageProps<"/categories/[id]">) 
 
   return (
     <>
-      <PageHeader title={category.name}>
-        <Link href={`/categories/${category.id}/edit`} className={secondaryButton}>
-          Edit
-        </Link>
-      </PageHeader>
-      <DetailList
-        rows={[
-          ["Name", category.name],
-          ["Description", category.description],
-        ]}
-      />
+      <PageHeader title="Edit category" />
+      <CategoryForm category={category} />
     </>
   );
 }

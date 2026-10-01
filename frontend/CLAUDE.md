@@ -29,8 +29,20 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
 - Shared pieces for every entity: `ErrorMessage` renders a failed call (the backend's message is
-  written for the user), `DetailList` the labelled fields of a read view. A 404 on a read view
-  renders its own "not found" with a link back to the list.
+  written for the user), `DetailList` the labelled fields of a read view, `NotFound` what a read
+  view or edit form shows for a 404, `PageHeader` the heading with its action buttons, and
+  `components/styles.ts` the primary and secondary button looks.
+- Forms: one `<Entity>Form` per entity, used by both its `new` and `[id]/edit` pages, holds the
+  field state and wraps its `TextField`s in `EntityForm`. `EntityForm` does the rest - the audit
+  fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
+  which loads the entity with its own GET. Never render the save response or the form's state as
+  the result: that would hide a backend that drops a field.
+- No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
+  envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
+  message to its input with `aria-describedby`. A form sends only its editable fields - the audit
+  dates do not survive a round trip.
+- Dates are shown as the API sends them, `yyyy-MM-dd HH:mm`, labelled UTC. That holds because the
+  backend image sets `TZ=UTC`; the API itself carries no zone.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
   and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.

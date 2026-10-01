@@ -62,11 +62,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** The field errors of a failed call by field name: a validation 400 and a 409 on a field alike. */
+export function fieldErrors(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError)) {
+    return {};
+  }
+  return Object.fromEntries((error.envelope.validationExceptions ?? []).map((v) => [v.objectName, v.message]));
+}
+
 /**
- * The audit fields every entity carries. The backend writes dates as "yyyy-MM-dd HH:mm" in UTC,
- * with no offset, and cannot read them back - so they are display-only and never sent.
+ * The audit fields every entity carries. The backend writes dates as "yyyy-MM-dd HH:mm" in its
+ * JVM's zone, which the stack pins to UTC, with no offset - and cannot read them back. So they are
+ * display-only and never sent.
  */
-interface Audited {
+export interface Audited {
   id: string;
   created: string;
   createdBy: string;
@@ -79,9 +88,15 @@ export interface Category extends Audited {
   description?: string;
 }
 
+/** What a form sends: the editable fields only. */
+export type CategoryInput = Pick<Category, "name" | "description">;
+
 export const categories = {
   list: () => request<Category[]>("GET", "/categories"),
   get: (id: string) => request<Category>("GET", `/categories/${encodeURIComponent(id)}`),
+  create: (input: CategoryInput) => request<Category>("POST", "/categories", input),
+  update: (id: string, input: CategoryInput) =>
+    request<Category>("PUT", `/categories/${encodeURIComponent(id)}`, input),
 };
 
 export const auth = {
