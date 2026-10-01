@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -116,6 +117,23 @@ class AuthenticationIT {
 	}
 
 	@Test
+	@DisplayName("Given a session from before sign-in, When POST login, Then the session gets a new id")
+	void shouldChangeTheSessionIdOnLogin() throws Exception {
+		// Session fixation: an anonymous 401 already creates a session, and an id someone planted
+		// before sign-in must not be the one that ends up signed in.
+		MvcResult anonymous = mockMvc.perform(get(CATEGORIES)).andReturn();
+		MockHttpSession session = (MockHttpSession) anonymous.getRequest().getSession(false);
+		Cookie xsrf = anonymous.getResponse().getCookie("XSRF-TOKEN");
+		String idBeforeLogin = session.getId();
+
+		mockMvc.perform(post(LOGIN).session(session).cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
+						.contentType(MediaType.APPLICATION_JSON).content(loginBody(USERNAME, PASSWORD)))
+				.andExpect(status().isOk());
+
+		assertThat(session.getId()).isNotEqualTo(idBeforeLogin);
+	}
+
+	@Test
 	@DisplayName("Given a signed-in session, When GET a protected resource, Then 200 - the session survives")
 	void shouldKeepTheSessionAcrossRequests() throws Exception {
 		mockMvc.perform(get(CATEGORIES).session(signIn().session()))
@@ -159,12 +177,13 @@ class AuthenticationIT {
 	}
 
 	@Test
-	@DisplayName("Given a signed-in session, When POST logout, Then 204 and the session no longer works")
+	@DisplayName("Given a signed-in session, When POST logout, Then 204, the session cookie is deleted and the session no longer works")
 	void shouldLogOut() throws Exception {
 		SignedIn signedIn = signIn();
 		mockMvc.perform(post(LOGOUT).session(signedIn.session())
 						.cookie(signedIn.xsrf()).header(XSRF_HEADER, signedIn.xsrf().getValue()))
-				.andExpect(status().isNoContent());
+				.andExpect(status().isNoContent())
+				.andExpect(cookie().maxAge("JSESSIONID", 0));
 
 		mockMvc.perform(get(ME).session(signedIn.session()))
 				.andExpect(status().isUnauthorized());

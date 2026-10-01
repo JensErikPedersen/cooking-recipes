@@ -45,6 +45,13 @@ public class AuthServiceImpl implements AuthService {
 					.build();
 		}
 
+		// Session fixation: a session may exist from before sign-in - an anonymous 401 creates one -
+		// and its id, which someone could have planted, must not become the signed-in one. Spring's
+		// own form login does the same; a controller login has to do it itself.
+		if (request.getSession(false) != null) {
+			request.changeSessionId();
+		}
+
 		// Spring Security 6+ no longer saves the context implicitly. Without the explicit save the
 		// login answers 200 and the very next request is anonymous again.
 		SecurityContext context = SecurityContextHolder.createEmptyContext();

@@ -75,7 +75,9 @@ npx playwright test smoke.spec.ts # one spec
 npx playwright test --ui          # interactive runner
 ```
 
-Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`.
+Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`. A setup project signs in once
+through the login page, with the account from the repository's `.env`, and saves the session in
+`e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out.
 
 ## Technical Decisions
 

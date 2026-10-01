@@ -73,6 +73,8 @@ public class SecurityConfig {
 							HttpStatus.FORBIDDEN, ApplicationErrorCodes.ACCESS_DENIED, "Access denied")))
 			.logout(logout -> logout
 					.logoutUrl("/api/v1/auth/logout")
+					// The frontend's proxy.ts redirects on a missing cookie; a dead one would pass it.
+					.deleteCookies("JSESSIONID")
 					.logoutSuccessHandler((request, response, authentication) ->
 							response.setStatus(HttpStatus.NO_CONTENT.value())))
 			// After authorization, so the principal is known by the time it is copied.

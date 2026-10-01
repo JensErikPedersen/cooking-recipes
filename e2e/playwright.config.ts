@@ -1,8 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import path from "node:path";
-
-// The stack's own .env supplies the account the signed-in tests use.
-process.loadEnvFile(path.join(__dirname, "..", ".env"));
+import { STORAGE_STATE } from "./support/auth";
 
 // Runs against an already running stack (scripts/start.*); it never starts one itself.
 export default defineConfig({
@@ -13,5 +10,13 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Signs in once through the login page and saves the session for everything else.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
+      dependencies: ["setup"],
+    },
+  ],
 });

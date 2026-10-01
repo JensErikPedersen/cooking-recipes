@@ -584,7 +584,7 @@ git grep -nE '\$2[aby]\$[0-9]{2}\$'          # a bcrypt hash; expect no output
 
 ### 4b: Sign in and sign out in the browser
 
-- [ ] Login page and a route guard. The logout button goes in a minimal header created here -
+- [x] Login page and a route guard. The logout button goes in a minimal header created here -
       the full app shell with navigation is Part 5, which expands this one rather than replacing
       it
 
@@ -598,6 +598,33 @@ called without a session, and a row written through the API carries the authenti
 
 **Verify it yourself.** In the browser: the app redirects you to login, the right credentials get
 you in, and logout puts you back.
+
+**Done.** Deviations and findings:
+
+- Ported in shape from `my-recipes` - a `proxy.ts` redirect, a `/me` check, a Playwright setup
+  project - and simplified: no "return to where you were heading" after login, no component library,
+  no auth context. English UI, matching the existing page
+- `proxy.ts` (Next 16's name for middleware) redirects when `JSESSIONID` is missing, expressed as a
+  matcher condition, so the function is a single redirect. `AppShell`, the layout of the
+  `app/(app)/` route group, renders nothing until `/api/v1/auth/me` confirms the session and sends
+  a 401 to `/login`. The header shows the username and a Log out button
+- `lib/api.ts` holds only what sign-in needs; Part 5 grows it into the full client. Writes send the
+  CSRF header, and fetch a fresh token when none is present: logout clears the `XSRF-TOKEN` cookie,
+  and `my-recipes` only avoided a 403 on the next login by calling `/me` on every page load
+- Backend: logout also deletes the `JSESSIONID` cookie, so `proxy.ts` sees a signed-out browser
+  rather than a dead cookie. `AuthenticationIT` asserts it
+- **Found and fixed: session fixation.** An anonymous 401 creates a session (Spring stores the
+  request for a redirect this API never makes), and login kept that id - proven with `curl`: the
+  pre-login id, used alone, answered 200 after sign-in. `AuthServiceImpl` now changes the session id
+  on login, as Spring's own form login does. `shouldChangeTheSessionIdOnLogin` failed before the fix;
+  after it the old id gets 401 and only the new one works
+- Playwright: a setup project signs in through the form and saves the session to `e2e/.auth/`
+  (gitignored - a live cookie); every test starts from it, and the sign-in tests opt out. The 4a
+  API sign-in helper is gone, replaced by the saved session. The `.env` loading moved into
+  `support/auth.ts`, since imports run before the config's own code
+- Verified: lint and build clean; `./mvnw clean verify` 235 unit, 76 integration; 10 Playwright
+  tests green. The back-button test proven load-bearing: with `AppShell`'s 401 redirect disabled it
+  fails on `/`
 
 ---
 

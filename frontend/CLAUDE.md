@@ -16,6 +16,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   derived by Compose from `APPLICATION_PORT`; setting it on the running container does nothing.
   `npm run dev` falls back to `http://localhost:8080`, the backend the stack publishes.
 - The browser only ever talks to this origin, never to the backend directly. There is no CORS.
+- All backend calls go through `lib/api.ts`. Writes send the CSRF token from the `XSRF-TOKEN`
+  cookie as `X-XSRF-TOKEN`; logout clears that cookie, so a write that finds none fetches a fresh
+  one first. Non-2xx responses throw `ApiError`, carrying the backend's error envelope.
+- Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
+  asks `/api/v1/auth/me` and renders nothing until the session is confirmed, sending a 401 to
+  `/login`. `proxy.ts` (Next 16's name for middleware) redirects requests without a `JSESSIONID`
+  cookie before any page renders. Neither is the security - the backend answers 401 regardless.
 - Data fetching: the placeholder uses a plain `fetch` in a client component. The pattern for real
   pages is decided in Part 5 and recorded here.
 - No frontend unit tests. Behaviour is covered by Playwright in `/e2e`, which asserts what a user

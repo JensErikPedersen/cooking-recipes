@@ -15,12 +15,15 @@ back in the error envelope (codes 600-602), never as a redirect.
   all reading `Session.getUserName()`. `SessionPopulatingFilter`, inside the security chain after
   authorization, is what fills that request-scoped bean. It is created in `SecurityConfig`, not a
   `@Component`, so Boot does not register it twice and web slices do not pick it up.
-- **Login saves the context explicitly** (`AuthServiceImpl`): Spring Security 6+ no longer does, and
+- **Login does by hand what form login would** (`AuthServiceImpl`): it changes the session id, since
+  an anonymous 401 already creates a session and a pre-login id must not become the signed-in one
+  (session fixation), and it saves the context explicitly - Spring Security 6+ no longer does, and
   without it the next request is anonymous again.
 - **CSRF**: `csrf.spa()` - token in a readable `XSRF-TOKEN` cookie, sent back as `X-XSRF-TOKEN`.
   In Security 7.1 its handler reads the token on every request, which writes the cookie; no extra
   filter is needed. Login and logout are CSRF-protected too.
-- **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller method.
+- **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller
+  method. It also deletes the `JSESSIONID` cookie, which the frontend's `proxy.ts` checks for.
 - **One account**, created by `AdminBootstrap` with plain SQL from `app.admin.username` /
   `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty. Plain SQL because JPA
   would fire `BaseEntityListener`, which needs a request. No user administration - by decision.

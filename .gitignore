@@ -21,9 +21,10 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
-# Playwright output
+# Playwright output, and the saved signed-in session (a live session cookie)
 playwright-report/
 test-results/
+.auth/
 
 # Logs and JVM crash dumps
 *.log
