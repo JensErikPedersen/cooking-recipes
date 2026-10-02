@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 // What every entity's spec does the same way: find things as a user would, and check the
 // read view and the audit fields.
 
+/** The order the app sorts names in: Danish, whatever the locale of the browser or of Node. */
+export const danish = (a: string, b: string) => a.localeCompare(b, "da");
+
 /** A name no seed and no other test uses. */
 export const uniqueName = () => `E2E ${randomUUID().slice(0, 8)}`;
 

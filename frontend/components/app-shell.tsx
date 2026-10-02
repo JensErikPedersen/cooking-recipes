@@ -7,6 +7,7 @@ import { ApiError, auth, type AuthenticatedUser } from "@/lib/api";
 
 // One entry per entity type; each slice adds its own when its pages exist.
 const NAVIGATION = [
+  { href: "/recipes", label: "Recipes" },
   { href: "/categories", label: "Categories" },
   { href: "/ingredients", label: "Ingredients" },
   { href: "/units", label: "Units" },

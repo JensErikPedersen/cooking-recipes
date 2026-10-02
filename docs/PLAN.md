@@ -1013,7 +1013,7 @@ unable to undo it. The PUT therefore has to replace the lines - see 7a.
 - [x] Confirm from `RecipeIT` - not by reading the code - whether tags are writable through the
       existing API. If they are silently discarded, that is a backend fix inside this part, not a
       workaround in the frontend
-- [ ] Recipe list and read view, showing category, tags, and each ingredient with its quantity and
+- [x] Recipe list and read view, showing category, tags, and each ingredient with its quantity and
       unit in a readable layout
 - [ ] Recipe form: category as a dropdown of existing categories, tags as a multi-select of
       existing tags
@@ -1100,6 +1100,36 @@ a duplicate name; a PUT keeping its own name.
   or reseed with `docker compose down -v`
 - Not done here, for 7d: the nested lines' amount is not validated - `recipeIngredients` carries
   no `@Valid`, so a line without an amount is stored without one
+
+### 7b: Recipe list and read view
+
+**Tests.** Playwright `recipes.spec.ts`, 6 tests: the menu leads to the list, with each recipe's
+category and tags; the list sorts, the API's response served reversed; the read view of
+"Fuldkorns hvedebrød" shows its category, tag, six lines as amount, unit and ingredient, and
+instructions; "Brunkage", with no tags or lines, says None rather than leaving gaps; the category,
+tag and ingredient link to their own pages; an unknown id shows not found.
+
+**Verify it yourself.** At `http://localhost:3000`, Recipes is first in the menu. Open "Fuldkorns
+hvedebrød": Brød, Godt til kaffen, then six lines such as "170 gr Fuldkorns hvedemel" in name
+order, and the instructions. Click Brød, the tag and an ingredient - each opens its own page. Note
+"Ølandshvedebrød" sorts last in the list.
+
+**Done.** Deviations and findings:
+
+- Read-only, as planned: the New, Edit and Delete buttons come with the form in 7c. `EntityList`'s
+  New button became optional for that; 7c makes it required again
+- The read view resolves nothing itself: each line already carries `ingredientName` and
+  `unitLabel`. Lines read amount, unit, ingredient, sorted by ingredient; instructions keep their
+  line breaks; category, tags and ingredients link to their own pages
+- **Found and fixed: list order depended on the viewer's browser.** The sort test failed on
+  "Ølandshvedebrød". `localeCompare` without a locale follows the runtime's: Node runs in `da-DK`
+  (Windows), so the test expected Danish order, Ø after Z, while Playwright Test's browser runs in
+  `en-US`, which sorts Ø beside O. A user's English browser would have done the same. Decided:
+  Danish order always. `lib/sort.ts` holds the one comparator, used by `EntityList`, the read
+  view's tags and lines, and the list's tags column - which had used a plain `.toSorted()`, byte
+  order. The specs compare with the same comparator from `support/pages.ts`
+- Verified: lint and build clean; 69 Playwright tests green; the list and a read view checked in
+  screenshots
 
 ---
 

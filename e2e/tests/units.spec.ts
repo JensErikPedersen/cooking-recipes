@@ -3,6 +3,7 @@ import { deleteById } from "../support/api";
 import { USERNAME } from "../support/auth";
 import {
   createThroughForm,
+  danish,
   expectCreatedNowBy,
   expectReadView,
   main,
@@ -51,7 +52,7 @@ test("the unit list is in alphabetical order, whatever order the API returns", a
   await expect(main(page).getByRole("link", { name: "Teske", exact: true })).toBeVisible();
 
   const names = await main(page).locator("tbody tr td:first-child").allTextContents();
-  expect(names).toEqual(names.toSorted((a, b) => a.localeCompare(b)));
+  expect(names).toEqual(names.toSorted(danish));
   expect(names.filter((name) => SEEDED.includes(name))).toEqual(SEEDED);
 });
 

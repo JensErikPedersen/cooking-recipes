@@ -100,6 +100,29 @@ export const categories = {
   remove: (id: string) => request<void>("DELETE", `/categories/${encodeURIComponent(id)}`),
 };
 
+/** One ingredient line of a recipe, with the names the read view shows already resolved. */
+export interface RecipeIngredientLine {
+  ingredientId: string;
+  ingredientName: string;
+  amount: number;
+  unitId: string;
+  unitLabel: string;
+}
+
+export interface Recipe extends Audited {
+  name: string;
+  description?: string;
+  instructions?: string;
+  category: Category;
+  tags?: Tag[];
+  recipeIngredients?: RecipeIngredientLine[];
+}
+
+export const recipes = {
+  list: () => request<Recipe[]>("GET", "/recipes"),
+  get: (id: string) => request<Recipe>("GET", `/recipes/${encodeURIComponent(id)}`),
+};
+
 export interface Ingredient extends Audited {
   name: string;
   description?: string;

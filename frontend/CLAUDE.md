@@ -51,6 +51,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
   and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
+- Sorting is Danish, always: `danish` from `lib/sort.ts`, never a bare `localeCompare` or
+  `.toSorted()`. The names are Danish, and without a locale the order followed the viewer's
+  browser - an English one put Ø beside O. The e2e specs compare with the same comparator.
 - No frontend unit tests. Behaviour is covered by Playwright in `/e2e`, which asserts what a user
   sees - roles and visible text - rather than markup.
 
