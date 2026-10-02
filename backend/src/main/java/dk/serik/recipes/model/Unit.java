@@ -16,10 +16,11 @@ import java.util.Objects;
 @Table(name="unit")
 public class Unit extends BaseIdentifierEntity {
 	
-	@Column(nullable = false, unique = true)
+	// Mirrors the Liquibase schema, which is authoritative (ddl-auto=none): name is unique, label is not.
+	@Column(nullable = false)
 	private String label;
 	
-	@Column(nullable = false)
+	@Column(nullable = false, unique = true)
 	private String name;
 
 

@@ -6,7 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { ApiError, auth, type AuthenticatedUser } from "@/lib/api";
 
 // One entry per entity type; each slice adds its own when its pages exist.
-const NAVIGATION = [{ href: "/categories", label: "Categories" }];
+const NAVIGATION = [
+  { href: "/categories", label: "Categories" },
+  { href: "/units", label: "Units" },
+];
 
 // The frame of every signed-in page: the header with the menu, the user and the logout button, and
 // the page area below it. It renders nothing until the backend confirms the session, so an expired

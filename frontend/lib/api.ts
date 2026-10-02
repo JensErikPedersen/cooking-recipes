@@ -100,6 +100,21 @@ export const categories = {
   remove: (id: string) => request<void>("DELETE", `/categories/${encodeURIComponent(id)}`),
 };
 
+export interface Unit extends Audited {
+  name: string;
+  label: string;
+}
+
+export type UnitInput = Pick<Unit, "name" | "label">;
+
+export const units = {
+  list: () => request<Unit[]>("GET", "/units"),
+  get: (id: string) => request<Unit>("GET", `/units/${encodeURIComponent(id)}`),
+  create: (input: UnitInput) => request<Unit>("POST", "/units", input),
+  update: (id: string, input: UnitInput) => request<Unit>("PUT", `/units/${encodeURIComponent(id)}`, input),
+  remove: (id: string) => request<void>("DELETE", `/units/${encodeURIComponent(id)}`),
+};
+
 export const auth = {
   me: () => request<AuthenticatedUser>("GET", "/auth/me"),
   login: (username: string, password: string) =>

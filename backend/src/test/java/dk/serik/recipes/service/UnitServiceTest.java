@@ -7,6 +7,7 @@ import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mockutil.MockUnitUtil;
 import dk.serik.recipes.model.Unit;
+import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import dk.serik.recipes.repository.UnitJpaRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -30,12 +31,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 public class UnitServiceTest {
     @Mock
     private UnitJpaRepository repository;
+    @Mock
+    private RecipeIngredientJpaRepository recipeIngredientRepository;
     @Mock
     private Session session;
     @InjectMocks
@@ -261,4 +265,44 @@ public class UnitServiceTest {
                 .containsExactly(ApplicationErrorCodes.UNIT_ID_IS_NULL.getCode(), HttpStatus.BAD_REQUEST);
     }
 
+
+    @Test
+    @DisplayName("Given the name is taken, When saving a Unit, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectSaveOfDuplicateName() {
+        given(repository.findByName("Gram")).willReturn(Optional.of(MockUnitUtil.mockGram()));
+
+        assertThatThrownBy(() -> service.save(MockUnitUtil.mockUnitGramDTO()))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("A unit named 'Gram' already exists")
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        then(repository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given another Unit has the name, When updating, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectUpdateToAnotherUnitsName() {
+        given(repository.findById(UUID.fromString("f7823293-7874-4459-9fb7-6b420a0627fa"))).willReturn(Optional.of(MockUnitUtil.mockGram()));
+        given(repository.findByName("Kilogram")).willReturn(Optional.of(MockUnitUtil.mockDl()));  // other id
+
+        assertThatThrownBy(() -> service.update(MockUnitUtil.mockUnitGramDTOToBeUpdated()))
+                .isInstanceOf(ServiceException.class)
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        then(repository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given recipes use the Unit, When deleting, Then a conflict naming the count is reported and nothing is deleted")
+    public void shouldRejectDeleteOfUnitInUse() {
+        given(repository.findById(UUID.fromString("f7823293-7874-4459-9fb7-6b420a0627fa"))).willReturn(Optional.of(MockUnitUtil.mockGram()));
+        given(recipeIngredientRepository.countRecipesByUnitId(UUID.fromString("f7823293-7874-4459-9fb7-6b420a0627fa"))).willReturn(1L);
+
+        assertThatThrownBy(() -> service.delete("f7823293-7874-4459-9fb7-6b420a0627fa"))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("Unit 'Gram' is used by 1 recipe and cannot be deleted")
+                .extracting("code", "httpStatus")
+                .containsExactly(ApplicationErrorCodes.UNIT_IN_USE.getCode(), HttpStatus.CONFLICT);
+        then(repository).should(never()).delete(any());
+    }
 }

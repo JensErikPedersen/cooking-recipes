@@ -27,6 +27,8 @@ public enum ApplicationErrorCodes {
     UNIT_DTO_IS_NULL(300),
     UNIT_ID_IS_NULL(301),
     UNIT_NOT_FOUND(310),
+    UNIT_ALREADY_EXISTS(311),
+    UNIT_IN_USE(312),
     TAG_DTO_IS_NULL(401),
     TAG_ID_IS_NULL(400),
     TAG_NOT_FOUND(410),

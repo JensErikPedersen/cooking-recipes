@@ -1,52 +1,38 @@
 import { expect, test, type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
-import { deleteCategory } from "../support/api";
+import { deleteById } from "../support/api";
 import { USERNAME } from "../support/auth";
+import {
+  createThroughForm,
+  expectCreatedNowBy,
+  expectReadView,
+  main,
+  openFromMenu,
+  readView,
+  uniqueName,
+} from "../support/pages";
 
 // Seeded by db.changelog_1.1.xml. Each one is used by a recipe, so no test may delete it.
 const SEEDED = ["Brød", "Dessert", "Hovedret", "Kager"];
 const DESSERT_ID = "913a5159-3717-4b9d-a290-0158d31ea8aa";
-const READ_VIEW = /\/categories\/[0-9a-f-]{36}$/;
 
 // Categories a test created, removed after it whether it passed or not.
 const created: string[] = [];
 test.afterEach(async ({ page }) => {
   for (const id of created.splice(0)) {
-    await deleteCategory(page, id);
+    await deleteById(page, "categories", id);
   }
 });
 
-const uniqueName = () => `E2E ${randomUUID().slice(0, 8)}`;
-
-const main = (page: Page) => page.getByRole("main");
-
-async function openFromMenu(page: Page) {
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Categories" }).click();
-  await expect(page).toHaveURL("/categories");
-}
-
-/** Fills and saves the new-category form, and returns the id the read view landed on. */
 async function createCategory(page: Page, name: string, description: string) {
-  await page.goto("/categories/new");
-  await page.getByLabel("Name").fill(name);
-  await page.getByLabel("Description").fill(description);
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page).toHaveURL(READ_VIEW);
-  const id = page.url().split("/").pop()!;
+  const id = await createThroughForm(page, "categories", { Name: name, Description: description });
   created.push(id);
   return id;
-}
-
-async function expectReadView(page: Page, name: string, description: string) {
-  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  await expect(main(page)).toContainText(description);
-  await expect(page.getByRole("textbox")).toHaveCount(0);
 }
 
 test("the menu leads to the category list, which shows the seeded categories", async ({ page }) => {
   await page.goto("/");
 
-  await openFromMenu(page);
+  await openFromMenu(page, "Categories", "/categories");
 
   await expect(page.getByRole("heading", { name: "Categories" })).toBeVisible();
   for (const name of SEEDED) {
@@ -104,11 +90,11 @@ test("a new category lands on its read view, loaded fresh, and is still there af
   );
   await page.getByRole("button", { name: "Save" }).click();
   await readBack;
-  await expect(page).toHaveURL(READ_VIEW);
+  await expect(page).toHaveURL(readView("categories"));
   created.push(page.url().split("/").pop()!);
   await expectReadView(page, name, "Made by Playwright");
 
-  await openFromMenu(page);
+  await openFromMenu(page, "Categories", "/categories");
   await main(page).getByRole("link", { name, exact: true }).click();
   await expectReadView(page, name, "Made by Playwright");
 
@@ -132,7 +118,7 @@ test("an edited category shows the change, and keeps it after leaving and return
   await expect(page).toHaveURL(`/categories/${id}`);
   await expectReadView(page, renamed, "After");
 
-  await openFromMenu(page);
+  await openFromMenu(page, "Categories", "/categories");
   await expect(main(page).getByRole("link", { name, exact: true })).toHaveCount(0);
   await main(page).getByRole("link", { name: renamed, exact: true }).click();
   await expectReadView(page, renamed, "After");
@@ -143,12 +129,7 @@ test("the edit form shows when, in UTC, and by whom the category was created", a
 
   await page.goto(`/categories/${id}/edit`);
 
-  await expect(main(page).locator("dt:text-is('Created by') + dd")).toHaveText(USERNAME);
-  const created = await main(page).locator("dt:text-is('Created') + dd").textContent();
-  expect(created).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/);
-  // Read as UTC, it is now: the label is true, not merely present.
-  const createdAt = Date.parse(created!.replace(" ", "T").replace(" UTC", ":00Z"));
-  expect(Math.abs(Date.now() - createdAt)).toBeLessThan(2 * 60 * 1000);
+  await expectCreatedNowBy(page, USERNAME);
 });
 
 test("a name another category has shows the server's error on the name field", async ({ page }) => {
@@ -225,6 +206,6 @@ test("a category recipes use cannot be deleted, and the dialog says why", async 
   await dialog.getByRole("button", { name: "OK" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByRole("heading", { name: "Brød" })).toBeVisible();
-  await openFromMenu(page);
+  await openFromMenu(page, "Categories", "/categories");
   await expect(main(page).getByRole("link", { name: "Brød", exact: true })).toBeVisible();
 });

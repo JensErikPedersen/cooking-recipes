@@ -34,7 +34,7 @@ back in the error envelope (codes 600-602), never as a redirect.
 |---|---|
 | `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` |
 | `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
-| `repository` | `JpaRepository` per entity, derived queries only |
+| `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
 | `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
 | `mapper` | Static entity/DTO converters |
@@ -94,8 +94,9 @@ consequence is that anything unhandled looks identical to the client.
 
 A service that can say *why* a write conflicts checks before writing and throws a 409 of its own:
 `CategoryServiceImpl` rejects a duplicate name (104, on field `name`) and deleting a category
-recipes use (105). The database constraint behind each stays the backstop, caught by the
-`DataIntegrityViolationException` handler. Unit and Ingredient have only the backstop until Part 6.
+recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rather than
+`recipe_ingredient` lines. The database constraint behind each stays the backstop, caught by the
+`DataIntegrityViolationException` handler. Ingredient has only the backstop until Part 6.
 
 ## Tests
 
@@ -124,10 +125,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
-| `CategoryIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); category writes against the real constraints |
+| `CategoryIT`, `UnitIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**Only `AuthenticationIT` and `CategoryIT` exercise controller to service to repository to
-database**, and only for category writes. Neither runs in a test transaction: it would postpone the
+**Only `AuthenticationIT`, `CategoryIT` and `UnitIT` exercise controller to service to repository
+to database**, and only for category and unit writes. Neither runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
 the null `created_by` stayed invisible to a green build until Part 4. Recipe writes get the same
 end-to-end test as `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so

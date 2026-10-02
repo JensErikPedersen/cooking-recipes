@@ -856,7 +856,7 @@ One reviewable increment per entity, in ascending order of difficulty. Each reus
 components. If a slice needs a new shared abstraction, that is a signal Part 5 was under-designed -
 say so rather than working around it.
 
-- [ ] Unit: full CRUD, in list, read, create, edit, delete
+- [x] Unit: full CRUD, in list, read, create, edit, delete
 - [ ] Tag: full CRUD. Note tag names are deliberately not unique, unlike the others
 - [ ] Ingredient: full CRUD, including its description field
 
@@ -877,6 +877,39 @@ this part:
 
 Also worth a look: skim the diff for the three slices. If they are near-identical copies of the
 Category pages, that is the signal to factor something out before Recipe makes it worse.
+
+### 6a: Unit
+
+**Tests.** `UnitIT` as `CategoryIT`, with the in-use case on one recipe using the unit on two
+lines. Playwright `units.spec.ts`, the Category suite replicated: 13 tests.
+
+**Verify it yourself.** At `http://localhost:3000/units` (Units in the menu), the Part 5
+click-through: create with a name and a label, reload, edit, leave and return, delete. Then:
+
+- a new unit named `Gram`: "A unit named 'Gram' already exists" under Name
+- Save with both fields empty: a message under each
+- open Gram, Delete, confirm: "Unit 'Gram' is used by 2 recipes and cannot be deleted", with OK
+
+**Done.** Deviations and findings:
+
+- Backend, the 5a pattern: 409 `UNIT_ALREADY_EXISTS` (311) on the name field, 409 `UNIT_IN_USE`
+  (312). `UnitIT` first showed both as the 5a backstop's generic 409, code 40
+- **The in-use count is of recipes, not lines.** One recipe can use a unit on several ingredient
+  lines - seeded Gram is on 8 lines in 2 recipes - so a derived count would have said 8.
+  `RecipeIngredientJpaRepository.countRecipesByUnitId` is the first JPQL `@Query` in the
+  repositories; `UnitIT` proves the distinct count, and the Gram e2e test proves it on MySQL
+- **Found and fixed:** the `Unit` entity declared `label` unique and `name` not, the reverse of
+  the Liquibase schema. With `ddl-auto=none` it changed nothing at runtime, but it misled; the
+  annotations now mirror the schema
+- **Part 5 under-designed one piece, as this part warned.** The read view and edit page each held
+  the same load, 404 and error handling. Rather than copy it into every entity, it is now
+  `EntityLoader`, and the Category pages use it too - the Category suite guards that refactor.
+  The list pages keep their three-line fetch: what differs between them is the table
+- e2e: what every spec does alike moved to `support/pages.ts` (`createThroughForm`,
+  `expectReadView`, `expectCreatedNowBy`, `openFromMenu`), and cleanup is `deleteById` for any
+  collection. The Category spec uses them, its tests unchanged
+- Verified: `./mvnw clean verify` 245 unit, 86 integration; lint and build clean; 36 Playwright
+  tests green; afterwards the stack held only seeded units and categories
 
 ---
 
