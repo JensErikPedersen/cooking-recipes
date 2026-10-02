@@ -1234,7 +1234,7 @@ Split into three steps, each committed and accepted on its own:
 - [x] Navigation menu linking all five entity types, with the signed-in user and logout visible.
       Already so: built up in `AppShell` slice by slice from Part 5
 - [x] Empty states, loading states and a not-found page
-- [ ] Responsive check at phone width
+- [x] Responsive check at phone width
 - [ ] Full Playwright suite runs green against a freshly built stack from an empty volume
 - [ ] `README.md` final pass, minimal
 - [ ] `backend/docs/future_enhancements.md` updated with anything deferred during Parts 2-7
@@ -1282,6 +1282,37 @@ page, not an error.
   with the redirect removed, the new test fails and so does the 4b back-button test
 - Verified: lint and build clean; 85 Playwright tests green; the stack held only its seeds after the
   run; the Welcome and not-found pages checked in screenshots
+
+### 8b: Phone width
+
+**Tests.** Playwright `phone.spec.ts`, at 375 px, 10 tests: each of 8 pages - Welcome, the recipe
+list, read view and edit form, three more lists and a new-unit form - fits without scrolling
+sideways; every menu entry is reachable; a recipe's ingredient lines keep within the page margin.
+
+**Verify it yourself.** In Chrome's dev tools, the device toolbar (Ctrl+Shift+M) at 375 px wide, or
+on a phone on the same network: the menu sits on its own row under the title, nothing scrolls
+sideways, and on a recipe's edit form each ingredient line is two rows - the ingredient, then amount,
+unit and Remove.
+
+**Done.** Deviations and findings:
+
+- Measured, not guessed. A first measurement reported every page fitting - but each screenshot was
+  the sign-in page: the saved Playwright session had passed Spring's 30-minute idle timeout, and the
+  8a redirect sent every page to `/login`. With a fresh session, every signed-in page was about
+  620 px wide on a 375 px screen
+- **The header was the cause**: its five menu entries, the user and Log out on one line that could
+  not wrap. Now it wraps, and narrower than `md` the menu takes a row of its own below the title,
+  the user and Log out. Desktop is unchanged
+- **The ingredient lines** - four columns, about 600 px - are now two rows per line narrower than
+  `sm`. Once the header no longer hid it, one more flaw showed: the lines ran past the page margin,
+  to the screen edge, because a `<fieldset>` defaults to `min-width: min-content` and Tailwind's
+  base styles do not reset it. `min-w-0` does. The sideways check could not see this, since the
+  lines stayed on screen, hence the margin test
+- The tables needed nothing: their text wraps within the width
+- Proven load-bearing: with both fixes reverted, 9 of the 11 tests in the spec fail - all 8 page
+  checks and the margin check
+- Verified: lint and build clean; 95 Playwright tests green; desktop and phone headers checked in
+  screenshots
 
 ---
 

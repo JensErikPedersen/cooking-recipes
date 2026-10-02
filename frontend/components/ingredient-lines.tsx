@@ -49,7 +49,9 @@ export function IngredientLines({
 
   return (
     <fieldset
-      className="flex flex-col gap-2"
+      // min-w-0: a fieldset is at least as wide as its content by default, which pushed the lines
+      // past the page margin on a phone.
+      className="flex min-w-0 flex-col gap-2"
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? "recipeIngredients-error" : undefined}
     >
@@ -59,7 +61,8 @@ export function IngredientLines({
           key={line.key}
           role="group"
           aria-label={`Ingredient line ${index + 1}`}
-          className="grid grid-cols-[1fr_6rem_10rem_auto] gap-2"
+          // Narrower than sm a line takes two rows: the ingredient, then amount, unit and Remove.
+          className="grid grid-cols-[5rem_1fr_auto] gap-2 sm:grid-cols-[1fr_6rem_10rem_auto]"
         >
           <label className="sr-only" htmlFor={`ingredient-${line.key}`}>
             Ingredient
@@ -68,7 +71,7 @@ export function IngredientLines({
             id={`ingredient-${line.key}`}
             value={line.ingredientId}
             onChange={(event) => set(line.key, { ingredientId: event.target.value })}
-            className={control}
+            className={`${control} col-span-3 sm:col-span-1`}
           >
             <option value="">Choose an ingredient</option>
             {ingredients

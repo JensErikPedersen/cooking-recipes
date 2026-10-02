@@ -62,6 +62,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
   and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
+- Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
+  on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A
+  `<fieldset>` needs `min-w-0`, or it grows to its content and runs past the page margin.
 - Sorting is Danish, always: `danish` from `lib/sort.ts`, never a bare `localeCompare` or
   `.toSorted()`. The names are Danish, and without a locale the order followed the viewer's
   browser - an English one put Ø beside O. The e2e specs compare with the same comparator.

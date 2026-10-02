@@ -46,12 +46,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <header className="border-b">
-        <div className="mx-auto flex max-w-4xl items-center gap-6 px-8 py-3">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-2 px-8 py-3">
           <Link href="/" className="text-lg font-semibold">
             Cooking Recipes
           </Link>
-          <nav aria-label="Main">
-            <ul className="flex gap-4">
+          {/* Narrower than md, the menu takes a row of its own below the title, the user and Log out. */}
+          <nav aria-label="Main" className="order-last w-full md:order-none md:w-auto">
+            <ul className="flex flex-wrap gap-x-4 gap-y-1">
               {NAVIGATION.map(({ href, label }) => {
                 const current = pathname === href || pathname.startsWith(`${href}/`);
                 return (
