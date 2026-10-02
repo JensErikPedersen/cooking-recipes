@@ -100,6 +100,22 @@ export const categories = {
   remove: (id: string) => request<void>("DELETE", `/categories/${encodeURIComponent(id)}`),
 };
 
+export interface Ingredient extends Audited {
+  name: string;
+  description?: string;
+}
+
+export type IngredientInput = Pick<Ingredient, "name" | "description">;
+
+export const ingredients = {
+  list: () => request<Ingredient[]>("GET", "/ingredients"),
+  get: (id: string) => request<Ingredient>("GET", `/ingredients/${encodeURIComponent(id)}`),
+  create: (input: IngredientInput) => request<Ingredient>("POST", "/ingredients", input),
+  update: (id: string, input: IngredientInput) =>
+    request<Ingredient>("PUT", `/ingredients/${encodeURIComponent(id)}`, input),
+  remove: (id: string) => request<void>("DELETE", `/ingredients/${encodeURIComponent(id)}`),
+};
+
 export interface Tag extends Audited {
   name: string;
 }

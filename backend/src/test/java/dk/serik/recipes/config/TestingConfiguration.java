@@ -3,6 +3,7 @@ package dk.serik.recipes.config;
 import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.repository.CategoryJpaRepository;
 import dk.serik.recipes.repository.IngredientJpaRepository;
+import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import dk.serik.recipes.repository.RecipeJpaRepository;
 import dk.serik.recipes.service.CategoryService;
 import dk.serik.recipes.service.CategoryServiceImpl;
@@ -20,7 +21,7 @@ public class TestingConfiguration {
     }
 
     @Bean
-    public IngredientService ingredientService(IngredientJpaRepository ingredientJpaRepository, Session session) {
-        return new IngredientServiceImpl(ingredientJpaRepository, session);
+    public IngredientService ingredientService(IngredientJpaRepository ingredientJpaRepository, RecipeIngredientJpaRepository recipeIngredientJpaRepository, Session session) {
+        return new IngredientServiceImpl(ingredientJpaRepository, recipeIngredientJpaRepository, session);
     }
 }

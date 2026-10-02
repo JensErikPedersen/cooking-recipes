@@ -859,7 +859,7 @@ say so rather than working around it.
 - [x] Unit: full CRUD, in list, read, create, edit, delete
 - [x] Tag: full CRUD. ~~Note tag names are deliberately not unique, unlike the others~~ - they are
       unique: the schema has always said so, and that was decided to hold. See 6b
-- [ ] Ingredient: full CRUD, including its description field
+- [x] Ingredient: full CRUD, including its description field
 
 **Tests.** The Category Playwright suite replicated per entity, adjusted for each entity's fields
 and keeping the navigate-away-and-back assertion rather than
@@ -943,6 +943,40 @@ click-through: create, reload, edit, leave and return, delete. Then:
   say to use one. Earlier steps always ran `clean verify`, which is why it never showed
 - Verified: `./mvnw clean verify` 248 unit, 91 integration; lint and build clean; 49 Playwright
   tests green; afterwards the stack held only seeded tags, units and categories
+
+### 6c: Ingredient
+
+**Tests.** `IngredientIT` as `CategoryIT`. Playwright `ingredients.spec.ts`, the Category suite
+replicated plus one: a cleared description is none after a reload, not an empty value - 14 tests.
+
+**Verify it yourself.** At `http://localhost:3000/ingredients` (Ingredients in the menu), the Part
+5 click-through: create with a description, reload, edit both fields, leave and return, delete.
+Then:
+
+- edit one, clear its description, Save, reload: Description reads None
+- a new ingredient named `Hvedemel`: "An ingredient named 'Hvedemel' already exists" under Name
+- open Hvedemel, Delete, confirm: "used by 2 recipes and cannot be deleted", with OK
+
+**Done.** Deviations and findings:
+
+- Backend, the 5a pattern: 409 `INGREDIENT_ALREADY_EXISTS` (211) on the name field, 409
+  `INGREDIENT_IN_USE` (212). `recipe_ingredient`'s key is (recipe, ingredient), so the derived
+  `countByIngredientId` counts recipes. Schema and entity agree on the unique name this time
+- **The list pages are factored out**, as this part's success criterion asks. Four were the same
+  50 lines but for their columns; they are now `EntityList`, given a load call and the columns
+  after Name. Every earlier spec passed unchanged on it, the sort tests included. What stays per
+  entity is justified: its form, which holds its own fields, and the small read, new and edit
+  pages wrapping the shared pieces
+- Verified: `./mvnw clean verify` 251 unit, 96 integration; lint and build clean; 63 Playwright
+  tests green; afterwards the stack held only seeded data
+
+### Part 6 as a whole
+
+**Done.** Three entities end to end, each with its own `<Entity>IT` and replicated Playwright suite.
+Duplication is factored out where it was the same code - `EntityList`, `EntityLoader`, the e2e
+`support/pages.ts` - and justified where it remains: the per-entity forms and page wrappers, a
+few lines each. Found on the way: tag names were documented as not unique but are, and VS Code
+compiles into Maven's `target/`. Part 7 starts from four lookups with the same 409 behaviour.
 
 ---
 

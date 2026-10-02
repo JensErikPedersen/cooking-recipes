@@ -7,6 +7,7 @@ import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mapper.IngredientMapper;
 import dk.serik.recipes.model.Ingredient;
 import dk.serik.recipes.repository.IngredientJpaRepository;
+import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 public class IngredientServiceImpl implements IngredientService {
 
     private IngredientJpaRepository repository;
+    private RecipeIngredientJpaRepository recipeIngredientRepository;
     private Session session;
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
@@ -74,6 +76,7 @@ public class IngredientServiceImpl implements IngredientService {
     @Override
     public IngredientDTO save(IngredientDTO dto) {
         if(Objects.nonNull(dto)) {
+            rejectDuplicateName(dto.getName(), null);
             Ingredient entity = new Ingredient();
             entity.setDescription(dto.getDescription());
             entity.setName(dto.getName());
@@ -92,10 +95,38 @@ public class IngredientServiceImpl implements IngredientService {
     public boolean delete(String id) {
         Optional<Ingredient> optional = repository.findById(ServiceArguments.toUuid(id, ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient"));
         if(optional.isPresent()) {
+            rejectDeleteInUse(optional.get());
             repository.delete(optional.get());
             return true;
         }
         return false;
+    }
+
+    // As in CategoryServiceImpl: the unique index on name and the recipe_ingredient foreign key
+    // refuse these anyway, at commit and without a reason; checking first gives one.
+    private void rejectDuplicateName(String name, UUID ownId) {
+        repository.findByName(name)
+                .filter(existing -> !existing.getId().equals(ownId))
+                .ifPresent(existing -> {
+                    throw ServiceException.builder()
+                            .message(String.format("An ingredient named '%s' already exists", name))
+                            .code(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode())
+                            .httpStatus(HttpStatus.CONFLICT)
+                            .field("name")
+                            .build();
+                });
+    }
+
+    private void rejectDeleteInUse(Ingredient ingredient) {
+        long recipes = recipeIngredientRepository.countByIngredientId(ingredient.getId());
+        if (recipes > 0) {
+            throw ServiceException.builder()
+                    .message(String.format("Ingredient '%s' is used by %d %s and cannot be deleted",
+                            ingredient.getName(), recipes, recipes == 1 ? "recipe" : "recipes"))
+                    .code(ApplicationErrorCodes.INGREDIENT_IN_USE.getCode())
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
     }
 
     @Override
@@ -106,6 +137,7 @@ public class IngredientServiceImpl implements IngredientService {
         Optional<Ingredient> optionalIngredient = repository.findById(ServiceArguments.toUuid(dto.getId(), ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient"));
         if(optionalIngredient.isPresent()) {
             Ingredient managedIngredient = optionalIngredient.get();
+            rejectDuplicateName(dto.getName(), managedIngredient.getId());
             managedIngredient.setDescription(dto.getDescription());
             managedIngredient.setName(dto.getName());
             Ingredient savedIngredient = repository.save(managedIngredient);

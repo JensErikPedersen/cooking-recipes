@@ -23,10 +23,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed, sending a 401 to
   `/login`. `proxy.ts` (Next 16's name for middleware) redirects requests without a `JSESSIONID`
   cookie before any page renders. Neither is the security - the backend answers 401 regardless.
-- Data fetching: pages are client components. A list page calls `lib/api.ts` in a `useEffect`,
-  holding the result and any error in state; a read view or edit page wraps itself in
-  `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
-  otherwise, nothing while loading. Not server components: they
+- Data fetching: pages are client components, and none fetches by itself. A list page is an
+  `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
+  it is given. A read view or edit page wraps itself in `EntityLoader`, which loads the one entity
+  and renders it - or `NotFound` for a 404, the error otherwise, nothing while loading. Both take
+  the `lib/api.ts` call as a prop. Not server components: they
   would have to forward the session and CSRF cookies to the backend's internal address.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.

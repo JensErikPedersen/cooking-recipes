@@ -8,6 +8,7 @@ import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mockutil.MockIngredientUtil;
 import dk.serik.recipes.model.Ingredient;
 import dk.serik.recipes.repository.IngredientJpaRepository;
+import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,9 @@ public class IngredientServiceTest {
 	
 	@Mock
 	private IngredientJpaRepository repository;
+
+	@Mock
+	private RecipeIngredientJpaRepository recipeIngredientRepository;
 
 	@Mock
 	private Session session;
@@ -367,4 +371,44 @@ public class IngredientServiceTest {
                 .containsExactly(ApplicationErrorCodes.INGREDIENT_ID_IS_NULL.getCode(), HttpStatus.BAD_REQUEST);
     }
 
+
+	@Test
+	@DisplayName("Given the name is taken, When saving an Ingredient, Then a conflict on the name field is reported and nothing is saved")
+	public void shouldRejectSaveOfDuplicateName() {
+		given(repository.findByName("Hvedemel")).willReturn(Optional.of(MockIngredientUtil.mockHvedemel()));
+
+		assertThatThrownBy(() -> service.save(MockIngredientUtil.mockHvedemelDTO()))
+				.isInstanceOf(ServiceException.class)
+				.hasMessage("An ingredient named 'Hvedemel' already exists")
+				.extracting("code", "httpStatus", "field")
+				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+		then(repository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("Given another Ingredient has the name, When updating, Then a conflict on the name field is reported and nothing is saved")
+	public void shouldRejectUpdateToAnotherIngredientsName() {
+		given(repository.findById(UUID.fromString("01a50907-8141-4dd1-acdf-c4384669c2b2"))).willReturn(Optional.of(MockIngredientUtil.mockHavsalt()));
+		given(repository.findByName("Havsalt")).willReturn(Optional.of(MockIngredientUtil.mockHavsaltUpdated()));  // other id
+
+		assertThatThrownBy(() -> service.update(MockIngredientUtil.mockHavsaltDTOToUpdate()))
+				.isInstanceOf(ServiceException.class)
+				.extracting("code", "httpStatus", "field")
+				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+		then(repository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("Given recipes use the Ingredient, When deleting, Then a conflict naming the count is reported and nothing is deleted")
+	public void shouldRejectDeleteOfIngredientInUse() {
+		given(repository.findById(UUID.fromString("5f01d434-5a68-4359-9f2e-0a6793dce48d"))).willReturn(Optional.of(MockIngredientUtil.mockHvedemel()));
+		given(recipeIngredientRepository.countByIngredientId(UUID.fromString("5f01d434-5a68-4359-9f2e-0a6793dce48d"))).willReturn(2L);
+
+		assertThatThrownBy(() -> service.delete("5f01d434-5a68-4359-9f2e-0a6793dce48d"))
+				.isInstanceOf(ServiceException.class)
+				.hasMessage("Ingredient 'Hvedemel' is used by 2 recipes and cannot be deleted")
+				.extracting("code", "httpStatus")
+				.containsExactly(ApplicationErrorCodes.INGREDIENT_IN_USE.getCode(), HttpStatus.CONFLICT);
+		then(repository).should(never()).delete(any());
+	}
 }

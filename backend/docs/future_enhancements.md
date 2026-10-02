@@ -111,7 +111,8 @@ Three specific problems:
 **Update 2026-10-02.** Unit followed in Part 6a, the same way, counting recipes rather than
 `recipe_ingredient` lines, and Tag in 6b. The entry below says Tag is unaffected because tag names
 are deliberately not unique: that was wrong. The schema has always made `tag.name` unique, and it
-was decided to keep it so. Ingredient remains.
+was decided to keep it so. Ingredient followed in 6c. Only Recipe, whose name is unique too, still
+answers a duplicate with the generic `DATA_CONFLICT` 409 - Part 7's to decide.
 
 **Update 2026-10-01.** Done for Category in Part 5a, as described below, plus a check that refuses
 to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`

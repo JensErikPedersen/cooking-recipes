@@ -19,6 +19,9 @@ public interface RecipeIngredientJpaRepository extends JpaRepository<RecipeIngre
 	
 	List<RecipeIngredient> findAllByIngredientId(UUID ingredientId);
 
+	// The key is (recipe, ingredient), so each row is a different recipe.
+	long countByIngredientId(UUID ingredientId);
+
 	// Recipes, not lines: one recipe can use a unit on several ingredient lines. No derived query
 	// counts distinct recipes, hence the JPQL.
 	@Query("select count(distinct ri.recipe.id) from RecipeIngredient ri where ri.unit.id = :unitId")
