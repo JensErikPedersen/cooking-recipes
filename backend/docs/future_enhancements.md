@@ -300,3 +300,31 @@ accounts have to be created by an init script mounted into
 deliberate act with its own credentials rather than something the runtime user could do by
 accident.
 
+---
+
+## Smaller items deferred during Parts 2-7
+
+Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
+step's notes in `docs/PLAN.md`.
+
+- **A POST's `Location` header names the backend's internal address** (`http://backend:8080/...`):
+  the backend builds it from the `Host` the Next.js proxy sends. Nothing reads the header - the
+  frontend uses the id in the body. `server.forward-headers-strategy=framework` would fix it.
+  Found in 4a.
+- **The `DataIntegrityViolationException` handler answers 409 for every constraint**, including a
+  NOT NULL column left empty, which is a server fault rather than a conflict. 7a met exactly that:
+  the `recipe_tag.created_by` failure came back as "The change conflicts with existing data".
+  Hibernate's `ConstraintViolationException.getKind()` tells UNIQUE and FOREIGN_KEY, a 409, from
+  NOT_NULL and CHECK, a 500.
+- **Dead code**: `config/TestingConfiguration` in the tests is referenced by nothing - a
+  `@TestConfiguration` is excluded from component scanning (5a). `backend/HELP.md` is the Spring
+  Initializr's generated help. The unreferenced `@UUID` validator and repository query are noted
+  in the name-lookup entry above.
+- **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
+  in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
+  keep or remove them as one decision.
+- **`RecipeIngredientJpaRepository` declares its id type as `UUID`**, but `RecipeIngredient`'s
+  key is the composite `RecipeIngredientPK`. Every caller uses the derived queries, so nothing
+  breaks; `findById` on it would be wrong. Noticed in 6a.
+- **Sign-in does not return to where you were heading**: after signing in you land on the start
+  page. Deliberately left out in 4b for simplicity.

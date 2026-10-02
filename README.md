@@ -13,7 +13,8 @@ cp .env.example .env      # PowerShell: copy .env.example .env - then replace th
 scripts/start.sh          # PowerShell: .\scripts\start.ps1
 ```
 
-Open http://localhost:3000. Stop with `scripts/stop.sh` or `.\scripts\stop.ps1`.
+Open http://localhost:3000 and sign in with `APP_ADMIN_USERNAME` and `APP_ADMIN_PASSWORD` from
+`.env`. Stop with `scripts/stop.sh` or `.\scripts\stop.ps1`.
 
 If PowerShell refuses to run the scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 

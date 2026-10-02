@@ -1235,9 +1235,9 @@ Split into three steps, each committed and accepted on its own:
       Already so: built up in `AppShell` slice by slice from Part 5
 - [x] Empty states, loading states and a not-found page
 - [x] Responsive check at phone width
-- [ ] Full Playwright suite runs green against a freshly built stack from an empty volume
-- [ ] `README.md` final pass, minimal
-- [ ] `backend/docs/future_enhancements.md` updated with anything deferred during Parts 2-7
+- [x] Full Playwright suite runs green against a freshly built stack from an empty volume
+- [x] `README.md` final pass, minimal
+- [x] `backend/docs/future_enhancements.md` updated with anything deferred during Parts 2-7
 
 **Success criteria.** `docker compose down -v`, then the start script, then the full Playwright
 suite passes with no manual intervention.
@@ -1313,6 +1313,38 @@ unit and Remove.
   checks and the margin check
 - Verified: lint and build clean; 95 Playwright tests green; desktop and phone headers checked in
   screenshots
+
+### 8c: Cold start and the final pass
+
+**Done.** Deviations and findings:
+
+- **The success criterion holds.** `docker compose down -v` removed the containers, the network
+  and the `cooking-recipes_mysql-data` volume; `.\scripts\start.ps1` brought the three services up
+  healthy in 33 seconds, Liquibase building the schema and seed and `AdminBootstrap` the account
+  from `.env`; `npx playwright test` then passed all 95 tests, with no step in between. The images
+  were rebuilt from Docker's cache - a new machine would also download the base images and
+  packages first, with the same commands
+- **`README.md`, followed literally, left you at the login page with no account to use.** It now
+  says to sign in with `APP_ADMIN_USERNAME` and `APP_ADMIN_PASSWORD` from `.env`. Nothing else was
+  missing; it stays minimal
+- **`.env.example` told you to change the admin password "through the application"**, which has
+  no screen for it - by decision, see `CLAUDE.md` Limitations. It now says what does work: reseed
+  with `docker compose down -v`
+- `backend/docs/future_enhancements.md` gains a closing entry for the smaller items deferred during
+  Parts 2-7 and so far recorded only in step notes: the internal `Location` header, the 409 the
+  constraint backstop gives a server fault, the dead `TestingConfiguration` and `HELP.md`, the
+  unused ingredient sub-resource endpoints, the repository's wrong id type, and sign-in not
+  returning you to where you were heading. The larger deferrals already had entries
+- A last sweep of every document for statements the work had made stale found none
+
+### Part 8 as a whole
+
+**Done.** Every box in this plan is ticked, but for the sub-resource item decided against in Part 7.
+The MVP does what `CLAUDE.md` asks: sign in, a Welcome page with a menu to all five entity types and
+a Log out button, lists, read views with Edit and Delete, one form for create and edit with the
+audit fields when editing, the read view after every save, and recipes that show their category,
+tags and ingredients. A fresh stack from an empty volume passes the whole suite: 253 unit and 105
+integration tests in the backend, 95 Playwright tests end to end.
 
 ---
 
