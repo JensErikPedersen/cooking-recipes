@@ -1223,9 +1223,17 @@ sort the Danish way.
 
 ## Part 8: Welcome page and full sweep
 
-- [ ] Welcome page with a hardcoded short description of the application
-- [ ] Navigation menu linking all five entity types, with the signed-in user and logout visible
-- [ ] Empty states, loading states and a not-found page
+Split into three steps, each committed and accepted on its own:
+
+- **8a** - Welcome page, not-found page, empty and loading states, and an ended session leading to
+  sign in
+- **8b** - phone width
+- **8c** - the cold start from an empty volume, `README.md` and `future_enhancements.md`
+
+- [x] Welcome page with a hardcoded short description of the application
+- [x] Navigation menu linking all five entity types, with the signed-in user and logout visible.
+      Already so: built up in `AppShell` slice by slice from Part 5
+- [x] Empty states, loading states and a not-found page
 - [ ] Responsive check at phone width
 - [ ] Full Playwright suite runs green against a freshly built stack from an empty volume
 - [ ] `README.md` final pass, minimal
@@ -1244,6 +1252,36 @@ npx playwright test
 
 Everything green, no manual step in between. Then read `README.md` and follow it literally, doing
 only what it says - if it is missing a step, you will find out here rather than in six months.
+
+### 8a: Welcome page, not-found page, empty and loading states
+
+**Tests.** Playwright: `smoke.spec.ts` now covers the Welcome page - the description and a link to
+each of the five parts. `states.spec.ts`, 4 tests: an empty list, served `[]`, says so instead of an
+empty table; a list held back shows "Loading…" until its data arrives; an unknown URL shows not
+found with the way back; and a session that ends while a page is open - a cookie the backend no
+longer knows - leads to sign in on the next page.
+
+**Verify it yourself.** At `http://localhost:3000`: the Welcome page, with a link to each part.
+`http://localhost:3000/no-such-page`: "Page not found". Then, with a page open, restart the backend
+(`docker compose restart backend`) - which ends every session - and click a menu entry: the sign-in
+page, not an error.
+
+**Done.** Deviations and findings:
+
+- The Welcome page replaces the Part 2 placeholder, as decided: `app/hello/route.ts` is gone, and the
+  smoke spec checks the Welcome page instead of the placeholder's fetched message
+- `Loading` is one component, shown by `EntityList`, `EntityLoader` and the recipe form while they
+  wait; `EntityList` says "No units yet." and the like for an empty list. `AppShell` still renders
+  nothing until `/me` answers, so a signed-out visitor never sees the frame flash before sign in
+- `app/not-found.tsx` takes every URL no page answers, in the root layout, outside the signed-in
+  frame - it cannot know whether the visitor is signed in
+- **Decided and added: an ended session leads to sign in.** Before, a 401 on a page's own request
+  showed "Authentication required" as an error; only a full reload reached the login page. Now
+  `request()` in `lib/api.ts` sends any 401 but the login call's to `/login`. `AppShell`'s own
+  redirect for `/me` became redundant and is gone, so there is one mechanism. Proven load-bearing:
+  with the redirect removed, the new test fails and so does the 4b back-button test
+- Verified: lint and build clean; 85 Playwright tests green; the stack held only its seeds after the
+  run; the Welcome and not-found pages checked in screenshots
 
 ---
 

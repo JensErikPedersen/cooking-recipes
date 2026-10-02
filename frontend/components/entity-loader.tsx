@@ -3,10 +3,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
+import { Loading } from "@/components/loading";
 import { NotFound } from "@/components/not-found";
 
 // Loads one entity for a read view or an edit form, and renders it - or "not found" for a 404, the
-// error for any other failure, and nothing while it loads.
+// error for any other failure, and Loading while it loads.
 export function EntityLoader<T>({
   id,
   get,
@@ -35,5 +36,5 @@ export function EntityLoader<T>({
   if (error) {
     return <ErrorMessage error={error} />;
   }
-  return entity === undefined ? null : children(entity);
+  return entity === undefined ? <Loading /> : children(entity);
 }

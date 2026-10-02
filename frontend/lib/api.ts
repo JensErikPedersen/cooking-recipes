@@ -56,6 +56,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await response.text();
+  // A session that ended while a page was open - the backend restarted, or it timed out - answers
+  // 401 to whatever the page asks next. Go to sign in rather than show the error. Not for the login
+  // call itself, whose 401 is a wrong password for the login page to show.
+  if (response.status === 401 && path !== "/auth/login") {
+    window.location.replace("/login");
+  }
   if (!response.ok) {
     throw new ApiError(response.status, JSON.parse(text));
   }

@@ -10,7 +10,7 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - `app/` at the project root, no `src/`. Imports use the `@/*` alias.
 - Styling is Tailwind utility classes; `app/globals.css` holds the theme variables.
 - `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
-  Route handlers of this app live outside `/api`, like the placeholder `app/hello/route.ts`.
+  The app has no route handlers of its own; one would have to live outside `/api`.
 - The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
   writes the URL into `.next/routes-manifest.json`. So `BACKEND_URL` is a Docker build argument,
   derived by Compose from `APPLICATION_PORT`; setting it on the running container does nothing.
@@ -20,14 +20,17 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   cookie as `X-XSRF-TOKEN`; logout clears that cookie, so a write that finds none fetches a fresh
   one first. Non-2xx responses throw `ApiError`, carrying the backend's error envelope.
 - Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
-  asks `/api/v1/auth/me` and renders nothing until the session is confirmed, sending a 401 to
-  `/login`. `proxy.ts` (Next 16's name for middleware) redirects requests without a `JSESSIONID`
-  cookie before any page renders. Neither is the security - the backend answers 401 regardless.
+  asks `/api/v1/auth/me` and renders nothing until the session is confirmed. `proxy.ts` (Next 16's
+  name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders.
+  And any 401 from the API - `/me` included, the login call excepted - sends the browser to
+  `/login` from `request()` in `lib/api.ts`, so a session that ends while a page is open leads to
+  sign in rather than an error. None of this is the security - the backend answers 401 regardless.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
-  it is given. A read view or edit page wraps itself in `EntityLoader`, which loads the one entity
-  and renders it - or `NotFound` for a 404, the error otherwise, nothing while loading. Both take
-  the `lib/api.ts` call as a prop. Not server components: they
+  it is given; "No <things> yet." when empty. A read view or edit page wraps itself in
+  `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
+  otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
+  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame. Not server components: they
   would have to forward the session and CSRF cookies to the backend's internal address.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.

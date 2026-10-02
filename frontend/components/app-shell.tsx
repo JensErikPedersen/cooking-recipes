@@ -27,13 +27,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       .me()
       .then(setUser)
       .catch((error: unknown) => {
-        if (error instanceof ApiError && error.status === 401) {
-          router.replace("/login");
-        } else {
+        // A 401 has already sent the browser to /login, from lib/api.ts.
+        if (!(error instanceof ApiError && error.status === 401)) {
           throw error;
         }
       });
-  }, [router]);
+  }, []);
 
   async function logout() {
     await auth.logout();

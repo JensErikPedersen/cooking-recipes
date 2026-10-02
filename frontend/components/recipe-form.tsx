@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { EntityForm } from "@/components/entity-form";
 import { ErrorMessage } from "@/components/error-message";
+import { Loading } from "@/components/loading";
 import { IngredientLines, newLine, parseAmount, type Line } from "@/components/ingredient-lines";
 import { SelectField } from "@/components/select-field";
 import { TextField } from "@/components/text-field";
@@ -54,7 +55,7 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
     return <ErrorMessage error={loadError} />;
   }
   if (!choices) {
-    return null;
+    return <Loading />;
   }
 
   function save() {
