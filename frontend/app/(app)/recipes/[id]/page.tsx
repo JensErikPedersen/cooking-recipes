@@ -3,9 +3,11 @@
 import { use } from "react";
 import Link from "next/link";
 import { recipes, type Recipe } from "@/lib/api";
+import { DeleteButton } from "@/components/delete-button";
 import { DetailList } from "@/components/detail-list";
 import { EntityLoader } from "@/components/entity-loader";
 import { PageHeader } from "@/components/page-header";
+import { secondaryButton } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 const link = "underline hover:no-underline";
@@ -17,7 +19,12 @@ export default function RecipePage({ params }: PageProps<"/recipes/[id]">) {
     <EntityLoader id={id} get={recipes.get} notFoundTitle="Recipe not found" listHref="/recipes" listLabel="Back to recipes">
       {(recipe) => (
         <>
-          <PageHeader title={recipe.name} />
+          <PageHeader title={recipe.name}>
+            <Link href={`/recipes/${recipe.id}/edit`} className={secondaryButton}>
+              Edit
+            </Link>
+            <DeleteButton what="recipe" name={recipe.name} remove={() => recipes.remove(recipe.id)} listHref="/recipes" />
+          </PageHeader>
           <DetailList
             rows={[
               [

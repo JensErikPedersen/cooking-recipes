@@ -19,8 +19,7 @@ export function EntityList<T extends { id: string; name: string }>({
   title: string;
   /** The list route, such as "/units"; the read view is path/id. */
   path: string;
-  /** The New button's text; without one there is no New button. */
-  newLabel?: string;
+  newLabel: string;
   load: () => Promise<T[]>;
   /** The columns after Name. */
   columns?: [header: string, value: (entity: T) => ReactNode][];
@@ -35,11 +34,9 @@ export function EntityList<T extends { id: string; name: string }>({
   return (
     <>
       <PageHeader title={title}>
-        {newLabel && (
-          <Link href={`${path}/new`} className={primaryButton}>
-            {newLabel}
-          </Link>
-        )}
+        <Link href={`${path}/new`} className={primaryButton}>
+          {newLabel}
+        </Link>
       </PageHeader>
       {error ? (
         <ErrorMessage error={error} />

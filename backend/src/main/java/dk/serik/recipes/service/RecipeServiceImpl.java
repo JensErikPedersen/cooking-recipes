@@ -297,8 +297,13 @@ public class RecipeServiceImpl implements RecipeService {
      */
     private void handleCategory(RecipeDTO recipeDTO, Recipe recipe) {
         if(Objects.isNull(recipeDTO.getCategory()) || Objects.isNull(recipeDTO.getCategory().getId())) {
-            throw ServiceException.badRequest(ApplicationErrorCodes.CATEGORY_IS_REQUIRED,
-                    "A recipe requires the id of an existing category");
+            // Reported on the field, so the form shows it under the category dropdown.
+            throw ServiceException.builder()
+                    .message("A recipe requires a category")
+                    .code(ApplicationErrorCodes.CATEGORY_IS_REQUIRED.getCode())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .field("category")
+                    .build();
         }
         Category category = categoryJpaRepository
                 .findById(ServiceArguments.toUuid(recipeDTO.getCategory().getId(), ApplicationErrorCodes.CATEGORY_ID_IS_NULL, "Category"))

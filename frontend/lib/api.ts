@@ -118,9 +118,24 @@ export interface Recipe extends Audited {
   recipeIngredients?: RecipeIngredientLine[];
 }
 
+/**
+ * What the recipe form sends: its own fields, and the category and tags by id. Never
+ * recipeRatings - the API rejects them on write. Ingredient lines left out are left as they are.
+ */
+export interface RecipeInput {
+  name: string;
+  description?: string;
+  instructions?: string;
+  category?: { id: string };
+  tags: { id: string }[];
+}
+
 export const recipes = {
   list: () => request<Recipe[]>("GET", "/recipes"),
   get: (id: string) => request<Recipe>("GET", `/recipes/${encodeURIComponent(id)}`),
+  create: (input: RecipeInput) => request<Recipe>("POST", "/recipes", input),
+  update: (id: string, input: RecipeInput) => request<Recipe>("PUT", `/recipes/${encodeURIComponent(id)}`, input),
+  remove: (id: string) => request<void>("DELETE", `/recipes/${encodeURIComponent(id)}`),
 };
 
 export interface Ingredient extends Audited {

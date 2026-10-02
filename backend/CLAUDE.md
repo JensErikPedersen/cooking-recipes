@@ -107,8 +107,8 @@ NOT NULL column left empty also comes back as a 409 - read the log before believ
 ingredient lines from the body, each by id of an existing row; nothing is created through a
 recipe. The lists are authoritative: a PUT's lines replace the recipe's - an existing line takes
 the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
-leaves that relation as it is. The `/recipes/{id}/ingredients` sub-resource endpoints still work,
-but the UI does not use them.
+leaves that relation as it is. A missing category is a 400 on the field `category` (101). The
+`/recipes/{id}/ingredients` sub-resource endpoints still work, but the UI does not use them.
 
 ## Tests
 

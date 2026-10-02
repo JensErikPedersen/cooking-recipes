@@ -42,6 +42,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
   which loads the entity with its own GET. Never render the save response or the form's state as
   the result: that would hide a backend that drops a field.
+- A form builds its request body field by field, never by spreading the loaded entity: a recipe
+  arrives with `recipeRatings`, which the API rejects on write. Choices from other entities - a
+  recipe's category and tags - load inside the form, which renders once they have; a dropdown is a
+  `SelectField`, tied to its error like a `TextField`.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
   message to its input with `aria-describedby`. A form sends only its editable fields - the audit

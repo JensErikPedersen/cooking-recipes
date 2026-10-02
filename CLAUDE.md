@@ -81,6 +81,7 @@ Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`. A setu
 through the login page, with the account from the repository's `.env`, and saves the session in
 `e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out. Tests
 remove what they create, through the API in `e2e/support/api.ts`, so the stack's data stays as seeded.
+They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
 
 ## Technical Decisions
 

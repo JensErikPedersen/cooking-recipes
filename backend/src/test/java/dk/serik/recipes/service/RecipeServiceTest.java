@@ -266,9 +266,9 @@ public class RecipeServiceTest {
         // When / Then
         assertThatThrownBy(() -> service.save(noCategory))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("requires the id of an existing category")
-                .extracting("code", "httpStatus")
-                .containsExactly(ApplicationErrorCodes.CATEGORY_IS_REQUIRED.getCode(), HttpStatus.BAD_REQUEST);
+                .hasMessage("A recipe requires a category")
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_IS_REQUIRED.getCode(), HttpStatus.BAD_REQUEST, "category");
         verify(recipeJpaRepository, never()).save(any());
         verify(categoryJpaRepository, never()).save(any());
     }

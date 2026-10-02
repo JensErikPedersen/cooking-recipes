@@ -9,6 +9,7 @@ export default function RecipesPage() {
     <EntityList
       title="Recipes"
       path="/recipes"
+      newLabel="New recipe"
       load={recipes.list}
       columns={[
         ["Category", (recipe) => recipe.category.name],

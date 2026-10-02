@@ -1015,14 +1015,14 @@ unable to undo it. The PUT therefore has to replace the lines - see 7a.
       workaround in the frontend
 - [x] Recipe list and read view, showing category, tags, and each ingredient with its quantity and
       unit in a readable layout
-- [ ] Recipe form: category as a dropdown of existing categories, tags as a multi-select of
+- [x] Recipe form: category as a dropdown of existing categories, tags as a multi-select of
       existing tags
 - [ ] Ingredient rows on the form: add a row, pick an ingredient from a dropdown, enter a quantity,
       pick a unit from a dropdown, remove a row
 - [ ] ~~Wire to the recipe ingredient sub-resource endpoints that already exist on `RecipeController`~~
       Decided against with the split: the lines travel in the recipe's PUT. The endpoints stay in
       the API, unused by the UI
-- [ ] Ratings are explicitly not built. The API returns `recipeRatings` on read and rejects them on
+- [x] Ratings are explicitly not built. The API returns `recipeRatings` on read and rejects them on
       write with `RECIPE_RATING_NOT_SUPPORTED`; ensure the frontend never sends them
 
 **Tests.** Three layers, each owning what only it can see.
@@ -1130,6 +1130,45 @@ order, and the instructions. Click Brød, the tag and an ingredient - each opens
   order. The specs compare with the same comparator from `support/pages.ts`
 - Verified: lint and build clean; 69 Playwright tests green; the list and a read view checked in
   screenshots
+
+### 7c: Recipe form, without ingredient lines
+
+**Tests.** Playwright, 9 added to `recipes.spec.ts`: create with a category and two tags, the read
+view's own GET awaited, then checked again after leaving through the menu and after a reload; edit
+the category and drop a tag, leave and return; editing only the text keeps the ingredient lines;
+created by and now in UTC on the edit form; the `page.route` check that neither the POST nor the
+PUT carries `recipeRatings`; a duplicate name, and a missing name then a missing category, each on
+its field; Cancel; delete.
+
+**Verify it yourself.** At `http://localhost:3000/recipes`: New recipe, give it a name, choose a
+category, tick two tags, Save - the read view. Reload. Edit it: change the category, untick a tag,
+Save, leave and return. Then:
+
+- New recipe with nothing filled in, Save: "Recipe name is required" under Name; add a name, Save
+  again: "A recipe requires a category" under Category
+- open "Fuldkorns hvedebrød", Edit, Save without changes: its six ingredient lines are still there
+- delete the recipe you created
+
+**Done.** Deviations and findings:
+
+- `RecipeForm` loads the categories and tags first and renders once it has them. The category is
+  a dropdown, `SelectField` - a labelled select tied to its error like `TextField`, which 7d's
+  ingredient and unit pickers reuse. The tags are a row of checkboxes: a multi-select that needs
+  no instructions
+- **The body is built field by field, never from the loaded recipe**, which carries
+  `recipeRatings`. The ratings test checks both the POST and the PUT, since an edit form is where
+  spreading the loaded object would leak them
+- Ingredient lines are not sent yet, and an absent list leaves the recipe's lines alone (7a), so
+  editing an existing recipe keeps them - tested on a recipe given lines through the API, since the
+  form cannot add them before 7d. `e2e/support/api.ts` gained `createById` for that setup
+- Backend: a missing category was a 400 with no field, so the form could only show it above Save.
+  It now names the field `category`, with a message for the reader: "A recipe requires a
+  category". A blank name is caught by Bean Validation before the service runs, so the two
+  messages come one after the other, not together
+- `EntityList`'s New button is required again, as 7b promised
+- Verified: `./mvnw clean verify` 253 unit, 101 integration; lint and build clean; 78 Playwright
+  tests green; afterwards the stack held exactly the seeded recipes, lines and tag links; the edit
+  form checked in a screenshot
 
 ---
 
