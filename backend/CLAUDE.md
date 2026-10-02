@@ -95,8 +95,10 @@ consequence is that anything unhandled looks identical to the client.
 A service that can say *why* a write conflicts checks before writing and throws a 409 of its own:
 `CategoryServiceImpl` rejects a duplicate name (104, on field `name`) and deleting a category
 recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rather than
-`recipe_ingredient` lines. The database constraint behind each stays the backstop, caught by the
-`DataIntegrityViolationException` handler. Ingredient has only the backstop until Part 6.
+`recipe_ingredient` lines; `TagServiceImpl` the same (411, 412). Tag names are unique, like the
+others - the schema says so, whatever older comments claimed. The database constraint behind each
+stays the backstop, caught by the `DataIntegrityViolationException` handler. Ingredient has only
+the backstop until Part 6.
 
 ## Tests
 
@@ -125,10 +127,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
-| `CategoryIT`, `UnitIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
+| `CategoryIT`, `UnitIT`, `TagIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**Only `AuthenticationIT`, `CategoryIT` and `UnitIT` exercise controller to service to repository
-to database**, and only for category and unit writes. Neither runs in a test transaction: it would postpone the
+**Only `AuthenticationIT` and the `<Entity>IT` classes exercise controller to service to repository
+to database**, and only for category, unit and tag writes. Neither runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
 the null `created_by` stayed invisible to a green build until Part 4. Recipe writes get the same
 end-to-end test as `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
@@ -166,6 +168,10 @@ must be reachable before the application starts.
   frontend labels them UTC; the base image is UTC already, the line keeps it so.
 
 ## Gotchas
+
+- Build with `clean`. VS Code's Java extension compiles into this same `target/` with the Eclipse
+  compiler, which lacks the Lombok and Jackson 3 setup Maven uses, and Maven then takes its classes
+  as up to date. The symptom is "Unresolved compilation problem" in a test that should compile.
 
 - Do not define a `@Primary JsonMapper` bean. Jackson 3 is in use (`tools.jackson`), and the
   advice classes build their own mappers; overriding the context mapper has broken write endpoints

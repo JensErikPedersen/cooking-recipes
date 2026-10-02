@@ -46,14 +46,16 @@ Backend, from `backend/`. Tests run on in-memory H2 and need no database or Dock
 
 ```bash
 ./mvnw clean verify                                  # all tests: unit (*Test) and integration (*IT)
-./mvnw test                                          # unit tests only
-./mvnw test -Dtest=RecipeServiceTest                 # one class, *Test or *IT alike
-./mvnw test -Dtest="CategoryServiceTest#contextIsOk" # one method
+./mvnw clean test                                    # unit tests only
+./mvnw clean test -Dtest=RecipeServiceTest           # one class, *Test or *IT alike
+./mvnw clean test -Dtest="CategoryServiceTest#contextIsOk" # one method
 ./mvnw spring-boot:run                               # API on :8080, needs a reachable MySQL
 ```
 
-Do not isolate an integration test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and
-runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD`, and
+Always `clean`: VS Code's Java extension compiles into the same `target/` with the Eclipse
+compiler, without the Lombok and Jackson 3 setup Maven uses, and Maven takes those classes as up
+to date - the symptom is "Unresolved compilation problem" in a test. Do not isolate an integration
+test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD`, and
 `DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
 
 Frontend, from `frontend/` (Node 22). There are no frontend unit tests; Playwright covers behaviour:

@@ -857,11 +857,12 @@ components. If a slice needs a new shared abstraction, that is a signal Part 5 w
 say so rather than working around it.
 
 - [x] Unit: full CRUD, in list, read, create, edit, delete
-- [ ] Tag: full CRUD. Note tag names are deliberately not unique, unlike the others
+- [x] Tag: full CRUD. ~~Note tag names are deliberately not unique, unlike the others~~ - they are
+      unique: the schema has always said so, and that was decided to hold. See 6b
 - [ ] Ingredient: full CRUD, including its description field
 
 **Tests.** The Category Playwright suite replicated per entity, adjusted for each entity's fields
-and for Tag's non-unique names, and keeping the navigate-away-and-back assertion rather than
+and keeping the navigate-away-and-back assertion rather than
 trusting the post-save view.
 
 **Success criteria.** Three entities working end to end. Any duplication across the four slices is
@@ -871,8 +872,8 @@ either justified or factored out before Part 7.
 `/ingredients`: create, leave and return, edit, leave and return, delete. Two things specific to
 this part:
 
-- Tag names are deliberately not unique - create two tags with the same name and confirm both save.
-  If the app rejects the second, the Category pattern was copied too literally
+- Tag names are unique, like the others (corrected in 6b) - a second tag with the same name shows
+  the server's error on the Name field
 - Ingredient has a description field as well as a name; confirm it round-trips
 
 Also worth a look: skim the diff for the three slices. If they are near-identical copies of the
@@ -910,6 +911,38 @@ click-through: create with a name and a label, reload, edit, leave and return, d
   collection. The Category spec uses them, its tests unchanged
 - Verified: `./mvnw clean verify` 245 unit, 86 integration; lint and build clean; 36 Playwright
   tests green; afterwards the stack held only seeded units and categories
+
+### 6b: Tag
+
+**Tests.** `TagIT` as `CategoryIT`. Playwright `tags.spec.ts`, the Category suite replicated: 13
+tests.
+
+**Verify it yourself.** At `http://localhost:3000/tags` (Tags in the menu), the Part 5
+click-through: create, reload, edit, leave and return, delete. Then:
+
+- a new tag named `Spicy`: "A tag named 'Spicy' already exists" under Name
+- open "Godt til kaffen", Delete, confirm: "used by 3 recipes and cannot be deleted", with OK
+
+**Done.** Deviations and findings:
+
+- **Tag names are unique - the plan was wrong.** It said "deliberately not unique", as did the
+  `TagDTO` comment, `backend/CLAUDE.md` and `future_enhancements.md`. The Liquibase schema has
+  always created `tag.name` unique, and MySQL enforces it: `show index from tag` lists a unique
+  `name` index, and a second "Spicy" through the API was the 5a backstop's 409. No reason for
+  non-unique names was recorded anywhere; the claim matched only the `Tag` entity's annotation.
+  Decided: unique holds, which also keeps Part 7's tag multi-select unambiguous. The plan's
+  "confirm both save" step is corrected, and the entity, the DTO comment and the docs with it
+- Backend, the 5a pattern: 409 `TAG_ALREADY_EXISTS` (411) on the name field, 409 `TAG_IN_USE`
+  (412). `RecipeJpaRepository.countByTagsId` counts through the recipes' `@ManyToMany` tags - a
+  derived query, since `recipe_tag`'s key (recipe, tag) cannot count a recipe twice
+- **Found: VS Code compiles into Maven's `target/`.** The first `TagIT` run failed with "Unresolved
+  compilation problem: com.fasterxml.jackson.databind cannot be resolved" - the Eclipse compiler's
+  message, not javac's. The Red Hat Java extension's language server rebuilt `TagDTO.class` into
+  `target/classes` after an edit, without the Jackson 3 setup `lombok.config` gives Maven, and
+  Maven took the class as up to date. A `clean` build is correct; the Commands in `CLAUDE.md` now
+  say to use one. Earlier steps always ran `clean verify`, which is why it never showed
+- Verified: `./mvnw clean verify` 248 unit, 91 integration; lint and build clean; 49 Playwright
+  tests green; afterwards the stack held only seeded tags, units and categories
 
 ---
 

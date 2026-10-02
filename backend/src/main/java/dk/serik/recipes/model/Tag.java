@@ -16,7 +16,8 @@ import lombok.Setter;
 @Table(name = "tag")
 public class Tag extends BaseIdentifierEntity {
 	
-	@Column(nullable = false)
+	// Unique, as in the Liquibase schema, which is authoritative (ddl-auto=none).
+	@Column(nullable = false, unique = true)
 	private String name;
 
 	@Override

@@ -32,6 +32,8 @@ public enum ApplicationErrorCodes {
     TAG_DTO_IS_NULL(401),
     TAG_ID_IS_NULL(400),
     TAG_NOT_FOUND(410),
+    TAG_ALREADY_EXISTS(411),
+    TAG_IN_USE(412),
     RATING_DTO_IS_NULL(500),
     RATING_ID_IS_NULL(501),
     RATING_NOT_FOUND(510),

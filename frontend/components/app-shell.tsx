@@ -9,6 +9,7 @@ import { ApiError, auth, type AuthenticatedUser } from "@/lib/api";
 const NAVIGATION = [
   { href: "/categories", label: "Categories" },
   { href: "/units", label: "Units" },
+  { href: "/tags", label: "Tags" },
 ];
 
 // The frame of every signed-in page: the header with the menu, the user and the logout button, and
