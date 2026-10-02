@@ -119,8 +119,8 @@ export interface Recipe extends Audited {
 }
 
 /**
- * What the recipe form sends: its own fields, and the category and tags by id. Never
- * recipeRatings - the API rejects them on write. Ingredient lines left out are left as they are.
+ * What the recipe form sends: its own fields, the category and tags by id, and every ingredient
+ * line - the API replaces the recipe's lines with these. Never recipeRatings: the API rejects them.
  */
 export interface RecipeInput {
   name: string;
@@ -128,6 +128,7 @@ export interface RecipeInput {
   instructions?: string;
   category?: { id: string };
   tags: { id: string }[];
+  recipeIngredients: { ingredientId?: string; amount?: number; unitId?: string }[];
 }
 
 export const recipes = {

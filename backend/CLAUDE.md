@@ -107,8 +107,12 @@ NOT NULL column left empty also comes back as a 409 - read the log before believ
 ingredient lines from the body, each by id of an existing row; nothing is created through a
 recipe. The lists are authoritative: a PUT's lines replace the recipe's - an existing line takes
 the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
-leaves that relation as it is. A missing category is a 400 on the field `category` (101). The
-`/recipes/{id}/ingredients` sub-resource endpoints still work, but the UI does not use them.
+leaves that relation as it is. A missing category is a 400 on the field `category` (101). Bad
+lines - no ingredient, no unit, no amount, an amount over 9999.99 (the column is `DECIMAL(6,2)`),
+an ingredient listed twice - are one 400 (63) on the field `recipeIngredients`, its message the
+problems as sentences naming the ingredient, sorted, since the lines arrive as a `Set` without an
+order to point into. Nothing is written when one is refused. The `/recipes/{id}/ingredients`
+sub-resource endpoints still work, but the UI does not use them.
 
 ## Tests
 

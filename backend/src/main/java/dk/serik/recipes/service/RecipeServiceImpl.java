@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,6 +30,9 @@ import java.util.stream.Collectors;
         timeout = 5)
 @AllArgsConstructor
 public class RecipeServiceImpl implements RecipeService {
+
+    // recipe_ingredient.amount is DECIMAL(6,2); a larger amount would fail in the database.
+    private static final BigDecimal MAX_AMOUNT = new BigDecimal("9999.99");
 
     private RecipeJpaRepository repository;
 
@@ -357,6 +361,7 @@ public class RecipeServiceImpl implements RecipeService {
      * <p>
      * Every entry is checked before any is attached, and all problems are reported together in one
      * 400 rather than one-at-a-time, because a caller fixing a bulk payload needs the whole list.
+     * Each is a sentence naming the ingredient, for the recipe form to show under its lines.
      * Nothing is skipped silently: this method used to log {@code "RecipeIngredientDTO is not
      * valid"} and drop the entry, so a create carrying ingredients returned 201 describing a recipe
      * that had none.
@@ -378,14 +383,11 @@ public class RecipeServiceImpl implements RecipeService {
 
         List<String> problems = new ArrayList<>();
         List<RecipeIngredient> resolved = new ArrayList<>();
+        Set<UUID> listed = new HashSet<>();
 
         for(RecipeIngredientDTO dto : recipeDTO.getRecipeIngredients()) {
-            if(Objects.isNull(dto)) {
-                problems.add("a recipe ingredient entry is null");
-                continue;
-            }
-            if(Objects.isNull(dto.getIngredientId())) {
-                problems.add("a recipe ingredient is missing its ingredient id");
+            if(Objects.isNull(dto) || Objects.isNull(dto.getIngredientId())) {
+                problems.add("A line has no ingredient.");
                 continue;
             }
 
@@ -393,16 +395,31 @@ public class RecipeServiceImpl implements RecipeService {
 
             Optional<Ingredient> ingredient = ingredientJpaRepository.findById(ingredientId);
             if(ingredient.isEmpty()) {
-                problems.add(String.format("no ingredient exists with id '%s'", dto.getIngredientId()));
+                problems.add("A line names an ingredient that does not exist.");
+                continue;
+            }
+            String name = ingredient.get().getName();
+            // The recipe keeps its lines in a set keyed by ingredient, which would silently drop the
+            // second of two lines for the same ingredient.
+            if(!listed.add(ingredientId)) {
+                problems.add(name + " is listed more than once.");
                 continue;
             }
             if(Objects.isNull(dto.getUnitId())) {
-                problems.add(String.format("ingredient '%s' is missing a unit", dto.getIngredientId()));
+                problems.add(name + " has no unit.");
                 continue;
             }
             Optional<Unit> unit = unitJpaRepository.findById(ServiceArguments.toUuid(dto.getUnitId(), ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"));
             if(unit.isEmpty()) {
-                problems.add(String.format("no unit exists with id '%s'", dto.getUnitId()));
+                problems.add(name + " has a unit that does not exist.");
+                continue;
+            }
+            if(Objects.isNull(dto.getAmount()) || dto.getAmount().signum() <= 0) {
+                problems.add(name + " needs an amount above zero.");
+                continue;
+            }
+            if(dto.getAmount().compareTo(MAX_AMOUNT) > 0) {
+                problems.add(name + " needs an amount of at most " + MAX_AMOUNT.toPlainString() + ".");
                 continue;
             }
 
@@ -420,8 +437,14 @@ public class RecipeServiceImpl implements RecipeService {
         }
 
         if(!problems.isEmpty()) {
-            throw ServiceException.badRequest(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID,
-                    "The recipe ingredients could not be resolved: " + String.join("; ", problems));
+            // One message on the field, sorted: the lines arrive as a set, so their order - and an
+            // index to point at - is lost, and an unsorted message would change from call to call.
+            throw ServiceException.builder()
+                    .message(String.join(" ", problems.stream().distinct().sorted().toList()))
+                    .code(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .field("recipeIngredients")
+                    .build();
         }
 
         // The association has no orphanRemoval, so a dropped line's row is deleted explicitly, as

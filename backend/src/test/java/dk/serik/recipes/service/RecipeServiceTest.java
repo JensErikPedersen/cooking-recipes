@@ -189,8 +189,8 @@ public class RecipeServiceTest {
         // When / Then
         assertThatThrownBy(() -> service.save(toBeSaved))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("5f01d434-5a68-4359-9f2e-0a6793dce48d")
-                .extracting("httpStatus").isEqualTo(HttpStatus.BAD_REQUEST);
+                .hasMessage("A line names an ingredient that does not exist.")
+                .extracting("httpStatus", "field").containsExactly(HttpStatus.BAD_REQUEST, "recipeIngredients");
 
         verify(recipeJpaRepository, never()).save(any());
     }

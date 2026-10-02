@@ -162,6 +162,71 @@ class RecipeIT {
 				.andExpect(status().isOk());
 	}
 
+	@Test
+	@DisplayName("Given a line without an amount, When POST, Then 400 on the recipeIngredients field naming the ingredient")
+	void shouldRejectLineWithoutAmount() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(Map.of("ingredientId", HVEDEMEL, "unitId", GRAM)));
+
+		assertLinesRejected(post(RECIPES), body, "Hvedemel needs an amount above zero.");
+	}
+
+	@Test
+	@DisplayName("Given an amount too large for the column, When POST, Then 400 rather than a database error")
+	void shouldRejectAmountTooLarge() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(line(HVEDEMEL, 10000, GRAM)));
+
+		assertLinesRejected(post(RECIPES), body, "Hvedemel needs an amount of at most 9999.99.");
+	}
+
+	@Test
+	@DisplayName("Given the same ingredient on two lines, When POST, Then 400 rather than a key violation")
+	void shouldRejectIngredientListedTwice() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(line(HVEDEMEL, 500, GRAM), line(HVEDEMEL, 2, DECILITER)));
+
+		assertLinesRejected(post(RECIPES), body, "Hvedemel is listed more than once.");
+	}
+
+	@Test
+	@DisplayName("Given a line without an ingredient and one without a unit, When PUT, Then 400 listing both, and the recipe is unchanged")
+	void shouldRejectBadLinesOnUpdateAndChangeNothing() throws Exception {
+		String name = uniqueName();
+		String id = create(name);
+		Map<String, Object> body = Map.of(
+				"name", name,
+				"instructions", "Not saved",
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(
+						Map.of("amount", 1, "unitId", GRAM),
+						Map.of("ingredientId", HVEDEMEL, "amount", 600)));
+
+		// Sorted, so a message listing several problems always reads the same.
+		assertLinesRejected(put(RECIPES + "/" + id), body, "A line has no ingredient. Hvedemel has no unit.");
+
+		mockMvc.perform(get(RECIPES + "/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.instructions").value("Mix and bake"))
+				.andExpect(jsonPath("$.recipeIngredients", hasSize(3)))
+				.andExpect(jsonPath("$.recipeIngredients[?(@.ingredientId == '" + HVEDEMEL + "')].amount", contains(500.0)));
+	}
+
+	private void assertLinesRejected(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
+									 Map<String, Object> body, String message) throws Exception {
+		mockMvc.perform(request.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(body)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("recipeIngredients"))
+				.andExpect(jsonPath("$.validationExceptions[0].message").value(message));
+	}
+
 	/** POSTs the standard recipe and returns its id. */
 	private String create(String name) throws Exception {
 		String response = mockMvc.perform(post(RECIPES).with(csrf()).contentType(MediaType.APPLICATION_JSON)

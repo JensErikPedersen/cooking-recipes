@@ -1017,7 +1017,7 @@ unable to undo it. The PUT therefore has to replace the lines - see 7a.
       unit in a readable layout
 - [x] Recipe form: category as a dropdown of existing categories, tags as a multi-select of
       existing tags
-- [ ] Ingredient rows on the form: add a row, pick an ingredient from a dropdown, enter a quantity,
+- [x] Ingredient rows on the form: add a row, pick an ingredient from a dropdown, enter a quantity,
       pick a unit from a dropdown, remove a row
 - [ ] ~~Wire to the recipe ingredient sub-resource endpoints that already exist on `RecipeController`~~
       Decided against with the split: the lines travel in the recipe's PUT. The endpoints stay in
@@ -1169,6 +1169,55 @@ Save, leave and return. Then:
 - Verified: `./mvnw clean verify` 253 unit, 101 integration; lint and build clean; 78 Playwright
   tests green; afterwards the stack held exactly the seeded recipes, lines and tag links; the edit
   form checked in a screenshot
+
+### 7d: Ingredient lines on the form
+
+**Tests.** `RecipeIT`, 4 added: a line without an amount, an amount too large for the column, an
+ingredient listed twice, and a PUT with two bad lines that leaves the recipe unchanged. Playwright,
+3 added: the plan's round trip - a category, two tags and three ingredients, one amount typed with a
+comma; edit the category, drop a tag, change a line's amount and unit, remove a line; delete, and
+the ingredient and tag are still on their own pages - with every check made after leaving and
+returning; the line messages under the Ingredients section; a removed and an added line after a
+reload.
+
+**Verify it yourself.** The plan's own steps, above, at `http://localhost:3000/recipes`. Then on a
+new recipe: Add ingredient, choose Hvedemel and a unit but no amount, Save - "Hvedemel needs an
+amount above zero." under Ingredients. Add Hvedemel a second time - "listed more than once".
+
+```powershell
+cd backend; .\mvnw clean test -Dtest=RecipeIT
+```
+
+**Done.** Deviations and findings:
+
+- **The line checks were missing or let data through, proven before each fix.** A line without an
+  amount was saved without one (201). The same ingredient on two lines answered 201 and silently
+  kept one: `Recipe` holds its lines in a set keyed by ingredient. An amount of 10000 reached the
+  database, `DECIMAL(6,2)`, and came back as the generic 409. All three are now a 400
+- The problems are sentences naming the ingredient - "Hvedemel needs an amount above zero." -
+  sorted and joined into one message on the field `recipeIngredients`, shown under the form's
+  Ingredients section. One message, not one per line: the DTO takes the lines as a `Set`, so their
+  order, and an index to point at, is lost. Noted in `backend/docs/future_enhancements.md`. The old
+  messages named ids, and nothing tested them except one assertion on an id, now on the sentence
+- `IngredientLines`: one row per line - ingredient, amount, unit, Remove - each a group named
+  "Ingredient line N" with screen-reader labels, and an Add ingredient button. The amount is a text
+  input that takes "3,5" as well as "3.5": a `type="number"` input would let the browser refuse the
+  form with its own validation. Blank lines are sent too, so the server says what is missing
+- The form now always sends its lines, so the 7a rule applies in full: what the form shows is what
+  the recipe keeps. The 7c test that editing the text keeps the lines still holds
+- Verified: `./mvnw clean verify` 253 unit, 105 integration; lint and build clean; 81 Playwright
+  tests green; afterwards the stack held exactly its seeded data; the form with lines and a line
+  error checked in a screenshot
+
+### Part 7 as a whole
+
+**Done.** `RecipeIT` proves the relations persist through create, edit and delete, asserting on a
+fresh GET and on the join tables; it found tags discarded, the `recipe_tag` audit column blocking
+them, edits unable to change or remove a line, and lines accepted without an amount or twice.
+Playwright proves a user can produce and edit every relation and see it again after leaving the
+page. Neither inspects the database from the UI layer. Decided on the way: the lines travel in the
+recipe's PUT, not through the sub-resource endpoints; `recipe_tag.created_by` is nullable; lists
+sort the Danish way.
 
 ---
 

@@ -46,6 +46,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   arrives with `recipeRatings`, which the API rejects on write. Choices from other entities - a
   recipe's category and tags - load inside the form, which renders once they have; a dropdown is a
   `SelectField`, tied to its error like a `TextField`.
+- A recipe's ingredient lines are `IngredientLines`: one row per line, each a group named
+  "Ingredient line N" with screen-reader labels, Add and Remove, and the server's one message for
+  all lines under the section. Amounts are text inputs read with a comma or a point as the decimal
+  mark; a `type="number"` input would bring the browser's own validation. Blank lines are sent too.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
   message to its input with `aria-describedby`. A form sends only its editable fields - the audit

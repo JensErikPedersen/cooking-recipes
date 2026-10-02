@@ -168,6 +168,20 @@ route by which raw persistence errors reach the exception handler of last resort
 
 ---
 
+## Recipe line errors cannot point at a line
+
+**What is wrong.** `RecipeDTO.recipeIngredients` is a `Set`, so the order of the lines in a request
+is gone by the time the service checks them. Part 7d therefore reports every line problem in one
+sorted message on the field `recipeIngredients`, naming the ingredient ("Hvedemel needs an amount
+above zero."), and the form shows it under the whole Ingredients section rather than on the line.
+A line with no ingredient chosen can only be described as "A line has no ingredient."
+
+**What it would take.** Make `recipeIngredients` a `List`, report each problem with its index as
+`recipeIngredients[2].amount`, and have the form map those fields onto its rows. The `Set` also
+guards nothing today: duplicates are refused explicitly since 7d.
+
+---
+
 ## Dates carry no time zone, and do not round-trip
 
 **What is wrong.** `BaseDTO` formats `created` and `updated` with `@JsonFormat(pattern =

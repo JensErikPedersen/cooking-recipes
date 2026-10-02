@@ -1,27 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { categories, recipes, tags, type Category, type Recipe, type RecipeInput, type Tag } from "@/lib/api";
+import {
+  categories,
+  ingredients,
+  recipes,
+  tags,
+  units,
+  type Category,
+  type Ingredient,
+  type Recipe,
+  type RecipeInput,
+  type Tag,
+  type Unit,
+} from "@/lib/api";
 import { EntityForm } from "@/components/entity-form";
 import { ErrorMessage } from "@/components/error-message";
+import { IngredientLines, newLine, parseAmount, type Line } from "@/components/ingredient-lines";
 import { SelectField } from "@/components/select-field";
 import { TextField } from "@/components/text-field";
 import { danish } from "@/lib/sort";
 
-// Create and edit alike. The category and the tags are chosen from the existing ones, which load
-// first; the form renders once they have.
+// Create and edit alike. The category, the tags and each line's ingredient and unit are chosen from
+// the existing ones, which load first; the form renders once they have.
 export function RecipeForm({ recipe }: { recipe?: Recipe }) {
-  const [choices, setChoices] = useState<{ categories: Category[]; tags: Tag[] }>();
+  const [choices, setChoices] = useState<{
+    categories: Category[];
+    tags: Tag[];
+    ingredients: Ingredient[];
+    units: Unit[];
+  }>();
   const [loadError, setLoadError] = useState<unknown>();
   const [name, setName] = useState(recipe?.name ?? "");
   const [description, setDescription] = useState(recipe?.description ?? "");
   const [instructions, setInstructions] = useState(recipe?.instructions ?? "");
   const [categoryId, setCategoryId] = useState(recipe?.category.id ?? "");
   const [tagIds, setTagIds] = useState<string[]>(recipe?.tags?.map((tag) => tag.id) ?? []);
+  const [lines, setLines] = useState<Line[]>(() =>
+    (recipe?.recipeIngredients ?? [])
+      .toSorted((a, b) => danish(a.ingredientName, b.ingredientName))
+      .map((line) => newLine(line.ingredientId, String(line.amount), line.unitId)),
+  );
 
   useEffect(() => {
-    Promise.all([categories.list(), tags.list()]).then(
-      ([categoryList, tagList]) => setChoices({ categories: categoryList, tags: tagList }),
+    Promise.all([categories.list(), tags.list(), ingredients.list(), units.list()]).then(
+      ([categoryList, tagList, ingredientList, unitList]) =>
+        setChoices({ categories: categoryList, tags: tagList, ingredients: ingredientList, units: unitList }),
       setLoadError,
     );
   }, []);
@@ -42,6 +66,12 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
       instructions: instructions || undefined,
       category: categoryId ? { id: categoryId } : undefined,
       tags: tagIds.map((id) => ({ id })),
+      // Every line as entered, blank ones included: the server names what is missing.
+      recipeIngredients: lines.map((line) => ({
+        ingredientId: line.ingredientId || undefined,
+        amount: parseAmount(line.amount),
+        unitId: line.unitId || undefined,
+      })),
     };
     return recipe ? recipes.update(recipe.id, input) : recipes.create(input);
   }
@@ -83,6 +113,13 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
                 ))}
             </div>
           </fieldset>
+          <IngredientLines
+            lines={lines}
+            onChange={setLines}
+            ingredients={choices.ingredients}
+            units={choices.units}
+            error={errors.recipeIngredients}
+          />
           <TextField
             label="Description"
             name="description"

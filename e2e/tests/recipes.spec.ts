@@ -290,3 +290,103 @@ test("deleting a recipe asks first, in the page, and after confirming it is gone
   await page.goto(`/recipes/${id}`);
   await expect(page.getByRole("heading", { name: "Recipe not found" })).toBeVisible();
 });
+
+const lineRows = (page: Page) => main(page).getByRole("table").getByRole("row");
+
+/** Fills ingredient line n of the form (counting from 1), adding it first when asked to. */
+async function fillLine(page: Page, n: number, ingredient: string, amount: string, unit: string, add = true) {
+  if (add) {
+    await page.getByRole("button", { name: "Add ingredient" }).click();
+  }
+  const line = page.getByRole("group", { name: `Ingredient line ${n}`, exact: true });
+  await line.getByLabel("Ingredient").selectOption({ label: ingredient });
+  await line.getByLabel("Amount").fill(amount);
+  await line.getByLabel("Unit").selectOption({ label: unit });
+}
+
+// The plan's round trip: every relation, checked only after leaving the page and coming back.
+test("a recipe with a category, two tags and three ingredients survives create, edit and delete", async ({
+  page,
+}) => {
+  const name = uniqueName();
+  await page.goto("/recipes/new");
+  await page.getByLabel("Name").fill(name);
+  await page.getByLabel("Category").selectOption({ label: "Brød" });
+  await page.getByRole("checkbox", { name: "Spicy", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Thai", exact: true }).check();
+  await fillLine(page, 1, "Hvedemel", "500", "Gram (gr)");
+  await fillLine(page, 2, "Vand", "3,5", "Deciliter (dl)"); // a comma, as typed in Danish
+  await fillLine(page, 3, "Salt", "2", "Teske (tsk)");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page).toHaveURL(readView("recipes"));
+  const id = page.url().split("/").pop()!;
+  created.push(id);
+
+  await openFromMenu(page, "Recipes", "/recipes");
+  await main(page).getByRole("link", { name, exact: true }).click();
+  await expect(category(page)).toHaveText("Brød");
+  await expect(tagItems(page)).toHaveText(["Spicy", "Thai"]);
+  await expect(lineRows(page)).toHaveText(["500grHvedemel", "2tskSalt", "3.5dlVand"]);
+
+  // Edit: new category, one tag dropped, one line's amount and unit changed, one line removed.
+  await page.getByRole("link", { name: "Edit" }).click();
+  const salt = page.getByRole("group", { name: "Ingredient line 2", exact: true });
+  await expect(salt.getByLabel("Ingredient")).toHaveValue(SALT_ID);
+  await page.getByLabel("Category").selectOption({ label: "Hovedret" });
+  await page.getByRole("checkbox", { name: "Spicy", exact: true }).uncheck();
+  await fillLine(page, 3, "Vand", "4", "Teske (tsk)", false);
+  await salt.getByRole("button", { name: "Remove" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page).toHaveURL(`/recipes/${id}`);
+
+  await openFromMenu(page, "Recipes", "/recipes");
+  await main(page).getByRole("link", { name, exact: true }).click();
+  await expect(category(page)).toHaveText("Hovedret");
+  await expect(tagItems(page)).toHaveText(["Thai"]);
+  await expect(lineRows(page)).toHaveText(["500grHvedemel", "4tskVand"]);
+
+  // Delete: the recipe goes, what it referenced stays.
+  await page.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page).toHaveURL("/recipes");
+  await expect(main(page).getByRole("link", { name, exact: true })).toHaveCount(0);
+  await page.goto(`/ingredients/${HVEDEMEL_ID}`);
+  await expectReadView(page, "Hvedemel");
+  await openFromMenu(page, "Tags", "/tags");
+  await main(page).getByRole("link", { name: "Spicy", exact: true }).click();
+  await expectReadView(page, "Spicy");
+});
+
+test("a line without an amount, a line without an ingredient and a repeated ingredient each get the server's message", async ({
+  page,
+}) => {
+  await page.goto("/recipes/new");
+  await page.getByLabel("Name").fill(uniqueName());
+  await page.getByLabel("Category").selectOption({ label: "Kager" });
+  const lines = page.getByRole("group", { name: "Ingredients", exact: true });
+
+  await fillLine(page, 1, "Hvedemel", "", "Gram (gr)");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(lines).toHaveAccessibleDescription("Hvedemel needs an amount above zero.");
+
+  await fillLine(page, 1, "Hvedemel", "500", "Gram (gr)", false);
+  await fillLine(page, 2, "Hvedemel", "2", "Teske (tsk)");
+  await page.getByRole("button", { name: "Add ingredient" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(lines).toHaveAccessibleDescription("A line has no ingredient. Hvedemel is listed more than once.");
+  await expect(page).toHaveURL("/recipes/new");
+});
+
+test("a removed line is gone once saved, and an added one is there", async ({ page }) => {
+  const id = await createRecipe(page, uniqueName(), "Kager", []);
+
+  await page.goto(`/recipes/${id}/edit`);
+  await fillLine(page, 1, "Salt", "1", "Teske (tsk)");
+  await fillLine(page, 2, "Gær", "25", "Gram (gr)");
+  await page.getByRole("group", { name: "Ingredient line 1", exact: true }).getByRole("button", { name: "Remove" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page).toHaveURL(`/recipes/${id}`);
+
+  await page.reload();
+  await expect(lineRows(page)).toHaveText(["25grGær"]);
+});
