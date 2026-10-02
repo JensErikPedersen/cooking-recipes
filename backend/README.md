@@ -37,12 +37,13 @@ production: bind-value logging writes user data to the log.
 ## Building and testing
 
 ```bash
-./mvnw clean verify     # compile + unit tests + integration tests
-./mvnw test             # unit tests only  (*Test,  surefire)
-./mvnw verify           # + integration tests (*IT, failsafe, H2 in-memory)
+./mvnw clean verify     # compile + unit tests (*Test, surefire) + integration tests (*IT, failsafe)
+./mvnw clean test       # unit tests only
 ```
 
-Integration tests run against in-memory H2 and need no local database.
+Integration tests run against in-memory H2 and need no local database. Always build with `clean`:
+an IDE's Java extension may compile into the same `target/`, and Maven takes its classes as up to
+date - see `CLAUDE.md`, Gotchas.
 
 ## API
 

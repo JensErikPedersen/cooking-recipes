@@ -116,7 +116,7 @@ sub-resource endpoints still work, but the UI does not use them.
 
 ## Tests
 
-`./mvnw verify`. Surefire runs `*Test`, Failsafe runs `*IT`. Jacoco is wired in, and the
+`./mvnw clean verify`. Surefire runs `*Test`, Failsafe runs `*IT`. Jacoco is wired in, and the
 `@{argLine}` it sets is load-bearing - if `prepare-agent` fails, both Surefire and Failsafe go down
 with it, not just the report.
 

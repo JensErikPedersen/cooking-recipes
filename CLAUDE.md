@@ -29,7 +29,7 @@ All commands below work today. Each part of `docs/PLAN.md` confirms its commands
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 
 ```bash
-scripts/start.sh                  # macOS/Linux: docker compose up -d --build
+scripts/start.sh                  # macOS/Linux: docker compose up -d --build --wait
 scripts/stop.sh                   #              docker compose down
 scripts\start.ps1                 # Windows PowerShell
 scripts\stop.ps1

@@ -531,7 +531,7 @@ as a side effect.
 **Verify it yourself.**
 
 ```powershell
-cd backend; .\mvnw test -Dtest=AuthenticationIT
+cd backend; .\mvnw clean test -Dtest=AuthenticationIT
 ```
 
 Green means the session bean, the filter chain, CSRF and the audit stamping all hold together.
@@ -664,7 +664,7 @@ tests for the service checks and for the handler.
 **Verify it yourself.**
 
 ```powershell
-cd backend; .\mvnw test -Dtest=CategoryIT
+cd backend; .\mvnw clean test -Dtest=CategoryIT
 ```
 
 Against the stack, signed in through the browser and then in its dev tools console:
