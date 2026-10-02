@@ -1,5 +1,7 @@
 package dk.serik.recipes.service;
 
+import dk.serik.recipes.dto.TagDTO;
+import dk.serik.recipes.repository.TagJpaRepository;
 import dk.serik.recipes.dto.RecipeDTO;
 import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
@@ -56,6 +58,9 @@ public class RecipeServiceTest {
 
     @Mock
     private UnitJpaRepository unitJpaRepository;
+
+    @Mock
+    private TagJpaRepository tagJpaRepository;
 
     @InjectMocks
     private RecipeServiceImpl service;
@@ -544,7 +549,10 @@ public class RecipeServiceTest {
         when(categoryJpaRepository.findById(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8ab")))
                 .thenReturn(Optional.of(MockCategoryUtil.mockBread()));
         // the three ingredients are already on this recipe; without these stubs the update silently
-        // dropped all of them and this test still passed, asserting only the text fields
+        // dropped all of them and this test still passed, asserting only the text fields. Each line
+        // is resolved even so, since its amount and unit are applied.
+        when(ingredientJpaRepository.findById(any())).thenReturn(Optional.of(MockIngredientUtil.mockHvedemel()));
+        when(unitJpaRepository.findById(any())).thenReturn(Optional.of(MockUnitUtil.mockGram()));
         when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString("5f01d434-5a68-4359-9f2e-0a6793dce48d")))
                 .thenReturn(Optional.of(MockRecipeIngredientUtil.mockSavedRecipeIngredientHvedemel()));
         when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString("01a50907-8141-4dd1-acdf-c4384669c2b2")))
@@ -718,6 +726,35 @@ public class RecipeServiceTest {
                 .isInstanceOf(ServiceException.class)
                 .extracting("code", "httpStatus")
                 .containsExactly(ApplicationErrorCodes.RECIPE_RATING_NOT_SUPPORTED.getCode(), HttpStatus.BAD_REQUEST);
+        verify(recipeJpaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given another Recipe has the name, When saving, Then a conflict on the name field is reported and nothing is saved")
+    void shouldRejectSaveOfDuplicateName() {
+        RecipeDTO toSave = mockRecipeWheatBreadWithIngredientsDTOToBeSaved();
+        when(recipeJpaRepository.findByName(toSave.getName())).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
+
+        assertThatThrownBy(() -> service.save(toSave))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("A recipe named '" + toSave.getName() + "' already exists")
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.RECIPE_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        verify(recipeJpaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given a tag id that does not exist, When saving a Recipe, Then not found is reported and nothing is saved")
+    void shouldRejectUnknownTag() {
+        RecipeDTO toSave = mockRecipeWheatBreadWithIngredientsDTOToBeSaved();
+        toSave.setTags(Set.of(TagDTO.builder().id("6b2f1c3e-0000-4000-8000-000000000001").build()));
+        when(categoryJpaRepository.findById(any())).thenReturn(Optional.of(MockCategoryUtil.mockBread()));
+        when(tagJpaRepository.findById(any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.save(toSave))
+                .isInstanceOf(ServiceException.class)
+                .extracting("code", "httpStatus")
+                .containsExactly(ApplicationErrorCodes.TAG_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
         verify(recipeJpaRepository, never()).save(any());
     }
 }

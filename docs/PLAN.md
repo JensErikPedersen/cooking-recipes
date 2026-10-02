@@ -994,12 +994,23 @@ for a write, which is precisely the seam where a DTO's ingredients and tags get 
 the POST returns 200, and the relations are gone. `my-recipes` shipped exactly that bug with tags.
 Write `RecipeIT` before building any UI on top.
 
-- [ ] `RecipeIT` - `@SpringBootTest` against a real database, not a slice. POST a recipe with a
+Split into four steps, each committed and accepted on its own:
+
+- **7a** - `RecipeIT`, and the backend fixes it calls for
+- **7b** - the recipe list and read view
+- **7c** - the recipe form without ingredient lines: category, tags, delete, no ratings sent
+- **7d** - ingredient lines on the form, and the full Playwright round trip
+
+Decided with the split: the form saves its ingredient lines inside the recipe's own PUT rather than
+through the sub-resource endpoints below, which would write each line before Save and leave Cancel
+unable to undo it. The PUT therefore has to replace the lines - see 7a.
+
+- [x] `RecipeIT` - `@SpringBootTest` against a real database, not a slice. POST a recipe with a
       category, two tags and three ingredients; GET it back; assert every relation survived with
       the right amount and unit. Then PUT to change the category, drop a tag and alter an
       ingredient, and GET again. Then DELETE, and assert the `recipe_ingredient` and `recipe_tag`
       rows went with it rather than being orphaned
-- [ ] Confirm from `RecipeIT` - not by reading the code - whether tags are writable through the
+- [x] Confirm from `RecipeIT` - not by reading the code - whether tags are writable through the
       existing API. If they are silently discarded, that is a backend fix inside this part, not a
       workaround in the frontend
 - [ ] Recipe list and read view, showing category, tags, and each ingredient with its quantity and
@@ -1008,7 +1019,9 @@ Write `RecipeIT` before building any UI on top.
       existing tags
 - [ ] Ingredient rows on the form: add a row, pick an ingredient from a dropdown, enter a quantity,
       pick a unit from a dropdown, remove a row
-- [ ] Wire to the recipe ingredient sub-resource endpoints that already exist on `RecipeController`
+- [ ] ~~Wire to the recipe ingredient sub-resource endpoints that already exist on `RecipeController`~~
+      Decided against with the split: the lines travel in the recipe's PUT. The endpoints stay in
+      the API, unused by the UI
 - [ ] Ratings are explicitly not built. The API returns `recipeRatings` on read and rejects them on
       write with `RECIPE_RATING_NOT_SUPPORTED`; ensure the frontend never sends them
 
@@ -1040,12 +1053,53 @@ Then delete the recipe, and confirm the ingredients and tags it referenced still
 pages - deleting a recipe must not take its ingredients with it.
 
 ```powershell
-cd backend; .\mvnw test -Dtest=RecipeIT
+cd backend; .\mvnw clean test -Dtest=RecipeIT
 ```
 
 Read that test's source as well as its result. It is the only thing standing between a green build
 and silently discarded relations, so it is worth confirming it asserts on data fetched back from
 the API rather than on the object it just posted.
+
+### 7a: RecipeIT and the backend fixes
+
+**Tests.** `RecipeIT`, 5 tests: create with every relation, then a fresh GET; a PUT changing the
+category, dropping a tag, changing one line's amount and unit and removing another, then a fresh
+GET; delete, with the join rows counted in the database and the ingredient and tag still there;
+a duplicate name; a PUT keeping its own name.
+
+**Verify it yourself.** The command above, and read `RecipeIT`. The UI comes in 7b to 7d.
+
+**Done.** Deviations and findings - each proven by `RecipeIT` before it was fixed:
+
+- **Tags were silently discarded.** A POST with two tags answered 201, and a fresh GET showed
+  `tags: []`: `RecipeServiceImpl` never wrote them. It now sets exactly the listed tags, each an
+  existing tag by id (404 otherwise); absent tags leave them as they are
+- **Writing them then failed on `recipe_tag.created_by`**, as `my-recipes` had found: Hibernate's
+  join-table insert is `insert into recipe_tag (recipe_id,tag_id)`, and the column is NOT NULL.
+  Decided: `db.changelog_1.3.xml` makes it nullable, ported from `my-recipes`, rather than
+  promoting `recipe_tag` to an entity. The 5a backstop had reported it as "The change conflicts with
+  existing data" - a 409 for what was really a server fault, the price of catching every
+  `DataIntegrityViolationException` there
+- **A PUT could neither change nor remove an ingredient line.** A line already on the recipe was
+  kept as stored, and a line left out stayed. The payload's list is now authoritative: an existing
+  line takes its amount and unit, an omitted line is deleted - explicitly, as the sub-resource
+  delete already did, since the association has no `orphanRemoval`. Proven load-bearing: with the
+  old keep-as-stored behaviour restored, the PUT test fails on 500 against 600
+- Duplicate name: 409 `RECIPE_ALREADY_EXISTS` (53) on the name field, the 5a pattern
+- The delete test only became meaningful once tags were saved: before, its `recipe_tag` count was
+  zero because no row had ever been written
+- `RecipeServiceTest.shouldUpdateRecipe` stubbed the old flow, which skipped resolving lines already
+  on the recipe; it now stubs the ingredient and unit lookups. Two unit tests added: duplicate name,
+  unknown tag
+- Against MySQL through the proxy: create, update, duplicate and delete all as in `RecipeIT`; the
+  1.3 changeset applied to the existing volume. `./mvnw clean verify` 253 unit, 101 integration;
+  63 Playwright tests green
+- **Seed data was found changed in the stack:** the unused seeded tag "Børnevenlig" had been deleted
+  by hand while trying out the Tags page, and the Tag spec failed on it. Restored with one INSERT of
+  its seed values. The specs assume the seeds are intact: after deleting a seed by hand, restore it
+  or reseed with `docker compose down -v`
+- Not done here, for 7d: the nested lines' amount is not validated - `recipeIngredients` carries
+  no `@Valid`, so a line without an amount is stored without one
 
 ---
 

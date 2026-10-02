@@ -10,7 +10,8 @@ Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `
 session except `POST /api/v1/auth/login`; `/actuator/health` is open for Compose. 401 and 403 come
 back in the error envelope (codes 600-602), never as a redirect.
 
-- **Audit stamping depends on it.** `created_by` is NOT NULL on all nine tables. It is set by
+- **Audit stamping depends on it.** `created_by` is NOT NULL on every table but `recipe_tag`, a
+  plain `@ManyToMany` join table whose insert cannot carry it (`db.changelog_1.3.xml`). It is set by
   `BaseEntityListener.prePersist` and by the `save` of every service except `RecipeServiceImpl`,
   all reading `Session.getUserName()`. `SessionPopulatingFilter`, inside the security chain after
   authorization, is what fills that request-scoped bean. It is created in `SecurityConfig`, not a
@@ -98,7 +99,16 @@ recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rathe
 `recipe_ingredient` lines; `TagServiceImpl` (411, 412) and `IngredientServiceImpl` (211, 212) the
 same. Tag names are unique, like the others - the schema says so, whatever older comments claimed.
 The database constraint behind each stays the backstop, caught by the
-`DataIntegrityViolationException` handler. Recipe, whose name is unique too, has only the backstop.
+`DataIntegrityViolationException` handler. `RecipeServiceImpl` rejects a duplicate recipe name
+(53). The backstop catches every `DataIntegrityViolationException`, so a server fault such as a
+NOT NULL column left empty also comes back as a 409 - read the log before believing one.
+
+**Recipe writes carry their relations.** A POST or PUT sets the category, the tags and the
+ingredient lines from the body, each by id of an existing row; nothing is created through a
+recipe. The lists are authoritative: a PUT's lines replace the recipe's - an existing line takes
+the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
+leaves that relation as it is. The `/recipes/{id}/ingredients` sub-resource endpoints still work,
+but the UI does not use them.
 
 ## Tests
 
@@ -127,13 +137,14 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
-| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
+| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
 **Only `AuthenticationIT` and the `<Entity>IT` classes exercise controller to service to repository
-to database**, and only for the four lookups' writes. Neither runs in a test transaction: it would postpone the
+to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
+and on the join tables. Neither runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
-the null `created_by` stayed invisible to a green build until Part 4. Recipe writes get the same
-end-to-end test as `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
+the null `created_by` stayed invisible to a green build until Part 4, and discarded recipe tags
+until `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
 slice tests can pass while real serialization is broken - the same class of gap.
 
 ## Build and run

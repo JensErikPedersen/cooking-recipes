@@ -3,6 +3,7 @@ package dk.serik.recipes.service;
 import dk.serik.recipes.dto.RecipeDTO;
 import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.dto.RecipeRatingDTO;
+import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mapper.RecipeMapper;
@@ -38,6 +39,8 @@ public class RecipeServiceImpl implements RecipeService {
     private IngredientJpaRepository ingredientJpaRepository;
 
     private UnitJpaRepository unitJpaRepository;
+
+    private TagJpaRepository tagJpaRepository;
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
@@ -81,7 +84,9 @@ public class RecipeServiceImpl implements RecipeService {
         }
         rejectRecipeRatings(recipeDTO);
         Recipe recipe = getRecipe(recipeDTO);
+        rejectDuplicateName(recipeDTO.getName(), recipe.getId());
         handleCategory(recipeDTO, recipe);
+        handleTags(recipeDTO, recipe);
         handleRecipeIngredients(recipeDTO, recipe);
         log.info("Saving recipe: {}", recipe);
         Recipe savedRecipe = repository.save(recipe);
@@ -105,10 +110,12 @@ public class RecipeServiceImpl implements RecipeService {
         }
         rejectRecipeRatings(dto);
         Recipe managedRecipe = findRecipeOrThrow(dto.getId());
+        rejectDuplicateName(dto.getName(), managedRecipe.getId());
         managedRecipe.setName(dto.getName());
         managedRecipe.setDescription(dto.getDescription());
         managedRecipe.setInstructions(dto.getInstructions());
         handleCategory(dto, managedRecipe);
+        handleTags(dto, managedRecipe);
         handleRecipeIngredients(dto, managedRecipe);
 
         return RecipeMapper.from(repository.save(managedRecipe));
@@ -303,6 +310,43 @@ public class RecipeServiceImpl implements RecipeService {
         recipe.setCategory(category);
     }
 
+    // As in CategoryServiceImpl: the unique index on name refuses a duplicate anyway, at commit
+    // and without saying which field; checking first lets the error name it.
+    private void rejectDuplicateName(String name, UUID ownId) {
+        repository.findByName(name)
+                .filter(existing -> !existing.getId().equals(ownId))
+                .ifPresent(existing -> {
+                    throw ServiceException.builder()
+                            .message(String.format("A recipe named '%s' already exists", name))
+                            .code(ApplicationErrorCodes.RECIPE_ALREADY_EXISTS.getCode())
+                            .httpStatus(HttpStatus.CONFLICT)
+                            .field("name")
+                            .build();
+                });
+    }
+
+    /**
+     * Sets the recipe's tags to exactly those listed, each an existing tag found by id. Like the
+     * category, a recipe never creates a tag. Absent tags leave the recipe's tags as they are.
+     */
+    private void handleTags(RecipeDTO recipeDTO, Recipe recipe) {
+        if(Objects.isNull(recipeDTO.getTags())) {
+            return;
+        }
+        Set<Tag> tags = new HashSet<>();
+        for(TagDTO tagDTO : recipeDTO.getTags()) {
+            String tagId = Objects.isNull(tagDTO) ? null : tagDTO.getId();
+            tags.add(tagJpaRepository
+                    .findById(ServiceArguments.toUuid(tagId, ApplicationErrorCodes.TAG_ID_IS_NULL, "Tag"))
+                    .orElseThrow(() -> ServiceException.builder()
+                            .message("Cannot find tag with id: " + tagId)
+                            .code(ApplicationErrorCodes.TAG_NOT_FOUND.getCode())
+                            .httpStatus(HttpStatus.NOT_FOUND)
+                            .build()));
+        }
+        recipe.setTags(tags);
+    }
+
     /**
      * Resolves the nested ingredient payload onto the recipe.
      * <p>
@@ -315,6 +359,11 @@ public class RecipeServiceImpl implements RecipeService {
      * The nested {@code recipeId} is ignored. On create the recipe has no id yet, so requiring one
      * dropped every ingredient; on update the recipe being edited is authoritative. This is the same
      * rule the controllers apply to path ids.
+     * <p>
+     * The payload is the whole list. A line already on the recipe takes the payload's amount and
+     * unit, and a line left out is removed - before Part 7a an existing line was kept unchanged and
+     * an omitted one stayed, so an edit could neither change nor remove an ingredient. Absent lines
+     * leave the recipe's lines as they are.
      */
     private void handleRecipeIngredients(RecipeDTO recipeDTO, Recipe recipe) {
         if(Objects.isNull(recipeDTO.getRecipeIngredients())) {
@@ -337,15 +386,6 @@ public class RecipeServiceImpl implements RecipeService {
 
             UUID ingredientId = ServiceArguments.toUuid(dto.getIngredientId(), ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient");
 
-            // an existing row can only be found once the recipe itself has been persisted
-            Optional<RecipeIngredient> existing = Objects.isNull(recipe.getId())
-                    ? Optional.empty()
-                    : recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(recipe.getId(), ingredientId);
-            if(existing.isPresent()) {
-                resolved.add(existing.get());
-                continue;
-            }
-
             Optional<Ingredient> ingredient = ingredientJpaRepository.findById(ingredientId);
             if(ingredient.isEmpty()) {
                 problems.add(String.format("no ingredient exists with id '%s'", dto.getIngredientId()));
@@ -361,12 +401,17 @@ public class RecipeServiceImpl implements RecipeService {
                 continue;
             }
 
-            resolved.add(RecipeIngredient.builder()
+            // an existing line can only be found once the recipe itself has been persisted
+            Optional<RecipeIngredient> existing = Objects.isNull(recipe.getId())
+                    ? Optional.empty()
+                    : recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(recipe.getId(), ingredientId);
+            RecipeIngredient line = existing.orElseGet(() -> RecipeIngredient.builder()
                     .recipe(recipe)
                     .ingredient(ingredient.get())
-                    .unit(unit.get())
-                    .amount(dto.getAmount())
                     .build());
+            line.setUnit(unit.get());
+            line.setAmount(dto.getAmount());
+            resolved.add(line);
         }
 
         if(!problems.isEmpty()) {
@@ -374,6 +419,17 @@ public class RecipeServiceImpl implements RecipeService {
                     "The recipe ingredients could not be resolved: " + String.join("; ", problems));
         }
 
+        // The association has no orphanRemoval, so a dropped line's row is deleted explicitly, as
+        // deleteRecipeIngredient does.
+        if(Objects.nonNull(recipe.getRecipeIngredients())) {
+            List<RecipeIngredient> dropped = recipe.getRecipeIngredients().stream()
+                    .filter(line -> !resolved.contains(line))
+                    .toList();
+            dropped.forEach(line -> {
+                recipe.getRecipeIngredients().remove(line);
+                recipeIngredientJpaRepository.delete(line);
+            });
+        }
         resolved.forEach(recipe::addRecipeIngredient);
     }
 }

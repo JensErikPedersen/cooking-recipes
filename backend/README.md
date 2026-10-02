@@ -68,6 +68,9 @@ Every resource offers the same five operations; recipes add a nested ingredients
 | `/api/v1/recipes` | GET (all, by id), POST, PUT, DELETE |
 | `/api/v1/recipes/{id}/ingredients` | POST, PUT `/{ingredientId}`, DELETE `/{ingredientId}` |
 
+A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
+tags and the lines with the lists it sends.
+
 Errors return a consistent envelope:
 
 ```json
