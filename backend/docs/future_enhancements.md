@@ -112,7 +112,8 @@ Three specific problems:
 to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`
 handler is in place for every entity, so a duplicate Unit or Ingredient name is already a 409 with
 the generic `DATA_CONFLICT` code. What remains is their service pre-checks, for a message that names
-the field; Part 6 adds them.
+the field; Part 6 adds them. The same goes for deleting a Unit or Ingredient a recipe uses: the
+`recipe_ingredient` foreign keys make it a generic 409 today, without saying why.
 
 **What is wrong.** `name` is declared `unique = true` on four entities - `Category`, `Ingredient`,
 `Recipe` and `Unit` - but no service checks for an existing name before saving. The unique

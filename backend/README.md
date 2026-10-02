@@ -46,8 +46,18 @@ Integration tests run against in-memory H2 and need no local database.
 
 ## API
 
-All endpoints are under `/api/v1`. Every resource offers the same five operations; recipes add a
-nested ingredients sub-resource.
+All endpoints are under `/api/v1` and need a signed-in session, except login. Sign-in is a session
+cookie, and every write - login and logout included - must send the `XSRF-TOKEN` cookie's value
+back as the `X-XSRF-TOKEN` header. The one account is created on first start from `APP_ADMIN_*`;
+see `CLAUDE.md`, Authentication.
+
+| Auth | |
+|---|---|
+| `POST /api/v1/auth/login` | `{"username", "password"}`; 200 with the user, 401 on bad credentials |
+| `GET /api/v1/auth/me` | the signed-in user, or 401 |
+| `POST /api/v1/auth/logout` | 204 |
+
+Every resource offers the same five operations; recipes add a nested ingredients sub-resource.
 
 | Resource | Endpoints |
 |---|---|
@@ -68,8 +78,9 @@ Errors return a consistent envelope:
 }
 ```
 
-`200` read · `201` create (with `Location`) · `204` delete · `400` validation · `404` unknown ·
-`409` duplicate sub-resource.
+`200` read · `201` create (with `Location`) · `204` delete · `400` validation · `401` not signed
+in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name or
+sub-resource, or a delete of something still in use.
 
 ### Not in this version
 

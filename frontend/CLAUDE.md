@@ -32,8 +32,8 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   written for the user), `DetailList` the labelled fields of a read view, `NotFound` what a read
   view or edit form shows for a 404, `PageHeader` the heading with its action buttons, and
   `components/styles.ts` the primary, secondary and danger button looks. `DeleteButton` confirms
-  in a native `<dialog>` (never `window.confirm`), shows the server's refusal inside it with only an OK button, and goes
-  to the list after a delete.
+  in a native `<dialog>` (never `window.confirm`), shows the server's refusal inside it with only
+  an OK button, and goes to the list after a delete.
 - Forms: one `<Entity>Form` per entity, used by both its `new` and `[id]/edit` pages, holds the
   field state and wraps its `TextField`s in `EntityForm`. `EntityForm` does the rest - the audit
   fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
