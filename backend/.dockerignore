@@ -1,0 +1,10 @@
+# The image build needs only pom.xml, lombok.config and src/.
+target/
+scripts/
+docs/
+.mvn/
+mvnw
+mvnw.cmd
+*.md
+Dockerfile
+.dockerignore

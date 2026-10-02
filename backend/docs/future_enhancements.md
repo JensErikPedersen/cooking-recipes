@@ -24,6 +24,12 @@ Since Spring Framework 6.1 (Spring Boot 3.2+), Spring MVC applies built-in metho
 
 **Why it was left.** Controllers currently omit `@UUID` on path variables, so the gap is not reachable. Malformed ids are already rejected with a proper 400 by `ServiceArguments.toUuid` in the service layer (see resolved finding M8), and `CategoryControllerTest.shouldReturn400ForMalformedId` proves it end to end. Adding the annotation without first adding the handler would have turned a working 400 into a 500.
 
+**Update 2026-09-29.** No longer a 500: `HandlerMethodValidationException` implements
+`ErrorResponse` (via `ResponseStatusException`), and the catch-all now passes an `ErrorResponse`'s
+own status through. It would be a 400 - but with only Spring's generic detail, no
+`validationExceptions[]`. The dedicated handler below is still what gives it the same shape as the
+other two validation handlers.
+
 **What it would take.**
 
 1. Add a handler to `ApplicationExceptionHandler`:
@@ -102,6 +108,19 @@ Three specific problems:
 
 ## A duplicate name returns 500 instead of 409
 
+**Update 2026-10-02.** Unit followed in Part 6a, the same way, counting recipes rather than
+`recipe_ingredient` lines, and Tag in 6b. The entry below says Tag is unaffected because tag names
+are deliberately not unique: that was wrong. The schema has always made `tag.name` unique, and it
+was decided to keep it so. Ingredient followed in 6c and Recipe in 7a, so every entity with a
+unique name now answers a duplicate with its own 409 on the name field.
+
+**Update 2026-10-01.** Done for Category in Part 5a, as described below, plus a check that refuses
+to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`
+handler is in place for every entity, so a duplicate Unit or Ingredient name is already a 409 with
+the generic `DATA_CONFLICT` code. What remains is their service pre-checks, for a message that names
+the field; Part 6 adds them. The same goes for deleting a Unit or Ingredient a recipe uses: the
+`recipe_ingredient` foreign keys make it a generic 409 today, without saying why.
+
 **What is wrong.** `name` is declared `unique = true` on four entities - `Category`, `Ingredient`,
 `Recipe` and `Unit` - but no service checks for an existing name before saving. The unique
 constraint is therefore enforced only by the database, and the resulting
@@ -149,6 +168,43 @@ route by which raw persistence errors reach the exception handler of last resort
 
 ---
 
+## Recipe line errors cannot point at a line
+
+**What is wrong.** `RecipeDTO.recipeIngredients` is a `Set`, so the order of the lines in a request
+is gone by the time the service checks them. Part 7d therefore reports every line problem in one
+sorted message on the field `recipeIngredients`, naming the ingredient ("Hvedemel needs an amount
+above zero."), and the form shows it under the whole Ingredients section rather than on the line.
+A line with no ingredient chosen can only be described as "A line has no ingredient."
+
+**What it would take.** Make `recipeIngredients` a `List`, report each problem with its index as
+`recipeIngredients[2].amount`, and have the form map those fields onto its rows. The `Set` also
+guards nothing today: duplicates are refused explicitly since 7d.
+
+---
+
+## Dates carry no time zone, and do not round-trip
+
+**What is wrong.** `BaseDTO` formats `created` and `updated` with `@JsonFormat(pattern =
+"yyyy-MM-dd HH:mm")`. Two consequences:
+
+1. **No zone.** Jackson writes the time in the zone the `OffsetDateTime` carries, which is the
+   backend JVM's. Proven in Part 5c with a throwaway test against the application's `JsonMapper`:
+   16:51 at +02:00 came out as `"2026-10-01 16:51"` on a host in `Europe/Copenhagen`. The same
+   moment from the container reads 14:51. The client cannot tell which.
+2. **No round trip.** `@Jacksonized` deserializes through the builder, which does not carry the
+   format, so the API cannot read back a date it wrote; a client that PUTs a fetched object
+   unchanged gets a 400.
+
+**Workaround in place.** The backend image sets `TZ=UTC`, and the frontend shows the value with a
+"UTC" label and never sends the audit fields.
+
+**What it would take.** Drop the pattern so the dates serialize as ISO-8601 with an offset
+(`2026-10-01T14:51:00Z`), which also round-trips; have the frontend format them in the browser's
+local time; drop the "UTC" label. Assert the format in `JsonContractIT`. It changes the API
+contract, so frontend and backend move together.
+
+---
+
 ## Recipe ratings: read-only, deferred to a later version
 
 **Decision.** Ratings are out of scope for this version by choice. What exists is deliberate, not
@@ -191,3 +247,84 @@ layers are already built and tested:
 **Value.** The feature the whole `recipe_rating` table exists for. Until then the guard keeps the
 limitation explicit at the API boundary rather than silent.
 
+---
+
+## Multiple users: the table exists, the features do not
+
+**Status.** Part 4 added the `app_user` table, a `UserDetailsService` backed by it, and a first-run
+`AdminBootstrap`, so the schema supports multiple users. What is missing is everything that would
+make a second user meaningful.
+
+**What is missing.**
+
+1. **No way to create a second account.** `AdminBootstrap` runs only while the table is empty, so
+   after first run the only route to another account is an INSERT by hand. Needs a user
+   administration screen, or at minimum a sign-up endpoint, both of which need roles enforced
+   first.
+2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
+   security chain authenticates every endpoint, but nothing authorises differently per role - an
+   ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
+   table is premature until a screen manages roles; enforcing `ROLE_ADMIN` on the destructive
+   endpoints is not.
+3. **Nothing is owned by anyone.** `created_by` records a username as free text, not a foreign key
+   to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
+   their audit trail. Turning it into a FK requires migrating every existing row and changing
+   every DTO that exposes it - do not do it as a side effect of something else.
+4. **No password change, no reset, no disable-in-the-UI.** The `enabled` column exists and is
+   honoured on login; nothing sets it.
+
+**Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
+trusted rather than read as a string.
+
+---
+
+## A single database account does all the work
+
+**What is missing.** The stack creates one MySQL account, and both Liquibase and the running
+application connect as it. That account therefore needs DDL rights permanently, because Liquibase
+creates tables at every startup where a changeset is pending - which means the runtime datasource
+can also drop them.
+
+**Why it was left.** Two accounts is the correct production shape, but for a local MVP it doubles
+the credentials in `.env` and adds an init script to maintain, in exchange for a boundary that
+nothing local crosses.
+
+**What it would take.** A `recipesadmin` account with DDL rights on the schema for
+`spring.liquibase.user` / `.password`, and `recipesuser` restricted to `SELECT, INSERT, UPDATE,
+DELETE` for the runtime datasource. MySQL's entrypoint cannot express this - setting
+`MYSQL_USER` / `MYSQL_PASSWORD` grants that account `ALL PRIVILEGES` on the schema - so both
+accounts have to be created by an init script mounted into
+`/docker-entrypoint-initdb.d`, which runs once while the data volume is empty.
+
+**Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
+deliberate act with its own credentials rather than something the runtime user could do by
+accident.
+
+---
+
+## Smaller items deferred during Parts 2-7
+
+Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
+step's notes in `docs/PLAN.md`.
+
+- **A POST's `Location` header names the backend's internal address** (`http://backend:8080/...`):
+  the backend builds it from the `Host` the Next.js proxy sends. Nothing reads the header - the
+  frontend uses the id in the body. `server.forward-headers-strategy=framework` would fix it.
+  Found in 4a.
+- **The `DataIntegrityViolationException` handler answers 409 for every constraint**, including a
+  NOT NULL column left empty, which is a server fault rather than a conflict. 7a met exactly that:
+  the `recipe_tag.created_by` failure came back as "The change conflicts with existing data".
+  Hibernate's `ConstraintViolationException.getKind()` tells UNIQUE and FOREIGN_KEY, a 409, from
+  NOT_NULL and CHECK, a 500.
+- **Dead code**: `config/TestingConfiguration` in the tests is referenced by nothing - a
+  `@TestConfiguration` is excluded from component scanning (5a). `backend/HELP.md` is the Spring
+  Initializr's generated help. The unreferenced `@UUID` validator and repository query are noted
+  in the name-lookup entry above.
+- **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
+  in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
+  keep or remove them as one decision.
+- **`RecipeIngredientJpaRepository` declares its id type as `UUID`**, but `RecipeIngredient`'s
+  key is the composite `RecipeIngredientPK`. Every caller uses the derived queries, so nothing
+  breaks; `findById` on it would be wrong. Noticed in 6a.
+- **Sign-in does not return to where you were heading**: after signing in you land on the start
+  page. Deliberately left out in 4b for simplicity.

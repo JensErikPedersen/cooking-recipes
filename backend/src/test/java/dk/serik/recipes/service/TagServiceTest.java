@@ -7,6 +7,7 @@ import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mockutil.MockTagUtil;
 import dk.serik.recipes.model.Tag;
+import dk.serik.recipes.repository.RecipeJpaRepository;
 import dk.serik.recipes.repository.TagJpaRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,8 @@ import static org.mockito.Mockito.times;
 public class TagServiceTest {
     @Mock
     private TagJpaRepository repository;
+    @Mock
+    private RecipeJpaRepository recipeRepository;
     @Mock
     private Session session;
     @InjectMocks
@@ -308,4 +312,44 @@ public class TagServiceTest {
                 .containsExactly(ApplicationErrorCodes.TAG_ID_IS_NULL.getCode(), HttpStatus.BAD_REQUEST);
     }
 
+
+    @Test
+    @DisplayName("Given the name is taken, When saving a Tag, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectSaveOfDuplicateName() {
+        given(repository.findTagByName("Mexi")).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
+
+        assertThatThrownBy(() -> service.save(MockTagUtil.mockMexiTagDTO()))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("A tag named 'Mexi' already exists")
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        then(repository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given another Tag has the name, When updating, Then a conflict on the name field is reported and nothing is saved")
+    public void shouldRejectUpdateToAnotherTagsName() {
+        given(repository.findById(UUID.fromString("0f569775-68aa-44c1-94b5-1c694dec8890"))).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
+        given(repository.findTagByName("Meximad")).willReturn(Optional.of(MockTagUtil.mockTagSweet()));  // other id
+
+        assertThatThrownBy(() -> service.update(MockTagUtil.mockMexiTagDTOToBeUpdated()))
+                .isInstanceOf(ServiceException.class)
+                .extracting("code", "httpStatus", "field")
+                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+        then(repository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given recipes use the Tag, When deleting, Then a conflict naming the count is reported and nothing is deleted")
+    public void shouldRejectDeleteOfTagInUse() {
+        given(repository.findById(UUID.fromString("0f569775-68aa-44c1-94b5-1c694dec8890"))).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
+        given(recipeRepository.countByTagsId(UUID.fromString("0f569775-68aa-44c1-94b5-1c694dec8890"))).willReturn(3L);
+
+        assertThatThrownBy(() -> service.delete("0f569775-68aa-44c1-94b5-1c694dec8890"))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage("Tag 'Mexi' is used by 3 recipes and cannot be deleted")
+                .extracting("code", "httpStatus")
+                .containsExactly(ApplicationErrorCodes.TAG_IN_USE.getCode(), HttpStatus.CONFLICT);
+        then(repository).should(never()).delete(any());
+    }
 }

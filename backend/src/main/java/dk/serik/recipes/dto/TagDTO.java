@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 @Getter
 public class TagDTO extends BaseIdentityDTO {
 
-    // tag.name is VARCHAR(255) and, unlike the other lookups, deliberately not unique
+    // tag.name is VARCHAR(255) and unique, like the other lookups' names
     @NotBlank(message = "{dk.serik.models.tag.name.notblank.message}")
     @Size(max = 255, message = "{dk.serik.models.tag.name.size.message}")
     private String name;

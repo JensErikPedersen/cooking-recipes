@@ -6,6 +6,7 @@ import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mapper.UnitMapper;
 import dk.serik.recipes.model.Unit;
+import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import dk.serik.recipes.repository.UnitJpaRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,8 @@ public class UnitServiceImpl implements UnitService {
 
     private UnitJpaRepository repository;
 
+    private RecipeIngredientJpaRepository recipeIngredientRepository;
+
     private Session session;
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
@@ -53,6 +56,7 @@ public class UnitServiceImpl implements UnitService {
     @Override
     public UnitDTO save(UnitDTO dto) {
         if(Objects.nonNull(dto)) {
+            rejectDuplicateName(dto.getName(), null);
             Unit toBeSaved = new Unit();
             toBeSaved.setLabel(dto.getLabel());
             toBeSaved.setName(dto.getName());
@@ -76,6 +80,7 @@ public class UnitServiceImpl implements UnitService {
         Optional<Unit> optional = repository.findById(ServiceArguments.toUuid(dto.getId(), ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"));
         if(optional.isPresent()) {
             Unit managedUnit = optional.get();
+            rejectDuplicateName(dto.getName(), managedUnit.getId());
             managedUnit.setName(dto.getName());
             managedUnit.setLabel(dto.getLabel());
             Unit savedUnit = repository.save(managedUnit);
@@ -94,10 +99,38 @@ public class UnitServiceImpl implements UnitService {
     public boolean delete(String id) {
         Optional<Unit> optional = repository.findById(ServiceArguments.toUuid(id, ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"));
         if(optional.isPresent()) {
+            rejectDeleteInUse(optional.get());
             repository.delete(optional.get());
             return true;
         }
         return false;
+    }
+
+    // As in CategoryServiceImpl: the unique index on name and the recipe_ingredient foreign key
+    // refuse these anyway, at commit and without a reason; checking first gives one.
+    private void rejectDuplicateName(String name, UUID ownId) {
+        repository.findByName(name)
+                .filter(existing -> !existing.getId().equals(ownId))
+                .ifPresent(existing -> {
+                    throw ServiceException.builder()
+                            .message(String.format("A unit named '%s' already exists", name))
+                            .code(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode())
+                            .httpStatus(HttpStatus.CONFLICT)
+                            .field("name")
+                            .build();
+                });
+    }
+
+    private void rejectDeleteInUse(Unit unit) {
+        long recipes = recipeIngredientRepository.countRecipesByUnitId(unit.getId());
+        if (recipes > 0) {
+            throw ServiceException.builder()
+                    .message(String.format("Unit '%s' is used by %d %s and cannot be deleted",
+                            unit.getName(), recipes, recipes == 1 ? "recipe" : "recipes"))
+                    .code(ApplicationErrorCodes.UNIT_IN_USE.getCode())
+                    .httpStatus(HttpStatus.CONFLICT)
+                    .build();
+        }
     }
 
 }

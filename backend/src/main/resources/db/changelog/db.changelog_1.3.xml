@@ -1,0 +1,20 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!--
+      recipe_tag.created_by was NOT NULL with no default, which made tagging a recipe impossible.
+      Recipe maps tags as a plain @ManyToMany @JoinTable, so Hibernate's insert is
+      `insert into recipe_tag (recipe_id, tag_id) values (?, ?)` - it has nowhere to put an audit
+      value. RecipeIT proved it in Part 7a: "NULL not allowed for column CREATED_BY".
+
+      Made nullable rather than dropped: the seeded rows hold real history. `created` needs no
+      change - it is NOT NULL but defaults to CURRENT_TIMESTAMP. Auditing the association itself
+      would mean promoting recipe_tag to an entity, as RecipeIngredient is; nothing reads these
+      columns, so that was not worth it. Ported from my-recipes, which made the same fix.
+    -->
+    <changeSet author="jense" id="20261002-recipe-tag-created-by-nullable">
+        <dropNotNullConstraint tableName="recipe_tag" columnName="created_by" columnDataType="VARCHAR(64)"/>
+    </changeSet>
+
+</databaseChangeLog>

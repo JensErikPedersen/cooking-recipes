@@ -1,0 +1,9 @@
+# Installed and built inside the image. The host's node_modules also holds Windows binaries.
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+Dockerfile
+.dockerignore
+*.md
