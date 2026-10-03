@@ -61,12 +61,12 @@ four different levels of support and one naming inconsistency:
 
 | Service | `findByName` | `findAllByNameContains` | Repository already supports |
 |---|---|---|---|
-| Category | yes | no | `findByName`, and `findAllByNameContains`, which nothing calls |
-| Ingredient | yes | yes | both, plus `findAllByDescriptionContains`, which nothing calls |
-| Recipe | no | yes | `findByName`, `findAllByNameContains`, `findAllByCategoryName` |
-| Tag | as `findTagByName` | no | `findTagByName` |
-| Unit | no | no | `findByName` |
-| Rating | no | no | none - not applicable, a rating is a 1-5 value |
+| Category | ✅ | ❌ | `findByName`, and `findAllByNameContains`, which nothing calls |
+| Ingredient | ✅ | ✅ | both, plus `findAllByDescriptionContains`, which nothing calls |
+| Recipe | ❌ | ✅ | `findByName`, `findAllByNameContains`, `findAllByCategoryName` |
+| Tag | ⚠️ `findTagByName` | ❌ | `findTagByName` |
+| Unit | ❌ | ❌ | `findByName` |
+| Rating | ❌ | ❌ | none - not applicable, a rating is a 1-5 value |
 
 Every repository `findByName` (Tag's `findTagByName`) now has a caller: the duplicate-name check
 in that service's `save` and `update`, added in Parts 5a-7a. Those checks call the repository
