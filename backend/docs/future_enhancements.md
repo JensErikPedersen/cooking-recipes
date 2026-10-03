@@ -61,18 +61,23 @@ four different levels of support and one naming inconsistency:
 
 | Service | `findByName` | `findAllByNameContains` | Repository already supports |
 |---|---|---|---|
-| Category | ✅ | ❌ | **both** — `findAllByNameContains` exists but is not exposed |
-| Ingredient | ✅ | ✅ | both (plus `findAllByDescriptionContains`, also unexposed) |
-| Recipe | ❌ | ✅ | `findAllByNameContains`, `findAllByCategoryName` |
-| Tag | ⚠️ `findTagByName` | ❌ | `findTagByName` |
-| Unit | ❌ | ❌ | none |
-| Rating | ❌ | ❌ | none — not applicable, a rating is a 1-5 value |
+| Category | yes | no | `findByName`, and `findAllByNameContains`, which nothing calls |
+| Ingredient | yes | yes | both, plus `findAllByDescriptionContains`, which nothing calls |
+| Recipe | no | yes | `findByName`, `findAllByNameContains`, `findAllByCategoryName` |
+| Tag | as `findTagByName` | no | `findTagByName` |
+| Unit | no | no | `findByName` |
+| Rating | no | no | none - not applicable, a rating is a 1-5 value |
+
+Every repository `findByName` (Tag's `findTagByName`) now has a caller: the duplicate-name check
+in that service's `save` and `update`, added in Parts 5a-7a. Those checks call the repository
+directly, so the service-level `findByName` on Category and Ingredient, and Tag's `findTagByName`,
+are called only by their own tests.
 
 Three specific problems:
 
 1. **Category has the repository method but not the service method.** `CategoryJpaRepository.findAllByNameContains` exists and is covered by `CategoryJpaRepositoryIT` ("two categories containing 'er'"), but `CategoryService` never exposes it, so nothing can reach it. It is working, tested, unreachable code.
 2. **Tag names its method `findTagByName`** rather than `findByName` — the entity name is redundant inside `TagService`, and it breaks the pattern every other service follows.
-3. **None of it is reachable over HTTP.** `CategoryController` and `IngredientController` expose only the five CRUD endpoints, so `findByName` and `findAllByNameContains` have no route at all.
+3. **None of it is reachable over HTTP.** All five controllers expose only the five CRUD endpoints; `TagController` and `UnitController` say why in their class comments. No screen searches by name either.
 
 **What it would take.**
 
@@ -81,7 +86,10 @@ Three specific problems:
    Optional<XDTO> findByName(String name);        // exact match, one result or empty
    List<XDTO>     findAllByNameContains(String name);  // partial match, possibly empty
    ```
-   Add what is missing (`Category.findAllByNameContains`, `Recipe.findByName`, `Tag.findAllByNameContains`), and rename `TagService.findTagByName` to `findByName`.
+   Add what is missing (`Category.findAllByNameContains`, `Tag.findAllByNameContains`, and
+   `Recipe.findByName` over the repository query that already exists), and rename
+   `findTagByName` to `findByName` in `TagService` and `TagJpaRepository`. Whether the
+   service-level `findByName` belongs in the contract at all is part of settling it - see point 3.
 2. Expose partial match as a filter on the collection endpoint, which is the idiomatic REST shape and needs no new path:
    ```
    GET /api/v1/ingredients            -> all
@@ -93,78 +101,16 @@ Three specific problems:
        return Objects.isNull(name) ? service.findAll() : service.findAllByNameContains(name);
    }
    ```
-3. **Do not expose exact match over HTTP, but keep it on the service.** The two are not substitutes:
+3. **Do not expose exact match over HTTP.** The two are not substitutes:
    `findAllByNameContains("Brod")` is a `LIKE` query that also matches `Rugbrod` and `Hvedebrod`, so it
    cannot answer *"is there a category called exactly Brod?"*. The API needs only the partial filter -
-   these names are unique, so a full name returns a single-element list - but the service keeps
-   `findByName` because that exact-match question has a real caller: the duplicate-name pre-check
-   described in the next entry. Deleting it would remove the tool needed to fix that bug.
+   these names are unique, so a full name returns a single-element list. The exact-match query
+   stays in the repository, where the duplicate-name checks use it. The service-level
+   `findByName` has no caller outside its tests; keep or drop it as one decision for all four.
 
-**Deliberately excluded.** `Unit` and `Rating`. Units are a fixed handful of measures and ratings are a 1-5 lookup table; neither has a repository query, and adding name search to them would be ceremony rather than capability. `UnitController` was built with the five CRUD endpoints only, for that reason.
+**Deliberately excluded.** `Unit` and `Rating`. Units are a fixed handful of measures and ratings are a 1-5 lookup table; adding name search to them would be ceremony rather than capability. Unit's only query is the exact `findByName` behind its duplicate-name check. `UnitController` was built with the five CRUD endpoints only, for that reason.
 
 **Value.** One predictable contract across the API instead of per-resource guesswork, and it makes reachable a repository method that is currently tested but dead.
-
----
-
-## A duplicate name returns 500 instead of 409
-
-**Update 2026-10-02.** Unit followed in Part 6a, the same way, counting recipes rather than
-`recipe_ingredient` lines, and Tag in 6b. The entry below says Tag is unaffected because tag names
-are deliberately not unique: that was wrong. The schema has always made `tag.name` unique, and it
-was decided to keep it so. Ingredient followed in 6c and Recipe in 7a, so every entity with a
-unique name now answers a duplicate with its own 409 on the name field.
-
-**Update 2026-10-01.** Done for Category in Part 5a, as described below, plus a check that refuses
-to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`
-handler is in place for every entity, so a duplicate Unit or Ingredient name is already a 409 with
-the generic `DATA_CONFLICT` code. What remains is their service pre-checks, for a message that names
-the field; Part 6 adds them. The same goes for deleting a Unit or Ingredient a recipe uses: the
-`recipe_ingredient` foreign keys make it a generic 409 today, without saying why.
-
-**What is wrong.** `name` is declared `unique = true` on four entities - `Category`, `Ingredient`,
-`Recipe` and `Unit` - but no service checks for an existing name before saving. The unique
-constraint is therefore enforced only by the database, and the resulting
-`DataIntegrityViolationException` is not handled by any `@ControllerAdvice`. It falls through to
-`handleGeneralException`.
-
-Verified against `CategoryController` with a throwaway `@WebMvcTest` that made the service throw
-what the database would throw:
-
-```
-STATUS=500
-BODY={"errorCode":0,"message":"An unexpected error occurred","description":"Reference: 7e9298d8-..."}
-```
-
-A client that posts an existing category name is told the server broke. The correct answer is
-**409 Conflict**, naming the field that collided.
-
-This was unreachable until the REST layer existed. `POST` and `PUT` on Category, Ingredient and
-Unit can all reach it today; Recipe will when its controller lands. `Tag` is unaffected - tag names
-are deliberately not unique.
-
-**What it would take.**
-
-1. Pre-check in the service, which is what `findByName` is for:
-   ```java
-   categoryJpaRepository.findByName(dto.getName()).ifPresent(existing -> {
-       throw ServiceException.builder()
-               .message(String.format("A category named '%s' already exists", dto.getName()))
-               .code(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode())
-               .httpStatus(HttpStatus.CONFLICT)
-               .build();
-   });
-   ```
-   with a new `X_ALREADY_EXISTS` code per domain, following the existing grouping. Note `update()`
-   needs the same check but must exclude the row being updated, or renaming a category to its own
-   name would be rejected.
-2. Add a `DataIntegrityViolationException` handler to `ApplicationExceptionHandler` returning 409,
-   as a backstop for the race between the check and the insert, and for constraints the pre-check
-   does not cover. Keep the message generic - the raw exception carries table and constraint names
-   (see resolved finding M5).
-3. Test both paths: the pre-check returning 409, and the handler translating the exception.
-
-**Value.** Turns a 500 into an actionable 409 on the most likely client mistake, and closes the last
-route by which raw persistence errors reach the exception handler of last resort.
 
 ---
 
