@@ -176,19 +176,19 @@ Then edit a category, clear its name and save: the message still appears under N
 One step, because it changes the API contract and the frontend reads it: a backend-only step would
 leave the app showing a raw ISO string with "UTC" after it.
 
-- [ ] `BaseDTO`: drop the `@JsonFormat` pattern. Dates serialize as ISO-8601 with an offset, for
+- [x] `BaseDTO`: drop the `@JsonFormat` pattern. Dates serialize as ISO-8601 with an offset, for
       example `2026-10-01T14:51:00Z`, and read back - assert the exact form in `JsonContractIT`
       rather than assume it, since Jackson 3's defaults decide fractional seconds and `Z` versus
       `+00:00`
-- [ ] Round trip: a test that GETs a category and PUTs the response unchanged gets a 200, not
+- [x] Round trip: a test that GETs a category and PUTs the response unchanged gets a 200, not
       today's 400
-- [ ] `ENV TZ=UTC` in the backend image **stays**, for a different reason than today: the columns are
-      `datetime`, which store no zone, so the JVM's zone decides what a stored value means. Changing
-      it would shift every existing row. Its comment and `backend/CLAUDE.md` are reworded to say so
-- [ ] Frontend: one formatting function in `lib/`, browser time zone, the format of decision 5;
+- [x] `ENV TZ=UTC` in the backend image stays, but **not for the reason planned**: storage proved
+      to be UTC whatever the JVM's zone (below). Its comment and `backend/CLAUDE.md` now say it is
+      not load-bearing
+- [x] Frontend: one formatting function in `lib/`, browser time zone, the format of decision 5;
       the edit form's "Created" row uses it and loses " UTC". The comment on `Audited` in
       `lib/api.ts` is rewritten
-- [ ] Docs: `backend/CLAUDE.md` (DTOs paragraph, Docker), `frontend/CLAUDE.md` (the dates line),
+- [x] Docs: `backend/CLAUDE.md` (DTOs paragraph, Docker), `frontend/CLAUDE.md` (the dates line),
       `backend/README.md` if it shows a date; the entry leaves `future_enhancements.md`
 
 **Tests.** `JsonContractIT`: the serialized form and the round trip. Playwright: the helper
@@ -205,6 +205,32 @@ scripts\start.ps1; cd e2e; npx playwright test
 
 In the browser, `/api/v1/categories` shows `created` ending in `Z`. Edit any category: "Created"
 shows your own clock's time, with no "UTC".
+
+**Done (2026-10-04).** Deviations and findings:
+
+- Tests first. `JsonContractIT` now pins the exact form, `2023-01-25T14:25:15+01:00` and
+  `2023-01-25T13:25:15Z` - the value's own offset, `Z` for UTC, no fraction when there is none -
+  and a round trip. `CategoryIT.shouldAcceptItsOwnResponseAsARequest` PUTs a GET's response back
+  unchanged. Before the change: 400, an assertion failure and a deserialization error; after it,
+  all three pass
+- **The plan's reason for `TZ=UTC` was wrong.** Proven on the stack: a category created with the
+  backend in UTC read `15:27:58` in MySQL and `15:27:58Z` from the API. The backend restarted with
+  `TZ=Europe/Copenhagen` read that same row back unchanged, and a category it created at 17:28
+  CEST was stored as `15:28:21`. Dates are stored in UTC whatever the JVM's zone, so changing it
+  shifts nothing. The line stays - the base image is UTC anyway, and it keeps logs in UTC - with a
+  comment that says it is not load-bearing. Both probe rows deleted
+- MySQL `datetime` keeps whole seconds and rounds: a POST's response says `15:27:57.520806704Z`,
+  the GET after it `15:27:58Z`. Harmless - the form always shows a fresh GET, to the minute - and
+  noted in `backend/CLAUDE.md`
+- The conversion test runs in `Asia/Tokyo` rather than `Europe/Copenhagen`: nine hours from UTC,
+  no daylight saving, so a page that skipped the conversion cannot pass by coincidence. It compares
+  with Node's own `Intl` formatting of the API's value, not with the app's function. Both it and
+  the reworked `expectCreatedNowBy` proven load-bearing: with a formatter that used UTC, built into
+  the stack, both failed - Tokyo expected `2026-10-05 00:31` and got `2026-10-04 15:31`
+- `expectCreatedNowBy` lets the browser parse what it shows, so it holds in any time zone; the five
+  audit tests lost "in UTC" from their names
+- The four `*IT` helpers lost a comment saying the DTOs cannot read their own dates
+- `./mvnw clean verify`: 276 unit, 109 integration (107 + 2). Lint clean. Playwright: 97 (96 + 1)
 
 ---
 

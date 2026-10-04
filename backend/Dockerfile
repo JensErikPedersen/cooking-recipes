@@ -14,8 +14,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home recipes
-# The API writes dates in the JVM's zone without saying which, and the frontend labels them UTC.
-# The base image is UTC today; this keeps it so if that ever changes.
+# Not load-bearing: dates are stored in UTC whatever the JVM's zone, and the API sends them with
+# their offset. It keeps the JVM's own clock - logs, the dates in a write's response - in UTC too.
 ENV TZ=UTC
 COPY --from=build --chown=recipes /build/target/recipes-*.jar app.jar
 USER recipes

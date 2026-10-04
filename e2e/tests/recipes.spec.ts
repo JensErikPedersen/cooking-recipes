@@ -212,7 +212,7 @@ test("editing a recipe's text keeps its ingredient lines", async ({ page }) => {
   await expect(main(page).getByRole("table").getByRole("row")).toHaveText(["500grHvedemel", "2tskSalt"]);
 });
 
-test("the recipe edit form shows when, in UTC, and by whom the recipe was created", async ({ page }) => {
+test("the recipe edit form shows when and by whom the recipe was created", async ({ page }) => {
   const id = await createRecipe(page, uniqueName(), "Kager", []);
 
   await page.goto(`/recipes/${id}/edit`);

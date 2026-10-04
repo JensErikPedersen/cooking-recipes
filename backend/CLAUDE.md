@@ -61,10 +61,10 @@ read methods re-annotated `readOnly = true`. Ids arrive as `String` and go throu
 already checked by `@UUID`; the ids inside bodies - category, tags, ingredient lines - are not.
 
 **DTOs** are immutable-ish: `@Getter` only, one `@Builder @Jacksonized` constructor, fields
-`private`. `BaseDTO` carries the four audit fields and formats timestamps as
-`yyyy-MM-dd HH:mm` - note that this **does not round-trip**, since the pattern has no offset, so
-assert on responses with `jsonPath` rather than deserialising back into a DTO. Bean Validation
-messages are keys resolved from `ValidationMessages.properties`.
+`private`. `BaseDTO` carries the four audit fields. Dates are Jackson's default, ISO-8601 with
+the offset (`2026-10-04T15:27:58Z`), and read back as they are written - `JsonContractIT` pins
+both. MySQL keeps whole seconds, so a write's response carries fractions its later GET does not.
+Bean Validation messages are keys resolved from `ValidationMessages.properties`.
 
 **Mappers** are static utility classes, `from(entity)` and `fromDto(dto)`, each null-guarded.
 No MapStruct.
@@ -182,8 +182,9 @@ must be reachable before the application starts.
 - The runtime image installs `curl` solely for the Compose healthcheck on `/actuator/health`, the
   only actuator endpoint exposed. It answers only once Liquibase has finished.
 - The container runs as the unprivileged `recipes` user.
-- `ENV TZ=UTC` is load-bearing. Dates leave the API in the JVM's zone without an offset, and the
-  frontend labels them UTC; the base image is UTC already, the line keeps it so.
+- `ENV TZ=UTC` is **not** load-bearing. Dates are stored in UTC whatever the JVM's zone - proven
+  in V2 Part 3 by running the backend in `Europe/Copenhagen` - and leave the API with their offset.
+  The line keeps the JVM's own clock, logs and a write's response, in UTC as well.
 
 ## Gotchas
 

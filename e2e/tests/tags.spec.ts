@@ -119,7 +119,7 @@ test("an edited tag shows the change, and keeps it after leaving and returning",
   await expectReadView(page, renamed);
 });
 
-test("the tag edit form shows when, in UTC, and by whom the tag was created", async ({ page }) => {
+test("the tag edit form shows when and by whom the tag was created", async ({ page }) => {
   const id = await createTag(page, uniqueName());
 
   await page.goto(`/tags/${id}/edit`);

@@ -30,12 +30,15 @@ export async function expectReadView(page: Page, name: string, ...values: string
   await expect(page.getByRole("textbox")).toHaveCount(0);
 }
 
-/** On an edit form: created by the given user, and created now - read as UTC, so the label is true. */
+/**
+ * On an edit form: created by the given user, and created now. The time has no zone label - it is
+ * the browser's own zone - so the browser reads it back, and Node compares the instant.
+ */
 export async function expectCreatedNowBy(page: Page, username: string) {
   await expect(main(page).locator("dt:text-is('Created by') + dd")).toHaveText(username);
   const created = await main(page).locator("dt:text-is('Created') + dd").textContent();
-  expect(created).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/);
-  const createdAt = Date.parse(created!.replace(" ", "T").replace(" UTC", ":00Z"));
+  expect(created).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  const createdAt = await page.evaluate((shown) => new Date(shown.replace(" ", "T")).getTime(), created!);
   expect(Math.abs(Date.now() - createdAt)).toBeLessThan(2 * 60 * 1000);
 }
 

@@ -125,12 +125,33 @@ test("an edited category shows the change, and keeps it after leaving and return
   await expectReadView(page, renamed, "After");
 });
 
-test("the edit form shows when, in UTC, and by whom the category was created", async ({ page }) => {
+test("the edit form shows when and by whom the category was created", async ({ page }) => {
   const id = await createCategory(page, uniqueName(), "Audited");
 
   await page.goto(`/categories/${id}/edit`);
 
   await expectCreatedNowBy(page, USERNAME);
+});
+
+test.describe("in a browser in Tokyo", () => {
+  test.use({ timezoneId: "Asia/Tokyo" });
+
+  // The API sends UTC; the page must show the browser's own time. Tokyo is nine hours from UTC and
+  // never changes its clock, so a page that skipped the conversion cannot pass by coincidence.
+  test("the edit form shows the creation time in the browser's time zone", async ({ page }) => {
+    const id = await createCategory(page, uniqueName(), "Audited");
+    const { created } = await (await page.request.get(`/api/v1/categories/${id}`)).json();
+    expect(created).toMatch(/Z$/);
+
+    await page.goto(`/categories/${id}/edit`);
+
+    const tokyo = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Tokyo",
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(created));
+    await expect(main(page).locator("dt:text-is('Created') + dd")).toHaveText(tokyo);
+  });
 });
 
 test("a name another category has shows the server's error on the name field", async ({ page }) => {

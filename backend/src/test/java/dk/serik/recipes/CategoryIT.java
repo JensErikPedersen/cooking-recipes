@@ -153,11 +153,23 @@ class CategoryIT {
 				.andExpect(jsonPath("$.name").value(name));
 	}
 
+	@Test
+	@DisplayName("Given a category, When PUT back exactly as GET returned it, Then 200 - the API reads the dates it writes")
+	void shouldAcceptItsOwnResponseAsARequest() throws Exception {
+		String id = create(uniqueName());
+		String fetched = mockMvc.perform(get(CATEGORIES + "/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.created").exists())
+				.andReturn().getResponse().getContentAsString();
+
+		mockMvc.perform(put(CATEGORIES + "/" + id).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(fetched))
+				.andExpect(status().isOk());
+	}
+
 	private String create(String name) throws Exception {
 		String response = mockMvc.perform(post(CATEGORIES).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		// Only the id is read: CategoryDTO cannot deserialize the "yyyy-MM-dd HH:mm" dates it serializes.
 		return jsonMapper.readTree(response).get("id").asString();
 	}
 

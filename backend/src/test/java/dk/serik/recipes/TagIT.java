@@ -127,7 +127,6 @@ class TagIT {
 		String response = mockMvc.perform(post(TAGS).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		// Only the id is read: TagDTO cannot deserialize the "yyyy-MM-dd HH:mm" dates it serializes.
 		return jsonMapper.readTree(response).get("id").asString();
 	}
 

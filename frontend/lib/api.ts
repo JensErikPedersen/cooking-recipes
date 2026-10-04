@@ -77,9 +77,8 @@ export function fieldErrors(error: unknown): Record<string, string> {
 }
 
 /**
- * The audit fields every entity carries. The backend writes dates as "yyyy-MM-dd HH:mm" in its
- * JVM's zone, which the stack pins to UTC, with no offset - and cannot read them back. So they are
- * display-only and never sent.
+ * The audit fields every entity carries. Dates are ISO-8601 with their offset; `formatDateTime`
+ * shows them in the viewer's time zone. Display-only: a form sends its editable fields, never these.
  */
 export interface Audited {
   id: string;

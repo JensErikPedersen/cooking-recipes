@@ -55,10 +55,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   mark; a `type="number"` input would bring the browser's own validation. Blank lines are sent too.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
-  message to its input with `aria-describedby`. A form sends only its editable fields - the audit
-  dates do not survive a round trip.
-- Dates are shown as the API sends them, `yyyy-MM-dd HH:mm`, labelled UTC. That holds because the
-  backend image sets `TZ=UTC`; the API itself carries no zone.
+  message to its input with `aria-describedby`. A form sends only its editable fields, never the
+  audit fields.
+- Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
+  `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
+  browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
   and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.

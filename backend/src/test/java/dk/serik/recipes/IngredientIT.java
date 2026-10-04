@@ -132,7 +132,6 @@ class IngredientIT {
 		String response = mockMvc.perform(post(INGREDIENTS).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name, null)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		// Only the id is read: IngredientDTO cannot deserialize the "yyyy-MM-dd HH:mm" dates it serializes.
 		return jsonMapper.readTree(response).get("id").asString();
 	}
 
