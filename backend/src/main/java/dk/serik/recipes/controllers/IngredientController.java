@@ -4,6 +4,7 @@ import dk.serik.recipes.dto.IngredientDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.IngredientService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,7 @@ public class IngredientController {
     }
 
     @GetMapping("/{id}")
-    public IngredientDTO findById(@PathVariable String id) {
+    public IngredientDTO findById(@PathVariable @UUID String id) {
         return ingredientService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -61,13 +62,13 @@ public class IngredientController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public IngredientDTO update(@PathVariable String id, @Valid @RequestBody IngredientDTO ingredientDTO) {
+    public IngredientDTO update(@PathVariable @UUID String id, @Valid @RequestBody IngredientDTO ingredientDTO) {
         ingredientDTO.setId(id);
         return ingredientService.update(ingredientDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!ingredientService.delete(id)) {
             throw notFound(id);
         }

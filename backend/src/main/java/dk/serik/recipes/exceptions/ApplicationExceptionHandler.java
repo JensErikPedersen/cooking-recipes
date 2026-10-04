@@ -10,12 +10,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -98,15 +101,41 @@ public class ApplicationExceptionHandler {
     @ResponseBody
     public ExceptionEnvelope handleConstraintViolationException(ConstraintViolationException ex) {
         logger.info("handle ConstraintViolationException: " + ex);
-        ExceptionEnvelope exceptionEnvelope = ExceptionEnvelope.builder()
-                .errorCode(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
-                .message("Validation Exception")
-                .description("One or more fields, parameters or type do not pass violation criteria")
-                .build();
+        ExceptionEnvelope exceptionEnvelope = validationEnvelope();
         Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
         processFieldErrors(exceptionEnvelope, violations);
 
         return exceptionEnvelope;
+    }
+
+    // A constraint on a controller parameter, such as the @UUID on every path id. A method with one
+    // has its @Valid body validated in the same pass, so a PUT's body errors arrive here too rather
+    // than as a MethodArgumentNotValidException: they are reported by field, the parameters by name.
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = { HandlerMethodValidationException.class })
+    @ResponseBody
+    public ExceptionEnvelope handleHandlerMethodValidationException(HandlerMethodValidationException ex) {
+        logger.info("handle HandlerMethodValidationException: {}", ex.getMessage());
+        ExceptionEnvelope exceptionEnvelope = validationEnvelope();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            if (result instanceof ParameterErrors errors) {
+                errors.getFieldErrors().forEach(error -> exceptionEnvelope.addValidationException(
+                        new ValidationExceptionEnvelope(error.getField(), error.getDefaultMessage())));
+            } else {
+                String parameter = result.getMethodParameter().getParameterName();
+                result.getResolvableErrors().forEach(error -> exceptionEnvelope.addValidationException(
+                        new ValidationExceptionEnvelope(parameter, error.getDefaultMessage())));
+            }
+        }
+        return exceptionEnvelope;
+    }
+
+    private ExceptionEnvelope validationEnvelope() {
+        return ExceptionEnvelope.builder()
+                .errorCode(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
+                .message("Validation Exception")
+                .description("One or more fields, parameters or type do not pass violation criteria")
+                .build();
     }
 
     private void processFieldErrors(ExceptionEnvelope exceptionEnvelope, Set<ConstraintViolation<?>> violations) {

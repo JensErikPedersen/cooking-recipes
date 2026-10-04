@@ -4,6 +4,7 @@ import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.TagService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,7 +42,7 @@ public class TagController {
     }
 
     @GetMapping("/{id}")
-    public TagDTO findById(@PathVariable String id) {
+    public TagDTO findById(@PathVariable @UUID String id) {
         return tagService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -61,13 +62,13 @@ public class TagController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public TagDTO update(@PathVariable String id, @Valid @RequestBody TagDTO tagDTO) {
+    public TagDTO update(@PathVariable @UUID String id, @Valid @RequestBody TagDTO tagDTO) {
         tagDTO.setId(id);
         return tagService.update(tagDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!tagService.delete(id)) {
             throw notFound(id);
         }

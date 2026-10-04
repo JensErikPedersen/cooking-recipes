@@ -5,6 +5,7 @@ import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.RecipeService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,7 +43,7 @@ public class RecipeController {
     }
 
     @GetMapping("/{id}")
-    public RecipeDTO findById(@PathVariable String id) {
+    public RecipeDTO findById(@PathVariable @UUID String id) {
         return recipeService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -62,13 +63,13 @@ public class RecipeController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public RecipeDTO update(@PathVariable String id, @Valid @RequestBody RecipeDTO recipeDTO) {
+    public RecipeDTO update(@PathVariable @UUID String id, @Valid @RequestBody RecipeDTO recipeDTO) {
         recipeDTO.setId(id);
         return recipeService.update(recipeDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!recipeService.delete(id)) {
             throw notFound(id);
         }
@@ -82,7 +83,7 @@ public class RecipeController {
      * amount and unit, comes from the body. Responds with the updated recipe.
      */
     @PostMapping("/{id}/ingredients")
-    public ResponseEntity<RecipeDTO> addIngredient(@PathVariable String id,
+    public ResponseEntity<RecipeDTO> addIngredient(@PathVariable @UUID String id,
                                                    @Valid @RequestBody RecipeIngredientDTO recipeIngredientDTO) {
         RecipeDTO updated = recipeService.addRecipeIngredient(withPath(id, recipeIngredientDTO.getIngredientId(), recipeIngredientDTO));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -96,8 +97,8 @@ public class RecipeController {
      * Both ids come from the path, so the body carries only the amount and unit.
      */
     @PutMapping("/{id}/ingredients/{ingredientId}")
-    public RecipeDTO updateIngredient(@PathVariable String id,
-                                      @PathVariable String ingredientId,
+    public RecipeDTO updateIngredient(@PathVariable @UUID String id,
+                                      @PathVariable @UUID String ingredientId,
                                       @Valid @RequestBody RecipeIngredientDTO recipeIngredientDTO) {
         return recipeService.updateRecipeIngredient(withPath(id, ingredientId, recipeIngredientDTO));
     }
@@ -106,7 +107,7 @@ public class RecipeController {
      * Returns the updated recipe rather than 204, so the caller can see what is left.
      */
     @DeleteMapping("/{id}/ingredients/{ingredientId}")
-    public RecipeDTO deleteIngredient(@PathVariable String id, @PathVariable String ingredientId) {
+    public RecipeDTO deleteIngredient(@PathVariable @UUID String id, @PathVariable @UUID String ingredientId) {
         return recipeService.deleteRecipeIngredient(RecipeIngredientDTO.builder()
                 .recipeId(id)
                 .ingredientId(ingredientId)

@@ -104,25 +104,25 @@ One step. Backend only; nothing a user sees changes, because a malformed id is a
 from `ServiceArguments.toUuid`, one layer in. What changes is where it is caught and the shape of
 the answer.
 
-- [ ] Prove the starting point first: with `@UUID` on one `@PathVariable` and no new handler,
+- [x] Prove the starting point first: with `@UUID` on one `@PathVariable` and no new handler,
       a malformed id answers 400 with code `REQUEST_REJECTED` (10) and Spring's generic detail, no
       `validationExceptions[]`. The 2026-09-29 note in `future_enhancements.md` says so; a failing
       test makes it fact
-- [ ] Handler for `HandlerMethodValidationException` in `ApplicationExceptionHandler`: 400, code
+- [x] Handler for `HandlerMethodValidationException` in `ApplicationExceptionHandler`: 400, code
       `VALIDATION_EXCEPTION` (20), one `validationExceptions[]` entry per violation, `objectName`
       the parameter name (`id`, `ingredientId`)
-- [ ] `@UUID` on every `@PathVariable` id in the five controllers, the recipe ingredient
+- [x] `@UUID` on every `@PathVariable` id in the five controllers, the recipe ingredient
       sub-resource included - whether those endpoints stay is a `PLAN_V3.md` decision
-- [ ] **PUT changes route.** Once a parameter carries a constraint, Spring validates the
+- [x] **PUT changes route.** Once a parameter carries a constraint, Spring validates the
       `@Valid @RequestBody` as part of method validation too, and a bad body raises
       `HandlerMethodValidationException` instead of `MethodArgumentNotValidException`. The handler
       must therefore also turn body field errors into entries named by field (`name`, not
-      `categoryDTO.name`), or every PUT validation message moves off its form field. The existing
-      PUT validation tests and the e2e form tests are the guard. POST has no path variable and keeps
+      `categoryDTO.name`), or every PUT validation message moves off its form field. The guard is new:
+      no test covered a PUT's validation errors, see below. POST has no path variable and keeps
       `MethodArgumentNotValidException`, so both handlers stay
-- [ ] `ServiceArguments.toUuid` stays: ids inside bodies (category, tags, ingredient lines) still
+- [x] `ServiceArguments.toUuid` stays: ids inside bodies (category, tags, ingredient lines) still
       go through it
-- [ ] Docs: `backend/CLAUDE.md` Errors table gains the row, the `validator` row and the Gotchas
+- [x] Docs: `backend/CLAUDE.md` Errors table gains the row, the `validator` row and the Gotchas
       line about the unreferenced `@UUID` go; the entry leaves `future_enhancements.md`
 
 **Tests.** Controller slice tests: a malformed id on GET, PUT and DELETE answers 400 with the entry
@@ -144,6 +144,30 @@ await fetch("/api/v1/categories/not-a-uuid").then(async r => [r.status, await r.
 ```
 
 Then edit a category, clear its name and save: the message still appears under Name.
+
+**Done (2026-10-04).** Deviations and findings:
+
+- Proven in three runs of `PathIdValidationTest`, written first. Before any change, the 6 PUT body
+  tests passed and the 21 malformed-id tests reached the mock services. With `@UUID` added and no
+  handler, all 27 failed with code 10 and Spring's "Validation failure": the malformed id as the
+  plan expected, and **the 6 PUT body tests too** - the route change was real, not theoretical. With
+  the handler, all 27 pass
+- **The plan's guard did not exist.** No controller slice test, `*IT` or Playwright test checked a
+  validation error on a PUT; every one used POST, which keeps the old route. Now covered three
+  ways: `PathIdValidationTest` for every PUT endpoint, `CategoryIT.shouldReportPutBodyErrorOnTheField`
+  through the real context, and a Playwright test that empties a seeded category's name on the
+  edit form. That test was proven load-bearing: against a backend built without the handler it
+  fails, with no message under Name
+- `PathIdValidationTest` is one class over all five controllers, rather than the same tests copied
+  into each controller test. It replaces the four `shouldReturn400ForMalformedId` tests, which
+  stubbed the service to throw - a service the request no longer reaches
+- The message is the validator's own, interpolated: "not-a-uuid is not a valid UUID"
+- The envelope's header (code 20, "Validation Exception") moved into one helper, shared with the
+  `ConstraintViolationException` handler
+- Verified on the stack through the proxy, signed in: `GET /api/v1/categories/not-a-uuid` is 400
+  on `id`; a `PUT` there with an empty name is 400 on `id` and `name` together
+- `./mvnw clean verify`: 276 unit (253 - 4 + 27), 107 integration (105 + 2). Playwright: 96 (95 + 1)
+- `code-review.md`: the `@UUID` validator struck off its dead-code list
 
 ---
 

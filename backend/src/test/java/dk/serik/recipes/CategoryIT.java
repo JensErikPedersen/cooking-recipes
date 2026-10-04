@@ -127,6 +127,32 @@ class CategoryIT {
 				.andExpect(status().isNotFound());
 	}
 
+	@Test
+	@DisplayName("Given a malformed id, When GET it, Then 400 on the field id, from the web boundary")
+	void shouldRejectMalformedId() throws Exception {
+		mockMvc.perform(get(CATEGORIES + "/not-a-uuid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("id"))
+				.andExpect(jsonPath("$.validationExceptions[0].message").value("not-a-uuid is not a valid UUID"));
+	}
+
+	@Test
+	@DisplayName("Given a category, When PUT it with a blank name, Then 400 on the field name and the name is unchanged")
+	void shouldReportPutBodyErrorOnTheField() throws Exception {
+		String name = uniqueName();
+		String id = create(name);
+
+		mockMvc.perform(put(CATEGORIES + "/" + id).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body("")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("name"));
+
+		mockMvc.perform(get(CATEGORIES + "/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value(name));
+	}
+
 	private String create(String name) throws Exception {
 		String response = mockMvc.perform(post(CATEGORIES).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name)))
 				.andExpect(status().isCreated())

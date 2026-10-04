@@ -98,19 +98,6 @@ public class IngredientControllerTest {
     }
 
     @Test
-    @DisplayName("Given a malformed id, When GET by id, Then 400 from the service-layer id check")
-    public void shouldReturn400ForMalformedId() throws Exception {
-        given(ingredientService.findById("not-a-uuid"))
-                .willThrow(ServiceException.badRequest(ApplicationErrorCodes.INGREDIENT_ID_IS_NULL,
-                        "Ingredient Id 'not-a-uuid' is not a valid UUID"));
-
-        mockMvc.perform(get(BASE + "/{id}", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.INGREDIENT_ID_IS_NULL.getCode()))
-                .andExpect(jsonPath("$.message").value(containsString("not a valid UUID")));
-    }
-
-    @Test
     @DisplayName("Given a valid payload, When POST, Then 201 with a Location header")
     public void shouldCreateIngredient() throws Exception {
         given(ingredientService.save(any())).willReturn(MockIngredientUtil.mockHavsaltDTO());

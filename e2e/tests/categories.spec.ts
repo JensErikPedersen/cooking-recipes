@@ -152,6 +152,18 @@ test("an empty name shows the validation message on the name field", async ({ pa
   await expect(page).toHaveURL("/categories/new");
 });
 
+// The edit form PUTs, and a PUT's body errors reach the backend's handler by another route than a
+// POST's: the path id is validated in the same pass. This proves they still land on the field.
+test("an emptied name on the edit form shows the validation message on the name field", async ({ page }) => {
+  await page.goto(`/categories/${DESSERT_ID}/edit`);
+  await page.getByLabel("Name").fill("");
+
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(page.getByLabel("Name")).toHaveAccessibleDescription("Category name is required");
+  await expect(page).toHaveURL(`/categories/${DESSERT_ID}/edit`);
+});
+
 test("cancel leaves the new-category form without saving", async ({ page }) => {
   const name = uniqueName();
   await page.goto("/categories/new");

@@ -99,19 +99,6 @@ public class TagControllerTest {
     }
 
     @Test
-    @DisplayName("Given a malformed id, When GET by id, Then 400 from the service-layer id check")
-    public void shouldReturn400ForMalformedId() throws Exception {
-        given(tagService.findById("not-a-uuid"))
-                .willThrow(ServiceException.badRequest(ApplicationErrorCodes.TAG_ID_IS_NULL,
-                        "Tag Id 'not-a-uuid' is not a valid UUID"));
-
-        mockMvc.perform(get(BASE + "/{id}", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.TAG_ID_IS_NULL.getCode()))
-                .andExpect(jsonPath("$.message").value(containsString("not a valid UUID")));
-    }
-
-    @Test
     @DisplayName("Given a valid payload, When POST, Then 201 with a Location header")
     public void shouldCreateTag() throws Exception {
         given(tagService.save(any())).willReturn(MockTagUtil.mockMexiTagDTO());

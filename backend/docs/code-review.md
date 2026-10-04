@@ -392,7 +392,7 @@ Confirmed unreferenced anywhere in `src`:
 | ~~`config/SnakeCasePhysicalNamingStrategy.java`~~ | ✅ deleted, with the commented-out property |
 | ~~`mapper/CategoryCategoryDTOMapper.java`~~ | ✅ removed — see below |
 | `CategoryMapper.fromDto` | the only entity-direction mapper; still unused |
-| `validator/UUID` + `UUIDValidator` | tested but never applied (see M8) |
+| ~~`validator/UUID` + `UUIDValidator`~~ | ✅ on every controller path id since V2 Part 2 |
 
 **Resolved 2026-09-07** — `enums/Rating`, `OperationResultDTO` and `SnakeCasePhysicalNamingStrategy` deleted (the `enums` package is gone entirely), along with the commented-out property that referenced the naming strategy.
 

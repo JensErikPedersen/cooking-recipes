@@ -4,55 +4,6 @@ Deliberately deferred work. Each entry records what is missing, why it was left,
 
 ---
 
-## Validation exceptions from path variables and request params are not handled
-
-**What is missing.** The `@ControllerAdvice` layer covers three exception types today:
-
-| Handler | Exception | Result |
-|---|---|---|
-| `MethodArgumentNotValidExceptionHandler` | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` |
-| `ApplicationExceptionHandler` | `ConstraintViolationException` | 400 + `validationExceptions[]` |
-| `ApplicationExceptionHandler` | `ServiceException` | its own status + envelope |
-
-That covers a `@Valid @RequestBody`, which raises `MethodArgumentNotValidException`. It does **not** cover constraints placed directly on `@PathVariable` or `@RequestParam` — for example the project's own `@UUID` annotation:
-
-```java
-public CategoryDTO findById(@PathVariable @UUID String id)   // not currently written this way
-```
-
-Since Spring Framework 6.1 (Spring Boot 3.2+), Spring MVC applies built-in method validation for controller parameters and raises **`HandlerMethodValidationException`**, not `ConstraintViolationException`. Nothing in the advice handles it, so it would fall through to `handleGeneralException` and be reported as **500 Internal Server Error** — the opposite of the intended 400.
-
-**Why it was left.** Controllers currently omit `@UUID` on path variables, so the gap is not reachable. Malformed ids are already rejected with a proper 400 by `ServiceArguments.toUuid` in the service layer (see resolved finding M8), and `CategoryControllerTest.shouldReturn400ForMalformedId` proves it end to end. Adding the annotation without first adding the handler would have turned a working 400 into a 500.
-
-**Update 2026-09-29.** No longer a 500: `HandlerMethodValidationException` implements
-`ErrorResponse` (via `ResponseStatusException`), and the catch-all now passes an `ErrorResponse`'s
-own status through. It would be a 400 - but with only Spring's generic detail, no
-`validationExceptions[]`. The dedicated handler below is still what gives it the same shape as the
-other two validation handlers.
-
-**What it would take.**
-
-1. Add a handler to `ApplicationExceptionHandler`:
-   ```java
-   @ResponseStatus(HttpStatus.BAD_REQUEST)
-   @ExceptionHandler(HandlerMethodValidationException.class)
-   @ResponseBody
-   public ExceptionEnvelope handleHandlerMethodValidationException(HandlerMethodValidationException ex) { ... }
-   ```
-   mapping each `ParameterValidationResult` into a `ValidationExceptionEnvelope`, so the response shape matches the other two handlers.
-2. Add `@UUID` to the `@PathVariable` parameters on every controller.
-3. Test it: assert 400 and a populated `validationExceptions[]` for a malformed id, and confirm the service is never invoked.
-
-**Value.** Rejects malformed ids at the web boundary rather than one layer in, and finally puts the `@UUID` validator (`validator/UUID.java` + `UUIDValidator.java`) to use — it is tested but otherwise unreferenced, and is the last entry on the dead-code list in `code-review.md` kept for exactly this purpose.
-
----
-
-**Re-checked on Spring Boot 4.1.1 (2026-09-08).** Boot 4 brings Jakarta Validation 3.1 and
-Hibernate Validator 9, so this was re-verified rather than assumed. Behaviour is unchanged: the
-`@Valid @RequestBody` path still returns 400 with the full envelope (`errorCode` plus
-`validationExceptions[].objectName`), asserted by the controller slice tests, and the gap described
-above is neither closed nor widened by the upgrade.
-
 ## Name-based lookup is inconsistent across services, and unexposed at the API
 
 **What is missing.** Every domain concept in this application is identified to a user by its
@@ -293,8 +244,8 @@ step's notes in `docs/PLAN.md`.
   NOT_NULL and CHECK, a 500.
 - **Dead code**: `config/TestingConfiguration` in the tests is referenced by nothing - a
   `@TestConfiguration` is excluded from component scanning (5a). `backend/HELP.md` is the Spring
-  Initializr's generated help. The unreferenced `@UUID` validator and repository query are noted
-  in the name-lookup entry above.
+  Initializr's generated help. The unreferenced repository query is noted in the name-lookup
+  entry above.
 - **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
   in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
   keep or remove them as one decision.

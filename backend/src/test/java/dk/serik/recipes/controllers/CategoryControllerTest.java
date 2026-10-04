@@ -96,18 +96,6 @@ public class CategoryControllerTest {
     }
 
     @Test
-    @DisplayName("Given a malformed id, When GET by id, Then 400 from the service-layer id check")
-    public void shouldReturn400ForMalformedId() throws Exception {
-        given(categoryService.findById("not-a-uuid"))
-                .willThrow(ServiceException.badRequest(ApplicationErrorCodes.CATEGORY_ID_IS_NULL,
-                        "Category Id 'not-a-uuid' is not a valid UUID"));
-
-        mockMvc.perform(get(BASE + "/{id}", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(containsString("not a valid UUID")));
-    }
-
-    @Test
     @DisplayName("Given a valid payload, When POST, Then 201 with a Location header")
     public void shouldCreateCategory() throws Exception {
         given(categoryService.save(any())).willReturn(MockCategoryUtil.mockToBeSavedDessertDTO());

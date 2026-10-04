@@ -42,21 +42,23 @@ back in the error envelope (codes 600-602), never as a redirect.
 | `exceptions` | `ServiceException`, error codes, `@ControllerAdvice`, envelopes |
 | `config` | `SecurityConfig`, `SessionPopulatingFilter`, `AdminBootstrap` (see Authentication) |
 | `bean` | `Session` - request-scoped, holds the username (see Authentication) |
-| `validator` | `@UUID` + `UUIDValidator`. Tested, but **not referenced anywhere** |
+| `validator` | `@UUID` + `UUIDValidator`, on every controller path id |
 | `aspect` | `JpaLoggingAspect` - wraps every `JpaRepository` call for timing |
 
 ## Conventions
 
 **Controllers are thin.** No try/catch, no validation logic. Id parsing, existence checks and
 argument validation all live in the service, which throws `ServiceException` carrying an
-`HttpStatus`; the advice turns that into the envelope. On `PUT` the path id is authoritative and
-any id in the body is overwritten, so a mismatched payload cannot update a different row. `POST`
-returns 201 with a `Location` header built from `ServletUriComponentsBuilder`.
+`HttpStatus`; the advice turns that into the envelope. The one check before the service is `@UUID`
+on every path id, so a malformed one is refused before any service runs. On `PUT` the path id is
+authoritative and any id in the body is overwritten, so a mismatched payload cannot update a
+different row. `POST` returns 201 with a `Location` header built from `ServletUriComponentsBuilder`.
 
 **Services** are `@Transactional` at class level (`READ_COMMITTED`, `REQUIRED`, 5s timeout), with
 read methods re-annotated `readOnly = true`. Ids arrive as `String` and go through
 `ServiceArguments.toUuid`, which converts a null or malformed id into a 400 - without it
-`UUID.fromString` would throw a raw `IllegalArgumentException` and surface as a 500.
+`UUID.fromString` would throw a raw `IllegalArgumentException` and surface as a 500. Path ids are
+already checked by `@UUID`; the ids inside bodies - category, tags, ingredient lines - are not.
 
 **DTOs** are immutable-ish: `@Getter` only, one `@Builder @Jacksonized` constructor, fields
 `private`. `BaseDTO` carries the four audit fields and formats timestamps as
@@ -82,6 +84,7 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 | `ServiceException` | its own `httpStatus` + envelope; its optional `field` becomes a `validationExceptions[]` entry |
 | `ConstraintViolationException` | 400 + `validationExceptions[]` |
 | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
+| `HandlerMethodValidationException` (a `@UUID` path id, and a PUT's `@Valid` body with it) | 400 + `validationExceptions[]`, body errors by field, parameters by name |
 | Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
 | `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
 | `DataIntegrityViolationException` (a database constraint, raised at commit) | 409, code `DATA_CONFLICT` (40), generic message; the raw text is logged only |
@@ -197,4 +200,7 @@ must be reachable before the application starts.
   carrying `recipeRatings` is rejected with `RECIPE_RATING_NOT_SUPPORTED` (70). Ratings are
   readable but not writable, by decision - see `docs/future_enhancements.md`.
 - `CategoryJpaRepository.findAllByNameContains` is tested but unreachable: no service exposes it.
-  Same for the `@UUID` validator.
+- A constraint on a controller parameter changes how that method's `@Valid` body is validated:
+  Spring validates both in one pass and raises `HandlerMethodValidationException`, not
+  `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take
+  that route; a `POST` without a path id keeps the other. `PathIdValidationTest` covers both.
