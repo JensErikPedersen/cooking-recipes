@@ -217,10 +217,38 @@ make a second user meaningful.
    their audit trail. Turning it into a FK requires migrating every existing row and changing
    every DTO that exposes it - do not do it as a side effect of something else.
 4. **No password change, no reset, no disable-in-the-UI.** The `enabled` column exists and is
-   honoured on login; nothing sets it.
+   honoured on login; nothing sets it. Reset has its own entry below.
 
 **Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
 trusted rather than read as a string.
+
+---
+
+## A forgotten password cannot be reset
+
+**What is missing.** A user who forgets their password has no way back in. There is no reset, and
+no change of password either. With one bootstrapped account this hardly mattered: the operator
+could delete the row and let `AdminBootstrap` recreate it. Once anyone can register
+(`docs/PLAN_V2.md` Part 5), a forgotten password locks that user out for good.
+
+**Why it was left.** A real reset needs a channel the application can reach the user through,
+and the application has none. `app_user` holds no email address, and the stack has no mail server.
+
+**What it would take.** Two pieces, in this order:
+
+1. **Change password, signed in.** `PUT /api/v1/auth/password` taking the current and the new
+   password, with the same rules as registration. It needs no new infrastructure, and the reset
+   reuses it.
+2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
+   `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
+   takes that token plus a new password. Store the token hashed, as a password is. Answer the
+   request the same way whether or not the address exists, as login does for usernames. Locally,
+   a Mailpit container in the stack catches the mail, so nothing is really sent.
+
+A reset by an administrator is the alternative to email. It needs role enforcement and an
+administration screen first; see the multiple-users entry above.
+
+**Value.** Self-registration without permanent lockout.
 
 ---
 
