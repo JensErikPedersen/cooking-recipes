@@ -20,4 +20,5 @@ If PowerShell refuses to run the scripts: `Set-ExecutionPolicy -Scope CurrentUse
 
 ## More
 
-`CLAUDE.md` lists every command; `docs/PLAN.md` is the build plan and its progress.
+`CLAUDE.md` lists every command; `docs/PLAN_V2.md` is the current plan and its progress, and
+`docs/PLAN.md` the finished MVP plan.

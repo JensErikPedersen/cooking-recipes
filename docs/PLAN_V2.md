@@ -22,8 +22,8 @@ leaves `future_enhancements.md` in the commit that finishes it.
 | 5 | Register a new account | backend, frontend, e2e | Multiple users (registration only) |
 
 **Order.** Smallest and backend-only first, so Part 2 settles the error envelope work that Parts 4
-and 5 build on. Registration goes last: it is the largest part and the only one with open
-decisions, which can be settled while Parts 2-4 are under way.
+and 5 build on. Registration goes last: it is the largest part, and most of the
+decisions below are about it.
 
 **Numbering.** Parts restart at 1 in this file. Commits say `V2 Part 2a: ...` so they cannot be
 confused with the MVP's Parts.
@@ -33,58 +33,75 @@ an administration screen, rate limiting of sign-up. Every account sees and edits
 one account does today. The smaller items at the end of `future_enhancements.md` are
 `PLAN_V3.md`.
 
-## Open questions
+## Decisions
 
-Each has a recommendation; nothing below depends on it until the part named.
+Settled 2026-10-04, from the recommendations in the first draft. Each part refers to them by number.
 
-1. **After registering, where does the user land?** (Part 5) Recommended: signed in, on the Welcome
-   page - the backend signs the new account in with the same code login uses. The alternative is
-   back on the sign-in page with "Account created", which costs the user a second form for nothing.
-2. **Password rules.** (Part 5) Recommended: at least 8 characters, at most 72 bytes. The upper
-   bound is bcrypt's: it reads only 72 bytes, and Spring Security refuses a longer password with an
-   exception rather than silently truncating. To be proven in 5a before it is relied on, since a
-   refused hash with no handler is a 500. Note bytes, not characters: `æ` is two bytes.
-3. **Username rules.** (Part 5) Recommended: 3-64 characters, letters, digits, `.`, `_` and `-`,
-   unique regardless of case. MySQL's collation already treats `Admin` and `admin` as one; H2 in
-   tests does not, so the check must not rely on the collation alone.
-4. **Removing accounts the e2e tests create.** (Part 5) There is no endpoint to delete a user, and
-   the tests must leave the data as seeded. Recommended: a helper in `e2e/support/` that deletes the
-   row through `docker compose exec mysql`, used only by the registration spec. The alternative, a
-   "delete my account" endpoint, is a feature nobody has asked for.
-5. **Date display.** (Part 3) Recommended: the same `yyyy-MM-dd HH:mm` as today, in the browser's
-   time zone, without a label. Least change for the eye, and the label becomes unnecessary.
-6. **Confirm password field on the register form.** (Part 5) Recommended: yes, checked in the
-   browser only. With no password reset, a typo at registration locks the account for good.
+1. **After registering, the user is signed in**, on the Welcome page - the backend signs the new
+   account in with the same code login uses. Not back on the sign-in page with "Account created",
+   which would cost the user a second form for nothing. (Part 5)
+2. **Password: at least 8 characters, at most 72 bytes.** The upper bound is bcrypt's: it reads
+   only 72 bytes, and Spring Security refuses a longer password with an exception rather than
+   silently truncating. To be proven in 5a before it is relied on, since a refused hash with no
+   handler is a 500. Bytes, not characters: `æ` is two bytes. (Part 5)
+3. **Username: 3-64 characters, letters, digits, `.`, `_` and `-`, unique regardless of case.**
+   MySQL's collation already treats `Admin` and `admin` as one; H2 in tests does not, so the check
+   must not rely on the collation alone. (Part 5)
+4. **The e2e tests remove the accounts they create** with a helper in `e2e/support/` that deletes
+   the row through `docker compose exec mysql`, used only by the registration specs. There is no
+   endpoint to delete a user, and a "delete my account" endpoint would be a feature nobody asked
+   for. (Part 5)
+5. **Dates show as `yyyy-MM-dd HH:mm`, as today, in the browser's time zone, with no label.** Least
+   change for the eye, and the label becomes unnecessary. (Part 3)
+6. **The register form has a confirm password field**, checked in the browser only. With no
+   password reset, a typo at registration locks the account for good. (Part 5)
+7. **No email address at registration.** It would only serve a password reset by email, which is
+   not in this version (`future_enhancements.md`, "A forgotten password cannot be reset"). Adding
+   it then means existing accounts have none, which that entry has to handle. (Part 5)
 
 ---
 
 ## Part 1: Baseline and scope
 
-- [ ] Root `CLAUDE.md`: point Work process and Working documentation at `docs/PLAN_V2.md`, with
+- [x] Root `CLAUDE.md`: point Work process and Working documentation at `docs/PLAN_V2.md`, with
       `docs/PLAN.md` as the MVP record
-- [ ] Root `CLAUDE.md` Limitations: sign-up is now in scope; the rest - no administration screen,
-      no per-user ownership, roles not enforced - stays
-- [ ] Open questions above answered, the answers written in place of the recommendations
-- [ ] Baseline green before any change: `./mvnw clean verify` and the whole Playwright
-      suite against a fresh stack. The MVP ended at 253 unit, 105 integration, 95 Playwright tests
+- [x] Root `CLAUDE.md` Limitations: sign-up is now in scope; the rest - no administration screen,
+      no password change or reset, no per-user ownership, roles not enforced - stays
+- [x] Open questions answered and recorded under Decisions
+- [x] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite
+      against the stack. The MVP ended at 253 unit, 105 integration, 95 Playwright tests
 
 **Success criteria.** The documents say what version 2 is, and the numbers every later part is
 compared against are recorded here.
 
-**Verify it yourself.** Read the `CLAUDE.md` diff. Then:
+**Verify it yourself.** Read the diff of `CLAUDE.md`, `README.md` and `future_enhancements.md`.
+Then:
 
 ```powershell
-docker compose down -v; scripts\start.ps1
+scripts\start.ps1
 cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
+
+`docker compose down -v` before the start gives a fresh, reseeded database, at the cost of anything
+added by hand.
+
+**Done (2026-10-04).** Deviations and findings:
+
+- Baseline: 253 unit, 105 integration, 95 Playwright tests, all green - the MVP's final numbers
+  exactly. Run on the existing database volume rather than a fresh one, to keep its data; the
+  suite assumes the seeds are intact, and passing shows they are
+- `README.md` points at this plan too, and the multiple-users entry in `future_enhancements.md` no
+  longer says sign-up needs roles enforced first: version 2 adds it without, by decision
+- Ratings are out of scope "in the MVP and in version 2" in `CLAUDE.md`, where it said "this MVP"
+- Decision 7 added: no email address at registration
 
 ---
 
 ## Part 2: Malformed ids rejected at the web boundary
 
-One step. Backend only; nothing a user sees changes, because a malformed id is already a 400 today
-- from `ServiceArguments.toUuid`, one layer in. What changes is where it is caught and the shape of
+One step. Backend only; nothing a user sees changes, because a malformed id is already a 400 today,
+from `ServiceArguments.toUuid`, one layer in. What changes is where it is caught and the shape of
 the answer.
 
 - [ ] Prove the starting point first: with `@UUID` on one `@PathVariable` and no new handler,
@@ -144,9 +161,9 @@ leave the app showing a raw ISO string with "UTC" after it.
 - [ ] `ENV TZ=UTC` in the backend image **stays**, for a different reason than today: the columns are
       `datetime`, which store no zone, so the JVM's zone decides what a stored value means. Changing
       it would shift every existing row. Its comment and `backend/CLAUDE.md` are reworded to say so
-- [ ] Frontend: one formatting function in `lib/`, browser time zone, the format decided in open
-      question 5; the edit form's "Created" row uses it and loses " UTC". The comment on `Audited`
-      in `lib/api.ts` is rewritten
+- [ ] Frontend: one formatting function in `lib/`, browser time zone, the format of decision 5;
+      the edit form's "Created" row uses it and loses " UTC". The comment on `Audited` in
+      `lib/api.ts` is rewritten
 - [ ] Docs: `backend/CLAUDE.md` (DTOs paragraph, Docker), `frontend/CLAUDE.md` (the dates line),
       `backend/README.md` if it shows a date; the entry leaves `future_enhancements.md`
 
@@ -221,7 +238,7 @@ Two steps: the backend, proven by an `*IT` and the API, then the frontend.
 ### 5a: Backend registration
 
 - [ ] `POST /api/v1/auth/register`, open like login (`permitAll`), CSRF-protected like login
-- [ ] `RegisterRequestDTO`: username and password, Bean Validation per open questions 2 and 3.
+- [ ] `RegisterRequestDTO`: username and password, Bean Validation per decisions 2 and 3.
       `toString` never prints the password
 - [ ] The new account: `ROLE_USER` only, enabled, password through the existing
       `PasswordEncoder`. `created_by` is the new username. **Not through JPA**: the request is
@@ -233,7 +250,7 @@ Two steps: the backend, proven by an `*IT` and the API, then the frontend.
 - [ ] Prove the 72-byte boundary before relying on it: what a 73-byte password does today, then
       the 400 that replaces it
 - [ ] Answer 201 and sign the user in, by the same path as login - session id changed, context
-      saved - if open question 1 is answered that way
+      saved (decision 1)
 - [ ] `AdminBootstrap` unchanged: it still creates the first account only while the table is empty
 - [ ] Docs: `backend/CLAUDE.md` Authentication ("One account" goes), `backend/README.md` endpoint
       list, `AppUser`'s "read-only" comment
@@ -265,18 +282,19 @@ docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -
 
 ### 5b: Register in the browser
 
-- [ ] `/register` page: the user chooses their username and password - plus a confirm password
-      field if open question 6 says so - then Register, and a link back to sign in. Server errors shown on their fields, as the entity forms do
+- [ ] `/register` page: the user chooses their username and password - and confirms the password
+      (decision 6) - then Register, and a link back to sign in. Server errors shown on their
+      fields, as the entity forms do
 - [ ] The sign-in page links to it: "Create an account"
 - [ ] `proxy.ts` lets `/register` through without a session, as it does `/login`
-- [ ] On success, per open question 1
+- [ ] On success, signed in on the Welcome page (decision 1)
 - [ ] Docs: `frontend/CLAUDE.md`; root `CLAUDE.md` Business Requirements gains the register line
 
 **Tests.** Playwright, starting signed out: from sign-in to register and back; register, land
 signed in with the new name in the header; sign out and sign in again with it; a taken username
 shown on the field; mismatched confirmation refused without a request; the new user creates a
-category and its edit form says "Created by" the new name. Each test removes its account per open
-question 4.
+category and its edit form says "Created by" the new name. Each test removes its account
+(decision 4).
 
 **Success criteria for Part 5.** A visitor can create an account from the sign-in page, use the
 app with it, and every row they write carries their username - asserted by a test.

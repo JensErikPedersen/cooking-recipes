@@ -204,9 +204,10 @@ make a second user meaningful.
 **What is missing.**
 
 1. **No way to create a second account.** `AdminBootstrap` runs only while the table is empty, so
-   after first run the only route to another account is an INSERT by hand. Needs a user
-   administration screen, or at minimum a sign-up endpoint, both of which need roles enforced
-   first.
+   after first run the only route to another account is an INSERT by hand. Version 2 adds open
+   sign-up (`docs/PLAN_V2.md` Part 5) **without** enforcing roles, by decision: every account has
+   the rights the single account has today. A user administration screen still needs roles
+   enforced first.
 2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
    security chain authenticates every endpoint, but nothing authorises differently per role - an
    ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
