@@ -241,15 +241,31 @@ error contract and the form together, since either alone breaks the form's error
 
 ### 4a: Lines as a list
 
-- [ ] `RecipeDTO.recipeIngredients` from `Set` to `List`. The entity keeps its `Set`: the order
+- [x] `RecipeDTO.recipeIngredients` from `Set` to `List`. The entity keeps its `Set`: the order
       matters only in a request, so it can be pointed into
-- [ ] The mapper writes lines sorted by ingredient name, so a GET answers in a stable order rather
+- [x] The mapper writes lines sorted by ingredient name, so a GET answers in a stable order rather
       than the set's
-- [ ] No behaviour change: every existing test passes unchanged, apart from tests that build the
-      DTO with a `Set`
+- [x] No behaviour change: every existing test passes unchanged, apart from tests that build the
+      DTO with a `Set` - **but one change found, below**
 
 **Verify it yourself.** `.\mvnw clean verify`, and `npx playwright test recipes.spec.ts` against
 the rebuilt stack: the recipe pages behave as before.
+
+**Done (2026-10-04).** Deviations and findings:
+
+- **One behaviour change, not foreseen.** Two *identical* lines - same ingredient, amount and unit -
+  were merged by Jackson into the `Set` before the service saw them: shown on the stack before the
+  rebuild, a POST with two came back 201 with one line. In a `List` both arrive, and the service's
+  existing duplicate check refuses them: 400, "Hvedemel is listed more than once.", as it already
+  did for the same ingredient with different amounts. Kept, as the consistent rule:
+  `RecipeIT.shouldRejectIdenticalLines` pins it, and the stack now refuses the same request
+- Danish order, by `Collator`, not `String` order: plain order puts Å before Æ and Ø, and the app
+  sorts Danish everywhere. `RecipeMapperTest.shouldListIngredientLinesInDanishOrder` failed first,
+  on the set's arbitrary order; on the stack the seeded recipes answer `Fuldkorns hvedemel, Gær,
+  Hvedemel, Salt, Surdej, Vand`
+- The frontend still sorts lines itself, in the read view and the form. Now redundant, left alone:
+  4a changes no frontend code
+- `./mvnw clean verify`: 277 unit (+1), 110 integration (+1). Playwright: 97
 
 ### 4b: Errors per line
 

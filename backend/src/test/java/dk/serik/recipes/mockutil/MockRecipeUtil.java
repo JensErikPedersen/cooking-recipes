@@ -6,6 +6,7 @@ import dk.serik.recipes.testutil.OffsetDateTimeProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,7 +22,7 @@ public class MockRecipeUtil {
                 .categoryName("Brød")
                 .categoryId("913a5159-3717-4b9d-a290-0158d31ea8ab")
                 .recipeRatings(Set.of(MockRecipeRatingUtil.mockRecipeRatingDTO4(), MockRecipeRatingUtil.mockRecipeRatingDTO5()))
-                .recipeIngredients(Set.of(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSalt(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSurdej()))
+                .recipeIngredients(List.of(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSalt(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSurdej()))
                 .created(OffsetDateTimeProvider.provideIsoFullFormat("2022-11-05T19:47:29"))
                 .updated(OffsetDateTimeProvider.provideIsoFullFormat("2023-01-25T14:25:15"))
                 .createdBy("Jens")
@@ -36,7 +37,7 @@ public class MockRecipeUtil {
                 .instructions("Hæld vand i en skål...")
                 .categoryName("Brød")
                 .categoryId("913a5159-3717-4b9d-a290-0158d31ea8ab")
-                .recipeIngredients(Set.of(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSalt(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSurdej()))
+                .recipeIngredients(List.of(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSalt(), MockRecipeIngredientUtil.mockRecipeIngredientDTOSurdej()))
                 .build();
     }
 

@@ -112,9 +112,10 @@ recipe. The lists are authoritative: a PUT's lines replace the recipe's - an exi
 the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
 leaves that relation as it is. A missing category is a 400 on the field `category` (101). Bad
 lines - no ingredient, no unit, no amount, an amount over 9999.99 (the column is `DECIMAL(6,2)`),
-an ingredient listed twice - are one 400 (63) on the field `recipeIngredients`, its message the
-problems as sentences naming the ingredient, sorted, since the lines arrive as a `Set` without an
-order to point into. Nothing is written when one is refused. The `/recipes/{id}/ingredients`
+an ingredient listed twice, identical lines included - are one 400 (63) on the field
+`recipeIngredients`, its message the problems as sentences naming the ingredient, sorted. Nothing
+is written when one is refused. The DTO's lines are a `List`, in the request's order; a response
+lists them in Danish order of ingredient name, while the entity keeps them in a `Set`. The `/recipes/{id}/ingredients`
 sub-resource endpoints still work, but the UI does not use them.
 
 ## Tests

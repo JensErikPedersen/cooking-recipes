@@ -196,6 +196,18 @@ class RecipeIT {
 	}
 
 	@Test
+	@DisplayName("Given two identical lines, When POST, Then 400 like any repeat - the lines are a list, nothing merges them")
+	void shouldRejectIdenticalLines() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(line(HVEDEMEL, 500, GRAM), line(HVEDEMEL, 500, GRAM)));
+
+		// While the lines were a Set, Jackson merged these two before the service saw them: 201, one line.
+		assertLinesRejected(post(RECIPES), body, "Hvedemel is listed more than once.");
+	}
+
+	@Test
 	@DisplayName("Given a line without an ingredient and one without a unit, When PUT, Then 400 listing both, and the recipe is unchanged")
 	void shouldRejectBadLinesOnUpdateAndChangeNothing() throws Exception {
 		String name = uniqueName();

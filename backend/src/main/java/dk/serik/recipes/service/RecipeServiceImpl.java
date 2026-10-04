@@ -437,8 +437,8 @@ public class RecipeServiceImpl implements RecipeService {
         }
 
         if(!problems.isEmpty()) {
-            // One message on the field, sorted: the lines arrive as a set, so their order - and an
-            // index to point at - is lost, and an unsorted message would change from call to call.
+            // One message on the field, sorted, so a message listing several problems always reads
+            // the same.
             throw ServiceException.builder()
                     .message(String.join(" ", problems.stream().distinct().sorted().toList()))
                     .code(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode())

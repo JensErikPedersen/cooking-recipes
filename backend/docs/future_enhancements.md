@@ -67,6 +67,10 @@ Three specific problems:
 
 ## Recipe line errors cannot point at a line
 
+**Update 2026-10-04.** `recipeIngredients` is a `List` since `docs/PLAN_V2.md` Part 4a, which also
+made two identical lines a 400 like any repeat: the `Set` used to merge them. What remains is
+reporting each problem on its line, Part 4b.
+
 **What is wrong.** `RecipeDTO.recipeIngredients` is a `Set`, so the order of the lines in a request
 is gone by the time the service checks them. Part 7d therefore reports every line problem in one
 sorted message on the field `recipeIngredients`, naming the ingredient ("Hvedemel needs an amount
