@@ -53,8 +53,11 @@ Settled 2026-10-04, from the recommendations in the first draft. Each part refer
    for. (Part 5)
 5. **Dates show as `yyyy-MM-dd HH:mm`, as today, in the browser's time zone, with no label.** Least
    change for the eye, and the label becomes unnecessary. (Part 3)
-6. **The register form has a confirm password field**, checked in the browser only. With no
-   password reset, a typo at registration locks the account for good. (Part 5)
+6. **The register form has a confirm password field, checked by the backend.** With no password
+   reset, a typo at registration locks the account for good. The request carries
+   `confirmPassword`, and a mismatch is a 400 on that field, shown like any other server error -
+   so the frontend's rule of no validation in the browser holds. Changed 2026-10-06 from "checked
+   in the browser only", which would have broken that rule. (Part 5)
 7. **No email address at registration.** It would only serve a password reset by email, which is
    not in this version (`future_enhancements.md`, "A forgotten password cannot be reset"). Adding
    it then means existing accounts have none, which that entry has to handle. (Part 5)
@@ -332,8 +335,9 @@ Two steps: the backend, proven by an `*IT` and the API, then the frontend.
 ### 5a: Backend registration
 
 - [ ] `POST /api/v1/auth/register`, open like login (`permitAll`), CSRF-protected like login
-- [ ] `RegisterRequestDTO`: username and password, Bean Validation per decisions 2 and 3.
-      `toString` never prints the password
+- [ ] `RegisterRequestDTO`: username, password and `confirmPassword`, Bean Validation per
+      decisions 2 and 3; a confirmation that differs is a 400 on `confirmPassword` (decision 6).
+      `toString` never prints either password
 - [ ] The new account: `ROLE_USER` only, enabled, password through the existing
       `PasswordEncoder`. `created_by` is the new username. **Not through JPA**: the request is
       anonymous, so `BaseEntityListener` would write `anonymous`. Plain SQL, as `AdminBootstrap`
@@ -353,8 +357,9 @@ Two steps: the backend, proven by an `*IT` and the API, then the frontend.
 registers and is signed in; the new user's next request is authenticated and `/me` names them;
 the stored password is a `{bcrypt}` hash, never the plaintext; roles are `ROLE_USER`; `created_by`
 is the username; a POST of a category by the new user has `createdBy` the new username; taken
-username, and the same in other case, 409 on `username`; each rule 400 on its field; no CSRF token
-403; the registered user can sign out and in again.
+username, and the same in other case, 409 on `username`; each rule 400 on its field; a mismatched
+confirmation 400 on `confirmPassword` and no account created; no CSRF token 403; the registered user
+can sign out and in again.
 
 **Verify it yourself.**
 
@@ -367,7 +372,7 @@ Against the stack, signed out, in the console of `http://localhost:3000/login`:
 ```js
 await fetch("/api/v1/auth/me");   // 401, and the XSRF-TOKEN cookie
 const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
-await fetch("/api/v1/auth/register", {method: "POST", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify({username: "tester", password: "long enough"})}).then(async r => [r.status, await r.json()]);
+await fetch("/api/v1/auth/register", {method: "POST", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify({username: "tester", password: "long enough", confirmPassword: "long enough"})}).then(async r => [r.status, await r.json()]);
 ```
 
 ```powershell
@@ -386,7 +391,7 @@ docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -
 
 **Tests.** Playwright, starting signed out: from sign-in to register and back; register, land
 signed in with the new name in the header; sign out and sign in again with it; a taken username
-shown on the field; mismatched confirmation refused without a request; the new user creates a
+shown on the field; a mismatched confirmation shown on the confirm field; the new user creates a
 category and its edit form says "Created by" the new name. Each test removes its account
 (decision 4).
 
