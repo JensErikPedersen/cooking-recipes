@@ -40,9 +40,7 @@ public class ApplicationExceptionHandler {
                 .errorCode(ex.getCode())
                 .build();
         // Same shape as a Bean Validation failure, so a client shows both on the field the same way.
-        if (ex.getField() != null) {
-            exceptionEnvelope.addValidationException(new ValidationExceptionEnvelope(ex.getField(), ex.getMessage()));
-        }
+        ex.getFieldErrors().forEach(exceptionEnvelope::addValidationException);
         return new ResponseEntity<>(exceptionEnvelope, ex.getHttpStatus());
     }
 

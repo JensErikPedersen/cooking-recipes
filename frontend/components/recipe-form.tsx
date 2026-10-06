@@ -119,7 +119,7 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
             onChange={setLines}
             ingredients={choices.ingredients}
             units={choices.units}
-            error={errors.recipeIngredients}
+            errors={errors}
           />
           <TextField
             label="Description"

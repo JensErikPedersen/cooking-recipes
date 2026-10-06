@@ -5,6 +5,7 @@ import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.dto.UnitDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockUnitUtil;
 import dk.serik.recipes.model.Unit;
 import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
@@ -274,8 +275,9 @@ public class UnitServiceTest {
         assertThatThrownBy(() -> service.save(MockUnitUtil.mockUnitGramDTO()))
                 .isInstanceOf(ServiceException.class)
                 .hasMessage("A unit named 'Gram' already exists")
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A unit named 'Gram' already exists")));
         then(repository).should(never()).save(any());
     }
 
@@ -287,8 +289,9 @@ public class UnitServiceTest {
 
         assertThatThrownBy(() -> service.update(MockUnitUtil.mockUnitGramDTOToBeUpdated()))
                 .isInstanceOf(ServiceException.class)
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.UNIT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A unit named 'Kilogram' already exists")));
         then(repository).should(never()).save(any());
     }
 

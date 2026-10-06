@@ -5,6 +5,7 @@ import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockTagUtil;
 import dk.serik.recipes.model.Tag;
 import dk.serik.recipes.repository.RecipeJpaRepository;
@@ -321,8 +322,9 @@ public class TagServiceTest {
         assertThatThrownBy(() -> service.save(MockTagUtil.mockMexiTagDTO()))
                 .isInstanceOf(ServiceException.class)
                 .hasMessage("A tag named 'Mexi' already exists")
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A tag named 'Mexi' already exists")));
         then(repository).should(never()).save(any());
     }
 
@@ -334,8 +336,9 @@ public class TagServiceTest {
 
         assertThatThrownBy(() -> service.update(MockTagUtil.mockMexiTagDTOToBeUpdated()))
                 .isInstanceOf(ServiceException.class)
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.TAG_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A tag named 'Meximad' already exists")));
         then(repository).should(never()).save(any());
     }
 

@@ -65,24 +65,6 @@ Three specific problems:
 
 ---
 
-## Recipe line errors cannot point at a line
-
-**Update 2026-10-04.** `recipeIngredients` is a `List` since `docs/PLAN_V2.md` Part 4a, which also
-made two identical lines a 400 like any repeat: the `Set` used to merge them. What remains is
-reporting each problem on its line, Part 4b.
-
-**What is wrong.** `RecipeDTO.recipeIngredients` is a `Set`, so the order of the lines in a request
-is gone by the time the service checks them. Part 7d therefore reports every line problem in one
-sorted message on the field `recipeIngredients`, naming the ingredient ("Hvedemel needs an amount
-above zero."), and the form shows it under the whole Ingredients section rather than on the line.
-A line with no ingredient chosen can only be described as "A line has no ingredient."
-
-**What it would take.** Make `recipeIngredients` a `List`, report each problem with its index as
-`recipeIngredients[2].amount`, and have the form map those fields onto its rows. The `Set` also
-guards nothing today: duplicates are refused explicitly since 7d.
-
----
-
 ## Recipe ratings: read-only, deferred to a later version
 
 **Decision.** Ratings are out of scope for this version by choice. What exists is deliberate, not

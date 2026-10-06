@@ -357,23 +357,36 @@ test("a recipe with a category, two tags and three ingredients survives create, 
   await expectReadView(page, "Spicy");
 });
 
-test("a line without an amount, a line without an ingredient and a repeated ingredient each get the server's message", async ({
-  page,
-}) => {
+// The server reports a problem on its line and input; the form shows it under that input and no
+// other, which is what toHaveAccessibleDescription checks: the error is tied to its input.
+test("each line problem is shown under its own input, on its own line", async ({ page }) => {
   await page.goto("/recipes/new");
   await page.getByLabel("Name").fill(uniqueName());
   await page.getByLabel("Category").selectOption({ label: "Kager" });
-  const lines = page.getByRole("group", { name: "Ingredients", exact: true });
+  const input = (n: number, label: string) =>
+    page.getByRole("group", { name: `Ingredient line ${n}`, exact: true }).getByLabel(label);
 
   await fillLine(page, 1, "Hvedemel", "", "Gram (gr)");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(lines).toHaveAccessibleDescription("Hvedemel needs an amount above zero.");
+  await expect(input(1, "Amount")).toHaveAccessibleDescription("Needs an amount above zero.");
+  await expect(input(1, "Ingredient")).toHaveAccessibleDescription("");
+  await expect(input(1, "Unit")).toHaveAccessibleDescription("");
 
+  // Line 1 fixed; line 2 repeats its ingredient; line 3 is left blank.
   await fillLine(page, 1, "Hvedemel", "500", "Gram (gr)", false);
   await fillLine(page, 2, "Hvedemel", "2", "Teske (tsk)");
   await page.getByRole("button", { name: "Add ingredient" }).click();
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(lines).toHaveAccessibleDescription("A line has no ingredient. Hvedemel is listed more than once.");
+
+  await expect(input(2, "Ingredient")).toHaveAccessibleDescription("Hvedemel is already on line 1.");
+  await expect(input(3, "Ingredient")).toHaveAccessibleDescription("Choose an ingredient.");
+  await expect(input(3, "Amount")).toHaveAccessibleDescription("Needs an amount above zero.");
+  await expect(input(3, "Unit")).toHaveAccessibleDescription("Choose a unit.");
+  for (const label of ["Ingredient", "Amount", "Unit"]) {
+    await expect(input(1, label)).toHaveAccessibleDescription("");
+  }
+  await expect(input(2, "Amount")).toHaveAccessibleDescription("");
+  await expect(input(2, "Unit")).toHaveAccessibleDescription("");
   await expect(page).toHaveURL("/recipes/new");
 });
 

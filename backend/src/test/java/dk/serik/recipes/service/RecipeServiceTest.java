@@ -6,6 +6,7 @@ import dk.serik.recipes.dto.RecipeDTO;
 import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockIngredientUtil;
 import dk.serik.recipes.mockutil.MockUnitUtil;
 import dk.serik.recipes.model.RecipeIngredient;
@@ -38,6 +39,7 @@ import static dk.serik.recipes.mockutil.MockRecipeUtil.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -175,6 +177,9 @@ public class RecipeServiceTest {
                 .thenReturn(Optional.of(MockCategoryUtil.mockBread()));
         when(ingredientJpaRepository.findById(UUID.fromString("5f01d434-5a68-4359-9f2e-0a6793dce48d")))
                 .thenReturn(Optional.empty());
+        // the unit resolves, so the unknown ingredient is the line's only problem
+        when(unitJpaRepository.findById(UUID.fromString("f7823293-7874-4459-9fb7-6b420a0627fa")))
+                .thenReturn(Optional.of(MockUnitUtil.mockGram()));
 
         RecipeDTO toBeSaved = RecipeDTO.builder()
                 .name("Hvedebrød")
@@ -189,8 +194,13 @@ public class RecipeServiceTest {
         // When / Then
         assertThatThrownBy(() -> service.save(toBeSaved))
                 .isInstanceOf(ServiceException.class)
-                .hasMessage("A line names an ingredient that does not exist.")
-                .extracting("httpStatus", "field").containsExactly(HttpStatus.BAD_REQUEST, "recipeIngredients");
+                .hasMessage("One or more ingredient lines are invalid")
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(((ServiceException) ex).getFieldErrors())
+                            .extracting("objectName", "message")
+                            .containsExactly(tuple("recipeIngredients[0].ingredientId", "This ingredient does not exist."));
+                });
 
         verify(recipeJpaRepository, never()).save(any());
     }
@@ -217,8 +227,12 @@ public class RecipeServiceTest {
         // When / Then
         assertThatThrownBy(() -> service.save(toBeSaved))
                 .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("unit")
-                .extracting("httpStatus").isEqualTo(HttpStatus.BAD_REQUEST);
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(((ServiceException) ex).getFieldErrors())
+                            .extracting("objectName", "message")
+                            .containsExactly(tuple("recipeIngredients[0].unitId", "Choose a unit."));
+                });
 
         verify(recipeJpaRepository, never()).save(any());
     }
@@ -267,8 +281,9 @@ public class RecipeServiceTest {
         assertThatThrownBy(() -> service.save(noCategory))
                 .isInstanceOf(ServiceException.class)
                 .hasMessage("A recipe requires a category")
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.CATEGORY_IS_REQUIRED.getCode(), HttpStatus.BAD_REQUEST, "category");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_IS_REQUIRED.getCode(), HttpStatus.BAD_REQUEST,
+                        List.of(new ValidationExceptionEnvelope("category", "A recipe requires a category")));
         verify(recipeJpaRepository, never()).save(any());
         verify(categoryJpaRepository, never()).save(any());
     }
@@ -738,8 +753,9 @@ public class RecipeServiceTest {
         assertThatThrownBy(() -> service.save(toSave))
                 .isInstanceOf(ServiceException.class)
                 .hasMessage("A recipe named '" + toSave.getName() + "' already exists")
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.RECIPE_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.RECIPE_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A recipe named '" + toSave.getName() + "' already exists")));
         verify(recipeJpaRepository, never()).save(any());
     }
 

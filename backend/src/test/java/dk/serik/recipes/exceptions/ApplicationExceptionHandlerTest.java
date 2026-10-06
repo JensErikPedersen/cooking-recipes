@@ -6,6 +6,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -55,6 +57,27 @@ public class ApplicationExceptionHandlerTest {
         assertThat(envelope.getValidationExceptions())
                 .extracting("objectName", "message")
                 .containsExactly(tuple("name", "A category named 'Dessert' already exists"));
+    }
+
+    @Test
+    @DisplayName("Given a ServiceException naming several fields, When handled, Then each is reported, in order")
+    public void shouldReportEveryServiceExceptionFieldError() {
+        // Given - When
+        ExceptionEnvelope envelope = handler.handleBusinessException(ServiceException.builder()
+                .message("One or more ingredient lines are invalid")
+                .code(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode())
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .fieldErrors(List.of(
+                        new ValidationExceptionEnvelope("recipeIngredients[0].amount", "Needs an amount above zero."),
+                        new ValidationExceptionEnvelope("recipeIngredients[2].unitId", "Choose a unit.")))
+                .build(), null).getBody();
+
+        // Then
+        assertThat(envelope.getValidationExceptions())
+                .extracting("objectName", "message")
+                .containsExactly(
+                        tuple("recipeIngredients[0].amount", "Needs an amount above zero."),
+                        tuple("recipeIngredients[2].unitId", "Choose a unit."));
     }
 
     @Test

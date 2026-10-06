@@ -81,7 +81,7 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 
 | Exception | Result |
 |---|---|
-| `ServiceException` | its own `httpStatus` + envelope; its optional `field` becomes a `validationExceptions[]` entry |
+| `ServiceException` | its own `httpStatus` + envelope; its `fieldErrors` become `validationExceptions[]` entries - `field(name)` on the builder makes one with the exception's message |
 | `ConstraintViolationException` | 400 + `validationExceptions[]` |
 | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
 | `HandlerMethodValidationException` (a `@UUID` path id, and a PUT's `@Valid` body with it) | 400 + `validationExceptions[]`, body errors by field, parameters by name |
@@ -112,10 +112,11 @@ recipe. The lists are authoritative: a PUT's lines replace the recipe's - an exi
 the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
 leaves that relation as it is. A missing category is a 400 on the field `category` (101). Bad
 lines - no ingredient, no unit, no amount, an amount over 9999.99 (the column is `DECIMAL(6,2)`),
-an ingredient listed twice, identical lines included - are one 400 (63) on the field
-`recipeIngredients`, its message the problems as sentences naming the ingredient, sorted. Nothing
-is written when one is refused. The DTO's lines are a `List`, in the request's order; a response
-lists them in Danish order of ingredient name, while the entity keeps them in a `Set`. The `/recipes/{id}/ingredients`
+an ingredient listed twice, identical lines included - are one 400 (63), every problem an entry on
+its line and input: `recipeIngredients[2].amount`, `.ingredientId`, `.unitId`, the index the line's
+place in the request. A repeat is reported on the later line. Nothing is written when one is
+refused. The DTO's lines are a `List`, in the request's order; a response lists them in Danish
+order of ingredient name, while the entity keeps them in a `Set`. The `/recipes/{id}/ingredients`
 sub-resource endpoints still work, but the UI does not use them.
 
 ## Tests

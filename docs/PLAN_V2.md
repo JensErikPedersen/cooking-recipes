@@ -269,20 +269,20 @@ the rebuilt stack: the recipe pages behave as before.
 
 ### 4b: Errors per line
 
-- [ ] `ServiceException` carries a list of field errors instead of one optional `field`; the
+- [x] `ServiceException` carries a list of field errors instead of one optional `field`; the
       handler writes one `validationExceptions[]` entry each. Every existing single-field use keeps
       its shape
-- [ ] `handleRecipeIngredients` reports each problem on its line and input:
+- [x] `handleRecipeIngredients` reports each problem on its line and input:
       `recipeIngredients[2].ingredientId`, `.amount` or `.unitId`. The message no longer needs to
       name the ingredient, since it sits on the row: "Needs an amount above zero.". A duplicate is
       reported on the later line's `ingredientId`. All problems still come back together in one 400,
       and nothing is written when one is refused
-- [ ] Still in the service, not Bean Validation: existence, duplicates and the maximum amount need
+- [x] Still in the service, not Bean Validation: existence, duplicates and the maximum amount need
       the database, and splitting the checks would report a payload's problems in two rounds
-- [ ] Form: `IngredientLines` shows each error under its input, linked with `aria-describedby`; the
+- [x] Form: `IngredientLines` shows each error under its input, linked with `aria-describedby`; the
       single message under the section goes. The form already sends lines in the order it shows
       them, so index `n` is row `n`
-- [ ] Docs: `backend/CLAUDE.md` (the "Recipe writes carry their relations" paragraph),
+- [x] Docs: `backend/CLAUDE.md` (the "Recipe writes carry their relations" paragraph),
       `frontend/CLAUDE.md` if it describes the form's errors; the entry leaves
       `future_enhancements.md`
 
@@ -294,6 +294,34 @@ error on line 3 of 3 is shown on line 3.
 **Verify it yourself.** In the browser: a new recipe with three lines - the second without an
 amount, the third repeating the first ingredient. Save: the message is under the second line's
 amount and the third line's ingredient, and nowhere else.
+
+**Done (2026-10-06).** Deviations and findings:
+
+- `ServiceException` holds one list, `fieldErrors`. The builder's `field("name")` still works and
+  becomes a one-entry list carrying the exception's message, so the six existing callers did not
+  change. Ten service-test assertions read the old `field` property by name; they now compare the
+  whole entry, message included, which needed `equals` on `ValidationExceptionEnvelope`
+- A line now reports **every** problem it has, one per input, where it used to stop at the first:
+  a blank line is three entries. Checked in the order the form shows the inputs - ingredient,
+  amount, unit - so the response reads in the same order as the page
+- Messages: "Choose an ingredient.", "This ingredient does not exist.", "Hvedemel is already on
+  line 1." (the repeat keeps the name, and the line it collides with, numbered from 1 as a reader
+  counts), "Needs an amount above zero.", "At most 9999.99.", "Choose a unit.", "This unit does not
+  exist.". The exception's own message is "One or more ingredient lines are invalid"; the form does
+  not show it, since field errors are present
+- Tests first: with `ServiceException` changed and the check not yet, the handler test passed and
+  the six reworked `RecipeIT` line tests failed, still answered on `recipeIngredients`.
+  `RecipeIT.shouldPointAtTheLineAtFault` is the line-3-of-3 case: two problems on the third line,
+  nothing on the other two
+- Found on the way: my first version found an existing line by the id of the ingredient entity the
+  repository returned rather than the id in the request. Equal in production, but
+  `RecipeServiceTest.shouldUpdateRecipe` stubs every lookup with one ingredient, and Mockito's
+  strict stubs reported two lookups never made. Back to the request's id, as before
+- Playwright: the one line-error test became "each line problem is shown under its own input, on
+  its own line", asserting the message on each input and an empty description on every other
+  input of the three lines. Checked by screenshot at 1000 and 375 px: each message under its input;
+  "Needs an amount above zero." wraps to three lines in the narrow amount column, readable
+- `./mvnw clean verify`: 278 unit (+1), 111 integration (+1). Lint and `tsc` clean. Playwright: 97
 
 ---
 
