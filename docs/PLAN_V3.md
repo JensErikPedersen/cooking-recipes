@@ -1,0 +1,207 @@
+# Implementation plan, version 3
+
+Read `CLAUDE.md` first for the requirements, technical decisions and work process. `docs/PLAN.md`
+is the MVP and `docs/PLAN_V2.md` the first round of enhancements, both finished and kept as the
+record; this file plans the second round.
+
+Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
+completes, and record what was actually done underneath the part when it differs from the plan.
+
+## Shape of the work
+
+The six items under "Smaller items deferred during Parts 2-7" at the end of
+`backend/docs/future_enhancements.md`. Each is small; together they are tidying, two corrections to
+what the API answers, one removal and one convenience for the user. Each item leaves that list in
+the commit that finishes it, and the heading goes with the last one.
+
+| Part | Delivers | Layers | Item |
+|---|---|---|---|
+| 1 | Baseline and scope | docs | - |
+| 2 | Tidy-up, no behaviour change | backend | Dead code; `RecipeIngredientJpaRepository`'s id type |
+| 3 | Only a real conflict is a 409 | backend | The handler answers 409 for every constraint |
+| 4 | A `Location` the browser can use | backend | `Location` names the internal address |
+| 5 | The unused recipe ingredient endpoints go | backend | The sub-resource endpoints are unused |
+| 6 | Sign-in returns to where you were heading | frontend, e2e | Sign-in lands on the start page |
+
+**Order.** The part that cannot change behaviour first, then the backend corrections, the removal,
+and the one change a user sees last. Parts 3-5 are independent of each other and could be taken in
+any order.
+
+**Numbering.** Parts restart at 1. Commits say `V3 Part 2: ...`.
+
+## Open questions
+
+Each has a recommendation; nothing below depends on it until the part named.
+
+1. **Remove the recipe ingredient sub-resource, or keep it?** (Part 5) Recommended: remove. Nothing
+   has called it since Part 7 of the MVP - the form sends its lines in the recipe's PUT, so Cancel
+   can undo them - yet every rule about lines lives twice, once per write path, and 4b of version 2
+   had to keep both in step. Removing it takes three endpoints, three service methods, their tests
+   and error codes 60-62 with it; the line handling the form uses stays. Keeping it costs nothing
+   today and leaves an API for a future client that edits one line at a time.
+2. **How to fix the `Location` header?** (Part 4) The entry suggests
+   `server.forward-headers-strategy=framework`. Recommended instead: a relative `Location`,
+   `/api/v1/categories/{id}`, which HTTP allows and the browser resolves against its own origin. It
+   needs no configuration, does not depend on what the proxy forwards, and does not make the
+   backend trust `X-Forwarded-*` headers from whoever reaches its port - which
+   `docker-compose.override.yml` publishes to the host.
+3. **What a non-conflict constraint answers.** (Part 3) Recommended: 409 only for UNIQUE and
+   FOREIGN_KEY, which a client can act on; NOT_NULL, CHECK and anything unrecognised go to the
+   general handler as a 500 with a log reference, since they are server faults. Including
+   `DuplicateKeyException`, which `AppUserWriter`'s plain SQL raises without Hibernate in between.
+4. **Where "return to" applies.** (Part 6) Recommended: both ways a signed-out browser reaches
+   `/login` - `proxy.ts` (no session cookie) and `lib/api.ts` (a session that ended while a page
+   was open) - carry the path in `?next=`. Logging out does not: you chose to leave. Only a path on
+   this site is followed, so a crafted link cannot send a user elsewhere after signing in.
+5. **Leftovers from version 2** - none planned. Each is small; say which, if any, to add:
+   - The stale `recipesadmin` comment in `backend/src/main/resources/db/liquibase.properties`.
+     Recommended: yes, in Part 2 - it describes an account that no longer exists
+   - Registration rules break in two rounds (V2 5b): one round needs every rule in the service
+   - The sign-in page's plain labels against the register page's bold ones
+   - The frontend still sorts recipe lines itself, which the API now does (V2 4a)
+   - "Needs an amount above zero." wraps to three lines in the amount column on a phone
+
+---
+
+## Part 1: Baseline and scope
+
+- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V3.md` as the current plan, with
+      `docs/PLAN.md` and `docs/PLAN_V2.md` as the record
+- [ ] Open questions answered and recorded in place of the recommendations
+- [ ] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite.
+      Version 2 ended at 278 unit, 129 integration, 103 Playwright tests
+
+**Verify it yourself.** Read the diff, then:
+
+```powershell
+scripts\start.ps1
+cd backend; .\mvnw clean verify
+cd ..\e2e; npx playwright test
+```
+
+---
+
+## Part 2: Tidy-up
+
+One step, backend only, and nothing a test or a user can see may change.
+
+- [ ] Delete `src/test/java/dk/serik/recipes/config/TestingConfiguration.java`. Confirm first that
+      nothing references it: a `@TestConfiguration` is not picked up by component scanning, and no
+      test imports it
+- [ ] Delete `backend/HELP.md`, the Spring Initializr's generated help. Confirm no document links it
+- [ ] `RecipeIngredientJpaRepository` extends `JpaRepository<RecipeIngredient, RecipeIngredientPK>`.
+      Nothing calls `findById` or `deleteById` on it today, so no caller changes; the point is that
+      one could not be called with a `UUID` and silently find nothing
+- [ ] If open question 5 says so: the `recipesadmin` comment in `db/liquibase.properties`
+- [ ] Docs: the two items leave `future_enhancements.md`; `backend/CLAUDE.md` if it mentions either
+
+**Tests.** None new: the point is that the suite does not move. The repository's own `*IT` covers
+its derived queries.
+
+**Verify it yourself.** `.\mvnw clean verify` with the same counts as Part 1's baseline.
+`git grep TestingConfiguration HELP.md` finds nothing outside `docs/`.
+
+---
+
+## Part 3: Only a real conflict is a 409
+
+One step, backend only.
+
+- [ ] **Prove first** what each constraint actually raises, on H2 and on MySQL - Hibernate decides
+      the kind from the database's error code, so the two can differ. A unique name, a foreign key
+      on delete, a NOT NULL column: for each, the `DataIntegrityViolationException`'s cause and its
+      `getKind()`. On MySQL through the stack, as a throwaway; on H2 as the test below
+- [ ] `ApplicationExceptionHandler.handleDataIntegrityViolation`: 409 `DATA_CONFLICT` (40) for
+      UNIQUE and FOREIGN_KEY, and for `DuplicateKeyException`; anything else passes to the general
+      handler, which logs it with a reference and answers 500 (open question 3)
+- [ ] The 409 message stays generic and the raw text stays in the log, as today
+- [ ] Docs: `backend/CLAUDE.md` Errors table and the paragraph that warns "a NOT NULL column left
+      empty also comes back as a 409"; the item leaves `future_enhancements.md`
+
+**Tests.** `ApplicationExceptionHandlerTest`: one case per kind, built from real Hibernate
+exceptions. One `*IT` per real path: a duplicate name still 409 - the services' own checks answer
+first, so this reaches the handler only through a race, which the IT provokes by inserting with
+`JdbcTemplate` - and a NOT NULL violation provoked the same way answers 500, not 409.
+
+**Verify it yourself.** `.\mvnw clean verify`. In the stack, the app behaves as before: every
+conflict a user can cause is caught by a service's own check first.
+
+---
+
+## Part 4: A `Location` the browser can use
+
+One step, backend only. Nothing reads the header today - the frontend takes the id from the body -
+so this is correctness of the API, not a visible change.
+
+- [ ] Show the problem first, on the stack: a POST through the proxy answers
+      `Location: http://backend:8080/api/v1/...`, a host only the containers can resolve
+- [ ] Per open question 2: either a relative `Location` built from the path alone, in every
+      controller that answers 201, or `server.forward-headers-strategy=framework` after checking
+      that the Next.js proxy sends `X-Forwarded-Host` and `-Proto`
+- [ ] Docs: `backend/CLAUDE.md` (Controllers: "a `Location` header built from
+      `ServletUriComponentsBuilder`"); the item leaves `future_enhancements.md`
+
+**Tests.** The controller slice tests assert each 201's `Location` with `endsWith(...)`, which
+passes for `http://backend:8080/...` and for the fix alike - so it could never have caught this.
+They change to the exact value. One `*IT` asserts it through the real context. `AuthenticationIT`
+and `RegistrationIT` GET the `Location` they are given, and work with either form.
+
+**Verify it yourself.** Signed in, in the browser's dev tools console:
+
+```js
+const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
+const r = await fetch("/api/v1/tags", {method: "POST", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify({name: "Location probe"})});
+r.headers.get("Location");   // no "backend:8080"; then delete the tag from the Tags page
+```
+
+---
+
+## Part 5: The unused recipe ingredient endpoints go
+
+One step, backend only - if open question 1 says remove. If it says keep, this part is only the
+item leaving `future_enhancements.md` with the decision recorded.
+
+- [ ] Confirm nothing calls them: no frontend code, no e2e spec, no document other than the
+      backend's own
+- [ ] Remove `POST /recipes/{id}/ingredients`, `PUT` and `DELETE /recipes/{id}/ingredients/{ingredientId}`
+      from `RecipeController`, and `addRecipeIngredient`, `updateRecipeIngredient`,
+      `deleteRecipeIngredient` with their private helpers from the service
+- [ ] Error codes 60-62 go if nothing else uses them; the codes are not reused
+- [ ] Their tests go: `RecipeControllerTest`, `RecipeServiceTest`, the rows in
+      `PathIdValidationTest`, any `RecipeIT` case
+- [ ] Docs: `backend/README.md` ("recipes add a nested ingredients sub-resource"),
+      `backend/CLAUDE.md` (the sentence that they "still work, but the UI does not use them"); the
+      item leaves `future_enhancements.md`
+
+**Tests.** The suite shrinks by the removed tests and nothing else fails. `RecipeIT`'s line tests,
+which use the recipe's own PUT, still pass unchanged.
+
+**Verify it yourself.** `.\mvnw clean verify`; the counts drop by exactly the tests removed, listed
+in the Done notes. Playwright unchanged. A `POST /api/v1/recipes/{id}/ingredients` now answers 405
+or 404 - say which.
+
+---
+
+## Part 6: Sign-in returns to where you were heading
+
+One step, frontend and e2e.
+
+- [ ] `proxy.ts` redirects to `/login?next=<the path and query asked for>`
+- [ ] `lib/api.ts`, on a 401 while a page is open, does the same with the current page
+- [ ] The login page signs in and goes to `next` if it is a path on this site - starts with `/`,
+      not `//` - and to `/` otherwise. A link to `/login?next=https://elsewhere.example` must land
+      on `/`
+- [ ] The register page keeps going to the Welcome page: a new account has nowhere it was heading
+- [ ] Note for the implementation: `useSearchParams` in a page Next prerenders needs a
+      `<Suspense>` boundary; check the Next 16 guide in `node_modules/next/dist/docs/` first, as
+      `frontend/AGENTS.md` asks
+- [ ] Docs: `frontend/CLAUDE.md`; the item leaves `future_enhancements.md`, and with it the
+      "Smaller items" heading
+
+**Tests.** Playwright, starting signed out: opening a recipe's URL leads to sign-in and, after it,
+to that recipe; `/login` alone still lands on `/`; `?next=https://elsewhere.example` and
+`?next=//elsewhere.example` land on `/`. The expired-session path: clear the session cookie on an
+open page, act, sign in, and arrive back on that page.
+
+**Verify it yourself.** In a private window, open `http://localhost:3000/recipes` directly: you are
+asked to sign in, and afterwards you are on Recipes, not the Welcome page.
