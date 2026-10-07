@@ -42,7 +42,8 @@ public enum ApplicationErrorCodes {
     RATING_NOT_FOUND(510),
     AUTHENTICATION_REQUIRED(600),
     BAD_CREDENTIALS(601),
-    ACCESS_DENIED(602);
+    ACCESS_DENIED(602),
+    USERNAME_TAKEN(603);
 
     private final int code;
 

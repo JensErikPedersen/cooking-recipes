@@ -47,14 +47,15 @@ date - see `CLAUDE.md`, Gotchas.
 
 ## API
 
-All endpoints are under `/api/v1` and need a signed-in session, except login. Sign-in is a session
-cookie, and every write - login and logout included - must send the `XSRF-TOKEN` cookie's value
-back as the `X-XSRF-TOKEN` header. The one account is created on first start from `APP_ADMIN_*`;
-see `CLAUDE.md`, Authentication.
+All endpoints are under `/api/v1` and need a signed-in session, except login and register. Sign-in
+is a session cookie, and every write - login, register and logout included - must send the
+`XSRF-TOKEN` cookie's value back as the `X-XSRF-TOKEN` header. The first account is created on
+first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authentication.
 
 | Auth | |
 |---|---|
 | `POST /api/v1/auth/login` | `{"username", "password"}`; 200 with the user, 401 on bad credentials |
+| `POST /api/v1/auth/register` | `{"username", "password", "confirmPassword"}`; 201 with the user, signed in; 400 on a rule, 409 on a taken username |
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 

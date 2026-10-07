@@ -334,23 +334,24 @@ Two steps: the backend, proven by an `*IT` and the API, then the frontend.
 
 ### 5a: Backend registration
 
-- [ ] `POST /api/v1/auth/register`, open like login (`permitAll`), CSRF-protected like login
-- [ ] `RegisterRequestDTO`: username, password and `confirmPassword`, Bean Validation per
+- [x] `POST /api/v1/auth/register`, open like login (`permitAll`), CSRF-protected like login
+- [x] `RegisterRequestDTO`: username, password and `confirmPassword`, Bean Validation per
       decisions 2 and 3; a confirmation that differs is a 400 on `confirmPassword` (decision 6).
       `toString` never prints either password
-- [ ] The new account: `ROLE_USER` only, enabled, password through the existing
+- [x] The new account: `ROLE_USER` only, enabled, password through the existing
       `PasswordEncoder`. `created_by` is the new username. **Not through JPA**: the request is
       anonymous, so `BaseEntityListener` would write `anonymous`. Plain SQL, as `AdminBootstrap`
       already does - the insert moves into one place both use
-- [ ] A taken username, in any case: 409, a new code `USERNAME_TAKEN` (603), on the field
+- [x] A taken username, in any case: 409, a new code `USERNAME_TAKEN` (603), on the field
       `username`. The unique index stays the backstop. This does tell a caller which usernames
       exist; with open sign-up that is unavoidable, and login's single message stays as it is
-- [ ] Prove the 72-byte boundary before relying on it: what a 73-byte password does today, then
+- [x] Prove the 72-byte boundary before relying on it: what a 73-byte password does today, then
       the 400 that replaces it
-- [ ] Answer 201 and sign the user in, by the same path as login - session id changed, context
+- [x] Answer 201 and sign the user in, by the same path as login - session id changed, context
       saved (decision 1)
-- [ ] `AdminBootstrap` unchanged: it still creates the first account only while the table is empty
-- [ ] Docs: `backend/CLAUDE.md` Authentication ("One account" goes), `backend/README.md` endpoint
+- [x] `AdminBootstrap` unchanged in behaviour: it still creates the first account only while the
+      table is empty - now through `AppUserWriter`, the shared insert
+- [x] Docs: `backend/CLAUDE.md` Authentication ("One account" goes), `backend/README.md` endpoint
       list, `AppUser`'s "read-only" comment
 
 **Tests.** `RegistrationIT`, real context and real security chain, like `AuthenticationIT`:
@@ -378,6 +379,34 @@ await fetch("/api/v1/auth/register", {method: "POST", headers: {"Content-Type": 
 ```powershell
 docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -e "select username, roles, created_by, left(password, 8) from app_user"'
 ```
+
+**Done (2026-10-07).** Deviations and findings:
+
+- **The 72-byte boundary, proven first** with a throwaway test on the application's encoder: 72
+  bytes encodes; 73 bytes, and 37 Danish letters (74 bytes), throw `IllegalArgumentException`
+  ("password cannot be more than 72 bytes") - an unhandled 500. Also found: when *checking*, the
+  encoder silently ignores everything past 72 bytes - a 73-byte password matched the hash of its
+  first 72. The cap at registration means a stored password is always checked whole
+- Which rules live where: those a value can be checked against alone are Bean Validation on
+  `RegisterRequestDTO`; the byte limit and the confirmation are in `AuthServiceImpl.register`, both
+  in one 400 through the field-error list from 4b, code 20 like any validation failure. A request
+  breaking both kinds gets the Bean Validation errors first, the others on the next try
+- "Letters" are any alphabet's (`\p{L}`), so `Søren` is a valid username; a test pins it
+- The insert lives in `repository/AppUserWriter`, which also hashes, so the plaintext goes no
+  further than one method. `AdminBootstrap` calls it; its behaviour is unchanged
+- **Found: MockMvc's `csrf()` changes the cached context.** `RegistrationIT` passed alone and lost
+  17 of 18 tests in the full suite: every one found no `XSRF-TOKEN` cookie. Proven by running
+  `CategoryIT` then `RegistrationIT` - 17 errors - against `RegistrationIT` alone - none. `csrf()`
+  replaces the CSRF token repository inside the shared context's filter with a test one that sets
+  no cookie, and it stays replaced. Fixed by giving `RegistrationIT` `AuthenticationIT`'s
+  properties, so the two share a context no `csrf()` test runs in. Recorded in `backend/CLAUDE.md`
+- The case-insensitive check proven load-bearing: with a case-sensitive lookup swapped in, H2
+  accepted the uppercase copy of a taken name, 201
+- On the stack, signed out, through the proxy: register 201 and signed in, `/me` names the new
+  user; the row is `ROLE_USER`, enabled, created by itself, a `{bcrypt}` hash; the same name in
+  capitals is 409 (MySQL); 37 Danish letters plus a wrong confirmation is one 400 with both
+  fields. The probe account deleted with SQL afterwards. No error in the backend log
+- `./mvnw clean verify`: 278 unit, 129 integration (+18). Playwright: 97
 
 ### 5b: Register in the browser
 

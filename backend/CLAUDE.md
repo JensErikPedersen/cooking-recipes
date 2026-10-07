@@ -7,8 +7,8 @@ is in `backend/`.
 ## Authentication
 
 Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `/api` needs a
-session except `POST /api/v1/auth/login`; `/actuator/health` is open for Compose. 401 and 403 come
-back in the error envelope (codes 600-602), never as a redirect.
+session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is open for Compose.
+401 and 403 come back in the error envelope (codes 600-602), never as a redirect.
 
 - **Audit stamping depends on it.** `created_by` is NOT NULL on every table but `recipe_tag`, a
   plain `@ManyToMany` join table whose insert cannot carry it (`db.changelog_1.3.xml`). It is set by
@@ -25,9 +25,19 @@ back in the error envelope (codes 600-602), never as a redirect.
   filter is needed. Login and logout are CSRF-protected too.
 - **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller
   method. It also deletes the `JSESSIONID` cookie, which the frontend's `proxy.ts` checks for.
-- **One account**, created by `AdminBootstrap` with plain SQL from `app.admin.username` /
-  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty. Plain SQL because JPA
-  would fire `BaseEntityListener`, which needs a request. No user administration - by decision.
+- **Accounts**: the first is created by `AdminBootstrap` from `app.admin.username` /
+  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN`. Any
+  other comes from `POST /api/v1/auth/register`: `ROLE_USER`, created by its own username, and
+  signed in on the spot through `login()`. Both insert through `AppUserWriter`, with plain SQL:
+  through JPA `BaseEntityListener` would stamp `created_by` from the `Session`, which holds no
+  signed-in user at startup or during an anonymous registration. Roles are stored, not enforced.
+  No user administration - by decision.
+- **Registration rules**: username 3-64 characters, letters (any alphabet), digits, `.`, `_`, `-`,
+  unique regardless of case - `existsByUsernameIgnoreCase`, since H2 in the tests tells case apart
+  where MySQL's collation does not; taken is a 409 (603) on `username`. Password at least 8
+  characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
+  than encode a longer one, so the service checks before encoding - `æ` counts two. The
+  confirmation is compared there too, a 400 on `confirmPassword`.
 
 ## Layout
 
@@ -145,16 +155,22 @@ Test layers, and what each one mocks:
 | `*ServiceTest` | Mockito | the repositories |
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
-| `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
+| `AuthenticationIT`, `RegistrationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**Only `AuthenticationIT` and the `<Entity>IT` classes exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
-and on the join tables. Neither runs in a test transaction: it would postpone the
+and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
 the null `created_by` stayed invisible to a green build until Part 4, and discarded recipe tags
 until `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
 slice tests can pass while real serialization is broken - the same class of gap.
+
+**MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
+inside the context's filter with a test one that sets no cookie, for every later test there. A test
+that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
+classes: `RegistrationIT` takes `AuthenticationIT`'s properties to share its context instead.
+Alone it passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
 
