@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, auth } from "@/lib/api";
 
@@ -58,6 +59,12 @@ export default function LoginPage() {
           Sign in
         </button>
       </form>
+      <p className="mt-6 text-sm">
+        No account yet?{" "}
+        <Link href="/register" className="underline">
+          Create an account
+        </Link>
+      </p>
     </main>
   );
 }

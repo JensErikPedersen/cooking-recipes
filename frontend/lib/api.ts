@@ -194,4 +194,7 @@ export const auth = {
   login: (username: string, password: string) =>
     request<AuthenticatedUser>("POST", "/auth/login", { username, password }),
   logout: () => request<void>("POST", "/auth/logout"),
+  /** Creates the account and signs it in. The backend checks every rule, the confirmation too. */
+  register: (username: string, password: string, confirmPassword: string) =>
+    request<AuthenticatedUser>("POST", "/auth/register", { username, password, confirmPassword }),
 };

@@ -21,7 +21,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   one first. Non-2xx responses throw `ApiError`, carrying the backend's error envelope.
 - Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed. `proxy.ts` (Next 16's
-  name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders.
+  name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders,
+  except to `/login` and `/register`, the two pages outside the group. `/register` signs the new
+  account in, as the backend does, and goes to the Welcome page.
   And any 401 from the API - `/me` included, the login call excepted - sends the browser to
   `/login` from `request()` in `lib/api.ts`, so a session that ends while a page is open leads to
   sign in rather than an error. None of this is the security - the backend answers 401 regardless.
@@ -57,8 +59,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Blank lines are sent too.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
-  message to its input with `aria-describedby`. A form sends only its editable fields, never the
-  audit fields.
+  message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
+  its editable fields, never the audit fields. The register form follows the same rule: the
+  password confirmation is checked by the backend, not here.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.

@@ -4,6 +4,7 @@
 
 This project is building a MVP version of a Cooking Recipe App. Key features:
 - A user can sign in
+- A visitor can register an account of their own from the sign-in page, and is signed in with it
 - A user sees a Welcome page with a short description of the application and a menu showing menu items with links to different entity types (Recipes, Categories, Ingredients etc.). There should also be a logout button.
 - When an entity is opened from the list, it is shown in Read mode with an edit button and a delete button.
 - When the user creates a new entity (eg. Ingredient), a form is shown with Save and Cancel buttons.
@@ -82,6 +83,8 @@ Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`. A setu
 through the login page, with the account from the repository's `.env`, and saves the session in
 `e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out. Tests
 remove what they create, through the API in `e2e/support/api.ts`, so the stack's data stays as seeded.
+Accounts have no delete endpoint: `e2e/support/accounts.ts` removes them with SQL through
+`docker compose exec mysql`, so the registration tests need `docker` on the PATH.
 They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
 
 ## Technical Decisions

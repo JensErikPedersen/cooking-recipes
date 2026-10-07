@@ -410,13 +410,13 @@ docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes -
 
 ### 5b: Register in the browser
 
-- [ ] `/register` page: the user chooses their username and password - and confirms the password
+- [x] `/register` page: the user chooses their username and password - and confirms the password
       (decision 6) - then Register, and a link back to sign in. Server errors shown on their
       fields, as the entity forms do
-- [ ] The sign-in page links to it: "Create an account"
-- [ ] `proxy.ts` lets `/register` through without a session, as it does `/login`
-- [ ] On success, signed in on the Welcome page (decision 1)
-- [ ] Docs: `frontend/CLAUDE.md`; root `CLAUDE.md` Business Requirements gains the register line
+- [x] The sign-in page links to it: "Create an account"
+- [x] `proxy.ts` lets `/register` through without a session, as it does `/login`
+- [x] On success, signed in on the Welcome page (decision 1)
+- [x] Docs: `frontend/CLAUDE.md`; root `CLAUDE.md` Business Requirements gains the register line
 
 **Tests.** Playwright, starting signed out: from sign-in to register and back; register, land
 signed in with the new name in the header; sign out and sign in again with it; a taken username
@@ -429,3 +429,26 @@ app with it, and every row they write carries their username - asserted by a tes
 
 **Verify it yourself.** In a private browser window: sign-in page, Create an account, register,
 use the app, sign out, sign in again. Then try the same username in capitals.
+
+**Done (2026-10-07).** Deviations and findings for 5b:
+
+- The form uses `TextField`, which gained `type` and `autoComplete`, so each server error sits
+  under its field as on every entity form. Its labels are bold, as on those forms; the sign-in
+  page keeps its own plain ones - a small visual difference, left alone
+- Rules break in two rounds: Bean Validation answers before the service runs, so a short password
+  hides a taken name and a wrong confirmation until it is fixed. Seen on a screenshot; it follows
+  from 5a's split, left as it is unless you want one round
+- `e2e/support/accounts.ts` deletes test accounts with SQL through `docker compose exec mysql`, and
+  refuses any name that is not `e2e-` plus eight hex digits, since the name goes into SQL. Tests
+  that create a category remove it through the API first. After the suite, `app_user` holds only
+  `admin`
+- The taken-name test uses the seeded account's name in capitals, so it proves case on MySQL and
+  needs no account of its own
+- Lint and `tsc` clean. Playwright: 103 (97 + 6), all six new ones failing before the page existed
+
+### Part 5 as a whole
+
+**Done.** A visitor creates an account from the sign-in page, lands signed in on the Welcome page,
+and everything they write carries their username - asserted from the backend in `RegistrationIT`
+and from the browser in `register.spec.ts`. `./mvnw clean verify`: 278 unit, 129 integration.
+Playwright: 103.
