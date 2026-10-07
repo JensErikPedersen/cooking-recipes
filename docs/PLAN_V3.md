@@ -29,46 +29,42 @@ any order.
 
 **Numbering.** Parts restart at 1. Commits say `V3 Part 2: ...`.
 
-## Open questions
+## Decisions
 
-Each has a recommendation; nothing below depends on it until the part named.
+Settled 2026-10-07: the recommendations of the draft, accepted as they stood. Each part refers to
+them by number.
 
-1. **Remove the recipe ingredient sub-resource, or keep it?** (Part 5) Recommended: remove. Nothing
-   has called it since Part 7 of the MVP - the form sends its lines in the recipe's PUT, so Cancel
-   can undo them - yet every rule about lines lives twice, once per write path, and 4b of version 2
-   had to keep both in step. Removing it takes three endpoints, three service methods, their tests
-   and error codes 60-62 with it; the line handling the form uses stays. Keeping it costs nothing
-   today and leaves an API for a future client that edits one line at a time.
-2. **How to fix the `Location` header?** (Part 4) The entry suggests
-   `server.forward-headers-strategy=framework`. Recommended instead: a relative `Location`,
-   `/api/v1/categories/{id}`, which HTTP allows and the browser resolves against its own origin. It
-   needs no configuration, does not depend on what the proxy forwards, and does not make the
-   backend trust `X-Forwarded-*` headers from whoever reaches its port - which
-   `docker-compose.override.yml` publishes to the host.
-3. **What a non-conflict constraint answers.** (Part 3) Recommended: 409 only for UNIQUE and
-   FOREIGN_KEY, which a client can act on; NOT_NULL, CHECK and anything unrecognised go to the
-   general handler as a 500 with a log reference, since they are server faults. Including
+1. **The recipe ingredient sub-resource is removed.** Nothing has called it since Part 7 of the
+   MVP - the form sends its lines in the recipe's PUT, so Cancel can undo them - yet every rule
+   about lines lived twice, once per write path, and 4b of version 2 had to keep both in step. Its
+   three endpoints, three service methods, their tests and error codes 60-62 go; the line handling
+   the form uses stays. (Part 5)
+2. **`Location` becomes relative**, `/api/v1/categories/{id}`, which HTTP allows and the browser
+   resolves against its own origin - not `server.forward-headers-strategy=framework`. It needs no
+   configuration, does not depend on what the proxy forwards, and does not make the backend trust
+   `X-Forwarded-*` headers from whoever reaches its port, which `docker-compose.override.yml`
+   publishes to the host. (Part 4)
+3. **409 only for UNIQUE and FOREIGN_KEY**, which a client can act on, and for
    `DuplicateKeyException`, which `AppUserWriter`'s plain SQL raises without Hibernate in between.
-4. **Where "return to" applies.** (Part 6) Recommended: both ways a signed-out browser reaches
-   `/login` - `proxy.ts` (no session cookie) and `lib/api.ts` (a session that ended while a page
-   was open) - carry the path in `?next=`. Logging out does not: you chose to leave. Only a path on
-   this site is followed, so a crafted link cannot send a user elsewhere after signing in.
-5. **Leftovers from version 2** - none planned. Each is small; say which, if any, to add:
-   - The stale `recipesadmin` comment in `backend/src/main/resources/db/liquibase.properties`.
-     Recommended: yes, in Part 2 - it describes an account that no longer exists
-   - Registration rules break in two rounds (V2 5b): one round needs every rule in the service
-   - The sign-in page's plain labels against the register page's bold ones
-   - The frontend still sorts recipe lines itself, which the API now does (V2 4a)
-   - "Needs an amount above zero." wraps to three lines in the amount column on a phone
+   NOT_NULL, CHECK and anything unrecognised go to the general handler as a 500 with a log
+   reference: they are server faults. (Part 3)
+4. **"Return to" applies to both ways a signed-out browser reaches `/login`** - `proxy.ts` (no
+   session cookie) and `lib/api.ts` (a session that ended while a page was open) - carrying the
+   path in `?next=`. Logging out does not: you chose to leave. Only a path on this site is
+   followed, so a crafted link cannot send a user elsewhere after signing in. (Part 6)
+5. **Of the leftovers from version 2, only the stale `recipesadmin` comment** in
+   `backend/src/main/resources/db/liquibase.properties` is taken, in Part 2. The others stay as
+   they are: registration rules in two rounds, the sign-in page's plain labels, the frontend's own
+   sorting of recipe lines, and the amount message wrapping on a phone. (Part 2)
 
 ---
 
 ## Part 1: Baseline and scope
 
-- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V3.md` as the current plan, with
+- [x] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V3.md` as the current plan, with
       `docs/PLAN.md` and `docs/PLAN_V2.md` as the record
-- [ ] Open questions answered and recorded in place of the recommendations
-- [ ] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite.
+- [x] Open questions answered and recorded under Decisions
+- [x] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite.
       Version 2 ended at 278 unit, 129 integration, 103 Playwright tests
 
 **Verify it yourself.** Read the diff, then:
@@ -78,6 +74,9 @@ scripts\start.ps1
 cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
+
+**Done (2026-10-07).** Baseline: 278 unit, 129 integration, 103 Playwright tests, all green -
+version 2's final numbers. Root `CLAUDE.md` also says ratings stay out of scope in version 3.
 
 ---
 
@@ -92,7 +91,7 @@ One step, backend only, and nothing a test or a user can see may change.
 - [ ] `RecipeIngredientJpaRepository` extends `JpaRepository<RecipeIngredient, RecipeIngredientPK>`.
       Nothing calls `findById` or `deleteById` on it today, so no caller changes; the point is that
       one could not be called with a `UUID` and silently find nothing
-- [ ] If open question 5 says so: the `recipesadmin` comment in `db/liquibase.properties`
+- [ ] The stale `recipesadmin` comment in `db/liquibase.properties` (decision 5)
 - [ ] Docs: the two items leave `future_enhancements.md`; `backend/CLAUDE.md` if it mentions either
 
 **Tests.** None new: the point is that the suite does not move. The repository's own `*IT` covers
@@ -113,7 +112,7 @@ One step, backend only.
       `getKind()`. On MySQL through the stack, as a throwaway; on H2 as the test below
 - [ ] `ApplicationExceptionHandler.handleDataIntegrityViolation`: 409 `DATA_CONFLICT` (40) for
       UNIQUE and FOREIGN_KEY, and for `DuplicateKeyException`; anything else passes to the general
-      handler, which logs it with a reference and answers 500 (open question 3)
+      handler, which logs it with a reference and answers 500 (decision 3)
 - [ ] The 409 message stays generic and the raw text stays in the log, as today
 - [ ] Docs: `backend/CLAUDE.md` Errors table and the paragraph that warns "a NOT NULL column left
       empty also comes back as a 409"; the item leaves `future_enhancements.md`
@@ -135,7 +134,7 @@ so this is correctness of the API, not a visible change.
 
 - [ ] Show the problem first, on the stack: a POST through the proxy answers
       `Location: http://backend:8080/api/v1/...`, a host only the containers can resolve
-- [ ] Per open question 2: either a relative `Location` built from the path alone, in every
+- [ ] Per decision 2: either a relative `Location` built from the path alone, in every
       controller that answers 201, or `server.forward-headers-strategy=framework` after checking
       that the Next.js proxy sends `X-Forwarded-Host` and `-Proto`
 - [ ] Docs: `backend/CLAUDE.md` (Controllers: "a `Location` header built from
@@ -158,8 +157,7 @@ r.headers.get("Location");   // no "backend:8080"; then delete the tag from the 
 
 ## Part 5: The unused recipe ingredient endpoints go
 
-One step, backend only - if open question 1 says remove. If it says keep, this part is only the
-item leaving `future_enhancements.md` with the decision recorded.
+One step, backend only (decision 1).
 
 - [ ] Confirm nothing calls them: no frontend code, no e2e spec, no document other than the
       backend's own
