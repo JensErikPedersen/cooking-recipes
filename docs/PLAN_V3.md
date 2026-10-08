@@ -118,15 +118,15 @@ its derived queries.
 
 One step, backend only.
 
-- [ ] **Prove first** what each constraint actually raises, on H2 and on MySQL - Hibernate decides
+- [x] **Prove first** what each constraint actually raises, on H2 and on MySQL - Hibernate decides
       the kind from the database's error code, so the two can differ. A unique name, a foreign key
       on delete, a NOT NULL column: for each, the `DataIntegrityViolationException`'s cause and its
       `getKind()`. On MySQL through the stack, as a throwaway; on H2 as the test below
-- [ ] `ApplicationExceptionHandler.handleDataIntegrityViolation`: 409 `DATA_CONFLICT` (40) for
+- [x] `ApplicationExceptionHandler.handleDataIntegrityViolation`: 409 `DATA_CONFLICT` (40) for
       UNIQUE and FOREIGN_KEY, and for `DuplicateKeyException`; anything else passes to the general
       handler, which logs it with a reference and answers 500 (decision 3)
-- [ ] The 409 message stays generic and the raw text stays in the log, as today
-- [ ] Docs: `backend/CLAUDE.md` Errors table and the paragraph that warns "a NOT NULL column left
+- [x] The 409 message stays generic and the raw text stays in the log, as today
+- [x] Docs: `backend/CLAUDE.md` Errors table and the paragraph that warns "a NOT NULL column left
       empty also comes back as a 409"; the item leaves `future_enhancements.md`
 
 **Tests.** `ApplicationExceptionHandlerTest`: one case per kind, built from real Hibernate
@@ -136,6 +136,35 @@ first, so this reaches the handler only through a race, which the IT provokes by
 
 **Verify it yourself.** `.\mvnw clean verify`. In the stack, the app behaves as before: every
 conflict a user can cause is caught by a service's own check first.
+
+**Done (2026-10-08).** Deviations and findings:
+
+- **Proven first**, with a throwaway probe: native SQL through Hibernate, every statement in a
+  transaction set to roll back, run on H2 and then on the stack's MySQL with Liquibase off.
+
+  | Violation | H2 | MySQL | Hibernate kind |
+  |---|---|---|---|
+  | duplicate category name | 23505 | 1062 | UNIQUE |
+  | recipe with no such category | 23506 | 1452 | FOREIGN_KEY |
+  | delete a category a recipe uses | 23503 | 1451 | FOREIGN_KEY |
+  | category with `created_by` NULL | 23502 | 1048 | NOT_NULL |
+
+  The same kinds on both, so one rule serves both. Spring translates every one to a plain
+  `DataIntegrityViolationException` with Hibernate's exception as the cause - never to
+  `DuplicateKeyException` on this path. MySQL's category and recipe counts were the same before
+  and after the run. The schema has no CHECK constraint to probe
+- **The plan's integration test could not have worked as written.** A violation provoked with
+  `JdbcTemplate` never passes through Hibernate, so it carries no kind at all. `DataIntegrityIT`
+  provokes each one the probe's way instead and hands what Spring would hand over to the real
+  handler, plus a duplicate through `AppUserWriter`, which is the plain-JDBC path and does arrive as
+  `DuplicateKeyException`. Before the change only the NOT NULL case failed - it answered 409
+- Unit tests in `ApplicationExceptionHandlerTest`: each kind built from Hibernate's own exception,
+  UNIQUE and FOREIGN_KEY 409, NOT_NULL, CHECK and OTHER 500, `DuplicateKeyException` 409, and a
+  violation with no kind 500. Before the change the four 500 cases failed
+- A 500 goes through the existing catch-all, so it gets the same generic message and logged
+  reference as any unhandled exception
+- `./mvnw clean verify`: 284 unit (+6), 134 integration (+5). Playwright: 103, against the rebuilt
+  backend - the conflicts users can cause are still caught by the services' own checks
 
 ---
 

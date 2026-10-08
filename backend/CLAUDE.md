@@ -97,7 +97,7 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 | `HandlerMethodValidationException` (a `@UUID` path id, and a PUT's `@Valid` body with it) | 400 + `validationExceptions[]`, body errors by field, parameters by name |
 | Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
 | `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
-| `DataIntegrityViolationException` (a database constraint, raised at commit) | 409, code `DATA_CONFLICT` (40), generic message; the raw text is logged only |
+| `DataIntegrityViolationException` (a database constraint, raised at commit) | a unique or foreign key violation, or a `DuplicateKeyException`: 409, code `DATA_CONFLICT` (40), generic message, the raw text logged only. Any other kind - NOT NULL, CHECK - goes to the catch-all as a 500 |
 | anything else | 500, message replaced by a random reference id that is logged server-side |
 
 The `ErrorResponse` branch sits inside the catch-all, which checks for it first: without it every
@@ -113,8 +113,10 @@ recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rathe
 same. Tag names are unique, like the others - the schema says so, whatever older comments claimed.
 The database constraint behind each stays the backstop, caught by the
 `DataIntegrityViolationException` handler. `RecipeServiceImpl` rejects a duplicate recipe name
-(53). The backstop catches every `DataIntegrityViolationException`, so a server fault such as a
-NOT NULL column left empty also comes back as a 409 - read the log before believing one.
+(53). The backstop tells a conflict from a server fault by Hibernate's
+`ConstraintViolationException.getKind()` on the cause - the same kinds on H2 and MySQL, checked in
+V3 Part 3 - so a NOT NULL column left empty is a 500, not a 409. `DataIntegrityIT` feeds the real
+handler the violations H2 really raises.
 
 **Recipe writes carry their relations.** A POST or PUT sets the category, the tags and the
 ingredient lines from the body, each by id of an existing row; nothing is created through a
@@ -155,6 +157,7 @@ Test layers, and what each one mocks:
 | `*ServiceTest` | Mockito | the repositories |
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
+| `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
 | `AuthenticationIT`, `RegistrationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 

@@ -199,11 +199,6 @@ step's notes in `docs/PLAN.md`.
   the backend builds it from the `Host` the Next.js proxy sends. Nothing reads the header - the
   frontend uses the id in the body. `server.forward-headers-strategy=framework` would fix it.
   Found in 4a.
-- **The `DataIntegrityViolationException` handler answers 409 for every constraint**, including a
-  NOT NULL column left empty, which is a server fault rather than a conflict. 7a met exactly that:
-  the `recipe_tag.created_by` failure came back as "The change conflicts with existing data".
-  Hibernate's `ConstraintViolationException.getKind()` tells UNIQUE and FOREIGN_KEY, a 409, from
-  NOT_NULL and CHECK, a 500.
 - **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
   in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
   keep or remove them as one decision.
