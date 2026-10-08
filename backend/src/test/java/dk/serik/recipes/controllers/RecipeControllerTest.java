@@ -26,7 +26,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -126,7 +125,7 @@ public class RecipeControllerTest {
 
         mockMvc.perform(post(BASE).contentType(MediaType.APPLICATION_JSON).content(newRecipeJson()))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", endsWith(BASE + "/" + ID)))
+                .andExpect(header().string("Location", BASE + "/" + ID))
                 .andExpect(jsonPath("$.name").value("Hvedebrød"));
     }
 
@@ -234,7 +233,7 @@ public class RecipeControllerTest {
                                 .amount(new BigDecimal(500))
                                 .build())))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", endsWith("/ingredients/" + INGREDIENT_ID)));
+                .andExpect(header().string("Location", BASE + "/" + ID + "/ingredients/" + INGREDIENT_ID));
 
         ArgumentCaptor<RecipeIngredientDTO> captor = ArgumentCaptor.forClass(RecipeIngredientDTO.class);
         verify(recipeService).addRecipeIngredient(captor.capture());

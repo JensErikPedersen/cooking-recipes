@@ -173,12 +173,12 @@ conflict a user can cause is caught by a service's own check first.
 One step, backend only. Nothing reads the header today - the frontend takes the id from the body -
 so this is correctness of the API, not a visible change.
 
-- [ ] Show the problem first, on the stack: a POST through the proxy answers
+- [x] Show the problem first, on the stack: a POST through the proxy answers
       `Location: http://backend:8080/api/v1/...`, a host only the containers can resolve
-- [ ] Per decision 2: either a relative `Location` built from the path alone, in every
+- [x] Per decision 2: either a relative `Location` built from the path alone, in every
       controller that answers 201, or `server.forward-headers-strategy=framework` after checking
       that the Next.js proxy sends `X-Forwarded-Host` and `-Proto`
-- [ ] Docs: `backend/CLAUDE.md` (Controllers: "a `Location` header built from
+- [x] Docs: `backend/CLAUDE.md` (Controllers: "a `Location` header built from
       `ServletUriComponentsBuilder`"); the item leaves `future_enhancements.md`
 
 **Tests.** The controller slice tests assert each 201's `Location` with `endsWith(...)`, which
@@ -193,6 +193,20 @@ const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
 const r = await fetch("/api/v1/tags", {method: "POST", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify({name: "Location probe"})});
 r.headers.get("Location");   // no "backend:8080"; then delete the tag from the Tags page
 ```
+
+**Done (2026-10-08).** Deviations and findings:
+
+- Shown first through the proxy: a tag POST answered `location: http://backend:8080/api/v1/tags/...`
+- Each controller has a `PATH` constant, used by its `@RequestMapping` and by
+  `UriComponentsBuilder.fromPath(PATH)` for the `Location`, so the two cannot drift apart; the
+  builder still encodes the id as the old one did. The recipe ingredient sub-resource's `Location`
+  changed too, though Part 5 removes it
+- Tests first: with the five slice tests asserting the exact value and
+  `CategoryIT.shouldAnswerARelativeLocation` comparing the header with the body's id, all seven
+  failed on `http://localhost/...` before the change
+- On the stack after it: `location: /api/v1/tags/...` - neither Tomcat nor the Next.js proxy
+  rewrites it - and a GET of that path on the browser's origin answers 200. Both probe tags deleted
+- `./mvnw clean verify`: 284 unit, 135 integration (+1). Playwright: 103
 
 ---
 

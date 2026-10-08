@@ -62,7 +62,9 @@ argument validation all live in the service, which throws `ServiceException` car
 `HttpStatus`; the advice turns that into the envelope. The one check before the service is `@UUID`
 on every path id, so a malformed one is refused before any service runs. On `PUT` the path id is
 authoritative and any id in the body is overwritten, so a mismatched payload cannot update a
-different row. `POST` returns 201 with a `Location` header built from `ServletUriComponentsBuilder`.
+different row. `POST` returns 201 with a relative `Location`, `/api/v1/tags/{id}`, built from the
+controller's `PATH` constant: one built from the request named `http://backend:8080`, the address
+behind the Next.js proxy, which no browser can reach.
 
 **Services** are `@Transactional` at class level (`READ_COMMITTED`, `REQUIRED`, 5s timeout), with
 read methods re-annotated `readOnly = true`. Ids arrive as `String` and go through

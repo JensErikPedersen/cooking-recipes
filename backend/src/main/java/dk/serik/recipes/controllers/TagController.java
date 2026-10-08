@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -30,9 +30,12 @@ import java.util.List;
  * See {@code docs/future_enhancements.md}.
  */
 @RestController
-@RequestMapping("/api/v1/tags")
+@RequestMapping(TagController.PATH)
 @AllArgsConstructor
 public class TagController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/tags";
 
     private final TagService tagService;
 
@@ -50,7 +53,7 @@ public class TagController {
     @PostMapping
     public ResponseEntity<TagDTO> create(@Valid @RequestBody TagDTO tagDTO) {
         TagDTO saved = tagService.save(tagDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();

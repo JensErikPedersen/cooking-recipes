@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -164,6 +165,17 @@ class CategoryIT {
 
 		mockMvc.perform(put(CATEGORIES + "/" + id).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(fetched))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("Given a new category, When POST, Then its Location is the path alone - no host for the browser to fail to reach")
+	void shouldAnswerARelativeLocation() throws Exception {
+		var response = mockMvc.perform(post(CATEGORIES).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(uniqueName())))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse();
+		String id = jsonMapper.readTree(response.getContentAsString()).get("id").asString();
+
+		assertThat(response.getHeader("Location")).isEqualTo(CATEGORIES + "/" + id);
 	}
 
 	private String create(String name) throws Exception {

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -30,9 +30,12 @@ import java.util.List;
  * carrying an HTTP status.
  */
 @RestController
-@RequestMapping("/api/v1/ingredients")
+@RequestMapping(IngredientController.PATH)
 @AllArgsConstructor
 public class IngredientController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/ingredients";
 
     private final IngredientService ingredientService;
 
@@ -50,7 +53,7 @@ public class IngredientController {
     @PostMapping
     public ResponseEntity<IngredientDTO> create(@Valid @RequestBody IngredientDTO ingredientDTO) {
         IngredientDTO saved = ingredientService.save(ingredientDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();

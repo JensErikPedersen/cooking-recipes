@@ -195,10 +195,6 @@ accident.
 Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
 step's notes in `docs/PLAN.md`.
 
-- **A POST's `Location` header names the backend's internal address** (`http://backend:8080/...`):
-  the backend builds it from the `Host` the Next.js proxy sends. Nothing reads the header - the
-  frontend uses the id in the body. `server.forward-headers-strategy=framework` would fix it.
-  Found in 4a.
 - **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
   in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
   keep or remove them as one decision.

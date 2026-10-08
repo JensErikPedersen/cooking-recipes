@@ -22,7 +22,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -105,7 +104,7 @@ public class CategoryControllerTest {
                         .content(objectMapper.writeValueAsString(
                                 CategoryDTO.builder().name("Dessert").description("Den søde afrundning").build())))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", endsWith(BASE + "/" + ID)))
+                .andExpect(header().string("Location", BASE + "/" + ID))
                 .andExpect(jsonPath("$.name").value("Dessert"));
     }
 

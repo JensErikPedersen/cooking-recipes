@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -31,9 +31,12 @@ import java.util.List;
  * deliberately no {@code /ratings} routes - see {@code docs/future_enhancements.md}.
  */
 @RestController
-@RequestMapping("/api/v1/recipes")
+@RequestMapping(RecipeController.PATH)
 @AllArgsConstructor
 public class RecipeController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/recipes";
 
     private final RecipeService recipeService;
 
@@ -51,7 +54,7 @@ public class RecipeController {
     @PostMapping
     public ResponseEntity<RecipeDTO> create(@Valid @RequestBody RecipeDTO recipeDTO) {
         RecipeDTO saved = recipeService.save(recipeDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();
@@ -86,9 +89,9 @@ public class RecipeController {
     public ResponseEntity<RecipeDTO> addIngredient(@PathVariable @UUID String id,
                                                    @Valid @RequestBody RecipeIngredientDTO recipeIngredientDTO) {
         RecipeDTO updated = recipeService.addRecipeIngredient(withPath(id, recipeIngredientDTO.getIngredientId(), recipeIngredientDTO));
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{ingredientId}")
-                .buildAndExpand(recipeIngredientDTO.getIngredientId())
+        URI location = UriComponentsBuilder.fromPath(PATH)
+                .path("/{id}/ingredients/{ingredientId}")
+                .buildAndExpand(id, recipeIngredientDTO.getIngredientId())
                 .toUri();
         return ResponseEntity.created(location).body(updated);
     }
