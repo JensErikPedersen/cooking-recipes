@@ -204,15 +204,8 @@ step's notes in `docs/PLAN.md`.
   the `recipe_tag.created_by` failure came back as "The change conflicts with existing data".
   Hibernate's `ConstraintViolationException.getKind()` tells UNIQUE and FOREIGN_KEY, a 409, from
   NOT_NULL and CHECK, a 500.
-- **Dead code**: `config/TestingConfiguration` in the tests is referenced by nothing - a
-  `@TestConfiguration` is excluded from component scanning (5a). `backend/HELP.md` is the Spring
-  Initializr's generated help. The unreferenced repository query is noted in the name-lookup
-  entry above.
 - **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
   in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
   keep or remove them as one decision.
-- **`RecipeIngredientJpaRepository` declares its id type as `UUID`**, but `RecipeIngredient`'s
-  key is the composite `RecipeIngredientPK`. Every caller uses the derived queries, so nothing
-  breaks; `findById` on it would be wrong. Noticed in 6a.
 - **Sign-in does not return to where you were heading**: after signing in you land on the start
   page. Deliberately left out in 4b for simplicity.

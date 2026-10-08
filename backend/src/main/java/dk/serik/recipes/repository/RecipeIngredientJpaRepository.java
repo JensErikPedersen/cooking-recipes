@@ -1,6 +1,7 @@
 package dk.serik.recipes.repository;
 
 import dk.serik.recipes.model.RecipeIngredient;
+import dk.serik.recipes.model.RecipeIngredientPK;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface RecipeIngredientJpaRepository extends JpaRepository<RecipeIngredient, UUID> {
+public interface RecipeIngredientJpaRepository extends JpaRepository<RecipeIngredient, RecipeIngredientPK> {
 
 	Optional<RecipeIngredient> findByRecipeIdAndIngredientId(UUID recipeId, UUID ingredientId);
 	

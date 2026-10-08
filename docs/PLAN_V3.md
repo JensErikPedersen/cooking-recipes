@@ -84,21 +84,33 @@ version 2's final numbers. Root `CLAUDE.md` also says ratings stay out of scope 
 
 One step, backend only, and nothing a test or a user can see may change.
 
-- [ ] Delete `src/test/java/dk/serik/recipes/config/TestingConfiguration.java`. Confirm first that
+- [x] Delete `src/test/java/dk/serik/recipes/config/TestingConfiguration.java`. Confirm first that
       nothing references it: a `@TestConfiguration` is not picked up by component scanning, and no
       test imports it
-- [ ] Delete `backend/HELP.md`, the Spring Initializr's generated help. Confirm no document links it
-- [ ] `RecipeIngredientJpaRepository` extends `JpaRepository<RecipeIngredient, RecipeIngredientPK>`.
+- [x] Delete `backend/HELP.md`, the Spring Initializr's generated help. Confirm no document links it
+- [x] `RecipeIngredientJpaRepository` extends `JpaRepository<RecipeIngredient, RecipeIngredientPK>`.
       Nothing calls `findById` or `deleteById` on it today, so no caller changes; the point is that
       one could not be called with a `UUID` and silently find nothing
-- [ ] The stale `recipesadmin` comment in `db/liquibase.properties` (decision 5)
-- [ ] Docs: the two items leave `future_enhancements.md`; `backend/CLAUDE.md` if it mentions either
+- [x] The stale `recipesadmin` comment in `db/liquibase.properties` (decision 5)
+- [x] Docs: the two items leave `future_enhancements.md`; `backend/CLAUDE.md` if it mentions either
 
 **Tests.** None new: the point is that the suite does not move. The repository's own `*IT` covers
 its derived queries.
 
 **Verify it yourself.** `.\mvnw clean verify` with the same counts as Part 1's baseline.
 `git grep TestingConfiguration HELP.md` finds nothing outside `docs/`.
+
+**Done (2026-10-08).** Deviations and findings:
+
+- Both files were referenced only by their own `future_enhancements.md` entry. The test `config`
+  package held nothing else, so it is gone too
+- **`liquibase.properties` was stale twice, not once.** Besides naming `recipesadmin`, its `url`
+  pointed at port 3306, where nothing listens since the local MySQL was removed in Part 0 of the
+  MVP. Proven: `./mvnw liquibase:status` with the stack's `recipesuser` failed on 3306 and
+  reported "is up to date" on 3307, the stack's `DB_HOST_PORT`. The url is now 3307, and the
+  comment names `recipesuser` and says where the port comes from. Run as configured afterwards:
+  "is up to date"
+- `./mvnw clean verify`: 278 unit, 129 integration - the baseline, unchanged
 
 ---
 
