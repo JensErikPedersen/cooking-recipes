@@ -45,3 +45,30 @@ test("logging out returns to the login page, and the back button does not re-ent
   await expect(page).toHaveURL("/login");
   await expect(page.getByRole("banner")).toHaveCount(0);
 });
+
+// Signs in on the login page as it stands - unlike signIn(), without loading /login afresh, which
+// would drop the ?next= the redirect put there.
+async function signInHere(page: import("@playwright/test").Page) {
+  await page.getByLabel("Username").fill(USERNAME);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+test("a page asked for before signing in is where signing in leads", async ({ page }) => {
+  await page.goto("/recipes");
+  await expect(page).toHaveURL("/login?next=%2Frecipes");
+
+  await signInHere(page);
+
+  await expect(page).toHaveURL("/recipes");
+});
+
+for (const elsewhere of ["https://elsewhere.example", "//elsewhere.example", "/\\elsewhere.example"]) {
+  test(`a next of ${elsewhere} is ignored: signing in leads to the start page`, async ({ page }) => {
+    await page.goto(`/login?next=${encodeURIComponent(elsewhere)}`);
+
+    await signInHere(page);
+
+    await expectSignedIn(page);
+  });
+}

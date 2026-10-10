@@ -188,13 +188,3 @@ accounts have to be created by an init script mounted into
 **Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
 deliberate act with its own credentials rather than something the runtime user could do by
 accident.
-
----
-
-## Smaller items deferred during Parts 2-7
-
-Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
-step's notes in `docs/PLAN.md`.
-
-- **Sign-in does not return to where you were heading**: after signing in you land on the start
-  page. Deliberately left out in 4b for simplicity.

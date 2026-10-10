@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PASSWORD, USERNAME } from "../support/auth";
 import { main } from "../support/pages";
 
 // What a page shows when there is nothing yet, while it waits, at an address nothing answers,
@@ -37,7 +38,9 @@ test("an address no page answers shows not found, with the way back", async ({ p
   await expect(page).toHaveURL("/");
 });
 
-test("when the session ends while a page is open, the next page goes to sign in", async ({ page }) => {
+test("when the session ends while a page is open, the next page goes to sign in, and back after it", async ({
+  page,
+}) => {
   await page.goto("/recipes");
   await expect(main(page).getByRole("link", { name: "Brunkage", exact: true })).toBeVisible();
 
@@ -46,6 +49,11 @@ test("when the session ends while a page is open, the next page goes to sign in"
   await page.context().addCookies([{ name: "JSESSIONID", value: "ended", domain: "localhost", path: "/" }]);
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Categories" }).click();
 
-  await expect(page).toHaveURL("/login");
+  await expect(page).toHaveURL("/login?next=%2Fcategories");
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await page.getByLabel("Username").fill(USERNAME);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL("/categories");
 });

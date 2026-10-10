@@ -258,16 +258,16 @@ or 404 - say which.
 
 One step, frontend and e2e.
 
-- [ ] `proxy.ts` redirects to `/login?next=<the path and query asked for>`
-- [ ] `lib/api.ts`, on a 401 while a page is open, does the same with the current page
-- [ ] The login page signs in and goes to `next` if it is a path on this site - starts with `/`,
+- [x] `proxy.ts` redirects to `/login?next=<the path and query asked for>`
+- [x] `lib/api.ts`, on a 401 while a page is open, does the same with the current page
+- [x] The login page signs in and goes to `next` if it is a path on this site - starts with `/`,
       not `//` - and to `/` otherwise. A link to `/login?next=https://elsewhere.example` must land
       on `/`
-- [ ] The register page keeps going to the Welcome page: a new account has nowhere it was heading
-- [ ] Note for the implementation: `useSearchParams` in a page Next prerenders needs a
+- [x] The register page keeps going to the Welcome page: a new account has nowhere it was heading
+- [x] Note for the implementation: `useSearchParams` in a page Next prerenders needs a
       `<Suspense>` boundary; check the Next 16 guide in `node_modules/next/dist/docs/` first, as
       `frontend/AGENTS.md` asks
-- [ ] Docs: `frontend/CLAUDE.md`; the item leaves `future_enhancements.md`, and with it the
+- [x] Docs: `frontend/CLAUDE.md`; the item leaves `future_enhancements.md`, and with it the
       "Smaller items" heading
 
 **Tests.** Playwright, starting signed out: opening a recipe's URL leads to sign-in and, after it,
@@ -277,3 +277,29 @@ open page, act, sign in, and arrive back on that page.
 
 **Verify it yourself.** In a private window, open `http://localhost:3000/recipes` directly: you are
 asked to sign in, and afterwards you are on Recipes, not the Welcome page.
+
+**Done (2026-10-10).** Deviations and findings:
+
+- `lib/return-to.ts` holds the rule twice used: `loginPath` builds `/login?next=...`, leaving the
+  bare `/login` for the start page, so the existing tests that expect it still hold; `afterSignIn`
+  follows `next` only if it starts with `/` and not with `//` or `/\`
+- **No `useSearchParams`, so no `<Suspense>`.** The login page reads `next` from
+  `window.location` in its submit handler, which only ever runs in the browser. The build still
+  lists `/login` as prerendered
+- Tests first: "a page asked for before signing in is where signing in leads", three off-site
+  `next` values, and the existing expired-session test in `states.spec.ts` extended to sign in and
+  land back on the page. The two return-to tests failed before the change. The off-site checks
+  were proven by building a `next ?? "/"` version into the stack: all three failed
+- Found on the way: the backslash case first passed through as `/elsewhere.example` - the shell
+  that wrote the spec had collapsed `\\` to `\`, and in JavaScript `\e` is `e`. The app was right
+  to follow a path on its own site; the test data was wrong, and is fixed
+- Lint and `tsc` clean. Playwright: 107 (103 + 4). Backend unchanged: 263 unit, 135 integration
+- `future_enhancements.md` has no "Smaller items" section any more: this was the last
+
+## Version 3 as a whole
+
+**Done.** The six smaller items are gone from `future_enhancements.md`: dead code and a mistyped
+repository id, a 409 that now means a conflict, a `Location` the browser can use, an unused
+sub-resource removed, and sign-in that returns where you were heading. Found on the way and fixed:
+a Liquibase plugin config pointing at a port nothing listened on. `./mvnw clean verify`: 263 unit,
+135 integration. Playwright: 107.

@@ -2,6 +2,8 @@
 // stays on this origin and next.config.ts forwards the call - the session and CSRF cookies are
 // first-party and there is no CORS.
 
+import { loginPath } from "@/lib/return-to";
+
 /** The backend's error envelope, as every non-2xx response carries it. */
 export interface ErrorEnvelope {
   errorCode: number;
@@ -60,7 +62,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   // 401 to whatever the page asks next. Go to sign in rather than show the error. Not for the login
   // call itself, whose 401 is a wrong password for the login page to show.
   if (response.status === 401 && path !== "/auth/login") {
-    window.location.replace("/login");
+    window.location.replace(loginPath(window.location.pathname + window.location.search));
   }
   if (!response.ok) {
     throw new ApiError(response.status, JSON.parse(text));

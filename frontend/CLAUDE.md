@@ -27,6 +27,12 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   And any 401 from the API - `/me` included, the login call excepted - sends the browser to
   `/login` from `request()` in `lib/api.ts`, so a session that ends while a page is open leads to
   sign in rather than an error. None of this is the security - the backend answers 401 regardless.
+- Both redirects carry the page asked for as `/login?next=...` (`loginPath` in `lib/return-to.ts`),
+  and the login page returns there after signing in - but only to a path on this site:
+  `afterSignIn` sends `https://...`, `//host` and `/\host` to `/`, so a crafted link cannot lead
+  a user elsewhere. The login page reads `next` from `window.location` in its submit handler, not
+  with `useSearchParams`, which would need a `<Suspense>` boundary to keep the page prerendered.
+  Logging out goes to the bare `/login`.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
   it is given; "No <things> yet." when empty. A read view or edit page wraps itself in
