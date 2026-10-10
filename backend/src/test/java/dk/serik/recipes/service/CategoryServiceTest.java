@@ -5,6 +5,7 @@ import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.dto.CategoryDTO;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockCategoryUtil;
 import dk.serik.recipes.model.Category;
 import dk.serik.recipes.repository.CategoryJpaRepository;
@@ -251,8 +252,9 @@ public class CategoryServiceTest {
         assertThatThrownBy(() -> service.save(MockCategoryUtil.mockToBeSavedDessertDTO()))
                 .isInstanceOf(ServiceException.class)
                 .hasMessage("A category named 'Dessert' already exists")
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A category named 'Dessert' already exists")));
         verify(repository, never()).save(any());
     }
 
@@ -264,8 +266,9 @@ public class CategoryServiceTest {
 
         assertThatThrownBy(() -> service.update(MockCategoryUtil.mockToBeUpdatedDessertDTO()))
                 .isInstanceOf(ServiceException.class)
-                .extracting("code", "httpStatus", "field")
-                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+                .extracting("code", "httpStatus", "fieldErrors")
+                .containsExactly(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+                        List.of(new ValidationExceptionEnvelope("name", "A category named 'Dessert' already exists")));
         verify(repository, never()).save(any());
     }
 

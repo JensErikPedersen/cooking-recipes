@@ -4,6 +4,7 @@ import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.TagService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -29,9 +30,12 @@ import java.util.List;
  * See {@code docs/future_enhancements.md}.
  */
 @RestController
-@RequestMapping("/api/v1/tags")
+@RequestMapping(TagController.PATH)
 @AllArgsConstructor
 public class TagController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/tags";
 
     private final TagService tagService;
 
@@ -41,7 +45,7 @@ public class TagController {
     }
 
     @GetMapping("/{id}")
-    public TagDTO findById(@PathVariable String id) {
+    public TagDTO findById(@PathVariable @UUID String id) {
         return tagService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -49,7 +53,7 @@ public class TagController {
     @PostMapping
     public ResponseEntity<TagDTO> create(@Valid @RequestBody TagDTO tagDTO) {
         TagDTO saved = tagService.save(tagDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();
@@ -61,13 +65,13 @@ public class TagController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public TagDTO update(@PathVariable String id, @Valid @RequestBody TagDTO tagDTO) {
+    public TagDTO update(@PathVariable @UUID String id, @Valid @RequestBody TagDTO tagDTO) {
         tagDTO.setId(id);
         return tagService.update(tagDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!tagService.delete(id)) {
             throw notFound(id);
         }

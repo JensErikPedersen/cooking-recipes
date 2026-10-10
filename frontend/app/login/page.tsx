@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, auth } from "@/lib/api";
+import { afterSignIn } from "@/lib/return-to";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +17,9 @@ export default function LoginPage() {
     setError(null);
     try {
       await auth.login(username, password);
-      router.push("/");
+      // Read here rather than with useSearchParams: this runs only in the browser, so the page
+      // stays prerendered without a Suspense boundary.
+      router.push(afterSignIn(new URLSearchParams(window.location.search).get("next")));
     } catch (caught) {
       // The backend answers a wrong password and an unknown user alike, on purpose.
       setError(caught instanceof ApiError ? caught.message : "Sign in failed. Please try again.");
@@ -58,6 +62,12 @@ export default function LoginPage() {
           Sign in
         </button>
       </form>
+      <p className="mt-6 text-sm">
+        No account yet?{" "}
+        <Link href="/register" className="underline">
+          Create an account
+        </Link>
+      </p>
     </main>
   );
 }

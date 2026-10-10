@@ -4,6 +4,7 @@
 
 This project is building a MVP version of a Cooking Recipe App. Key features:
 - A user can sign in
+- A visitor can register an account of their own from the sign-in page, and is signed in with it
 - A user sees a Welcome page with a short description of the application and a menu showing menu items with links to different entity types (Recipes, Categories, Ingredients etc.). There should also be a logout button.
 - When an entity is opened from the list, it is shown in Read mode with an edit button and a delete button.
 - When the user creates a new entity (eg. Ingredient), a form is shown with Save and Cancel buttons.
@@ -12,19 +13,20 @@ This project is building a MVP version of a Cooking Recipe App. Key features:
 
 ## Limitations
 
-For the MVP there is a single user account, created on first run from environment-supplied
-credentials. It lives in an `app_user` table, so the schema supports multiple users from the
-start - but there is no sign-up, no user administration screen and no per-user ownership of data.
-Those are future versions.
+The MVP has a single user account, created on first run from environment-supplied credentials, in
+an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
+(`docs/PLAN_V2.md` Part 5). There is still no user administration screen, no password change or
+reset, no enforcement of roles and no per-user ownership of data: every account sees and edits
+everything. Those are future versions.
 
-Ratings are out of scope for this MVP. The `Rating` and `RecipeRating` entities exist in the
+Ratings are out of scope, in the MVP and in versions 2 and 3. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
 
 For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-All commands below work today. Each part of `docs/PLAN.md` confirms its commands here as it lands.
+All commands below work today. Each part of `docs/PLAN_V3.md` confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 
@@ -81,6 +83,8 @@ Base URL is `http://localhost:3000`, overridden by `PLAYWRIGHT_BASE_URL`. A setu
 through the login page, with the account from the repository's `.env`, and saves the session in
 `e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out. Tests
 remove what they create, through the API in `e2e/support/api.ts`, so the stack's data stays as seeded.
+Accounts have no delete endpoint: `e2e/support/accounts.ts` removes them with SQL through
+`docker compose exec mysql`, so the registration tests need `docker` on the PATH.
 They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
 
 ## Technical Decisions
@@ -127,7 +131,9 @@ failed. Sign in (Part 4) made the application writable - see `backend/CLAUDE.md`
 ## Working documentation
 
 All documents for planning and executing this project are in `docs/`.
-Review `docs/PLAN.md` before proceeding.
+`docs/PLAN_V3.md` is the current plan; review it before proceeding. `docs/PLAN.md` (the MVP) and
+`docs/PLAN_V2.md` (the first enhancements) are finished, kept as the record of how and why each
+was built.
 
 There is a `CLAUDE.md` per layer: this file holds project-wide rules, `backend/CLAUDE.md` maps the
 existing backend code, and `frontend/CLAUDE.md` holds frontend conventions once that layer exists.
@@ -135,12 +141,12 @@ Keep each one to what is specific to its layer; do not duplicate this file.
 
 ## Work process
 
-When implementing the solution, start by reading `docs/PLAN.md`.
+When implementing the solution, start by reading `docs/PLAN_V3.md`.
 Be critical of the plan and suggest improvements if something can be sliced better. The main goal
 is structured, well-tested, robust, minor increments.
 Never proceed from one step to the next automatically. Wait for review and acceptance first.
 Commits to git happen after every step involving code or documentation updates.
-Enrich `docs/PLAN.md` as work progresses and check off each step to show progress.
+Enrich `docs/PLAN_V3.md` as work progresses and check off each step to show progress.
 ALWAYS ask questions when in doubt.
 Never make any major decision without consulting first.
 

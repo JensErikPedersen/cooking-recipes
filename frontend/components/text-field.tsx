@@ -7,6 +7,8 @@ export function TextField({
   onChange,
   error,
   multiline = false,
+  type = "text",
+  autoComplete,
 }: {
   label: string;
   name: string;
@@ -14,6 +16,8 @@ export function TextField({
   onChange: (value: string) => void;
   error?: string;
   multiline?: boolean;
+  type?: "text" | "password";
+  autoComplete?: string;
 }) {
   const errorId = `${name}-error`;
   const props = {
@@ -33,7 +37,7 @@ export function TextField({
       {multiline ? (
         <textarea rows={3} {...props} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input {...props} onChange={(event) => onChange(event.target.value)} />
+        <input {...props} type={type} autoComplete={autoComplete} onChange={(event) => onChange(event.target.value)} />
       )}
       {error && (
         <p id={errorId} className="text-sm text-red-700">

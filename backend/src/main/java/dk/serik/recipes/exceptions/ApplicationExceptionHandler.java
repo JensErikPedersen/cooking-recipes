@@ -3,19 +3,24 @@ package dk.serik.recipes.exceptions;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
+import org.hibernate.exception.ConstraintViolationException.ConstraintKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.method.ParameterErrors;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -37,9 +42,7 @@ public class ApplicationExceptionHandler {
                 .errorCode(ex.getCode())
                 .build();
         // Same shape as a Bean Validation failure, so a client shows both on the field the same way.
-        if (ex.getField() != null) {
-            exceptionEnvelope.addValidationException(new ValidationExceptionEnvelope(ex.getField(), ex.getMessage()));
-        }
+        ex.getFieldErrors().forEach(exceptionEnvelope::addValidationException);
         return new ResponseEntity<>(exceptionEnvelope, ex.getHttpStatus());
     }
 
@@ -74,16 +77,30 @@ public class ApplicationExceptionHandler {
     }
 
     // A database constraint no service checks first, or a write that lost the race against one it
-    // does. Raised at commit, after the service has returned. The message names tables and
+    // does. Raised at commit, after the service has returned. Only a unique or foreign key violation
+    // is a conflict the client can resolve; NOT NULL, CHECK and anything unrecognised are the
+    // server's own fault, and go to the general handler as a 500. The message names tables and
     // constraints, so it is logged and not echoed.
     @ExceptionHandler(value = { DataIntegrityViolationException.class })
     @ResponseBody
     public ResponseEntity<ExceptionEnvelope> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        if (!isConflict(ex)) {
+            return handleGeneralException(ex);
+        }
         logger.warn("Data integrity violation: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ExceptionEnvelope.builder()
                 .message("The change conflicts with existing data")
                 .errorCode(ApplicationErrorCodes.DATA_CONFLICT.getCode())
                 .build());
+    }
+
+    // Hibernate names the kind from the database's error code - the same kinds on H2 and MySQL, both
+    // checked - and Spring passes its exception on as the cause. Plain JDBC, which AppUserWriter
+    // uses, has no kind: there a duplicate key arrives as Spring's DuplicateKeyException.
+    private static boolean isConflict(DataIntegrityViolationException ex) {
+        return ex instanceof DuplicateKeyException
+                || ex.getCause() instanceof org.hibernate.exception.ConstraintViolationException violation
+                        && (violation.getKind() == ConstraintKind.UNIQUE || violation.getKind() == ConstraintKind.FOREIGN_KEY);
     }
 
     private ResponseEntity<ExceptionEnvelope> rejected(HttpStatusCode status, String message) {
@@ -98,15 +115,41 @@ public class ApplicationExceptionHandler {
     @ResponseBody
     public ExceptionEnvelope handleConstraintViolationException(ConstraintViolationException ex) {
         logger.info("handle ConstraintViolationException: " + ex);
-        ExceptionEnvelope exceptionEnvelope = ExceptionEnvelope.builder()
-                .errorCode(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
-                .message("Validation Exception")
-                .description("One or more fields, parameters or type do not pass violation criteria")
-                .build();
+        ExceptionEnvelope exceptionEnvelope = validationEnvelope();
         Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
         processFieldErrors(exceptionEnvelope, violations);
 
         return exceptionEnvelope;
+    }
+
+    // A constraint on a controller parameter, such as the @UUID on every path id. A method with one
+    // has its @Valid body validated in the same pass, so a PUT's body errors arrive here too rather
+    // than as a MethodArgumentNotValidException: they are reported by field, the parameters by name.
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(value = { HandlerMethodValidationException.class })
+    @ResponseBody
+    public ExceptionEnvelope handleHandlerMethodValidationException(HandlerMethodValidationException ex) {
+        logger.info("handle HandlerMethodValidationException: {}", ex.getMessage());
+        ExceptionEnvelope exceptionEnvelope = validationEnvelope();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            if (result instanceof ParameterErrors errors) {
+                errors.getFieldErrors().forEach(error -> exceptionEnvelope.addValidationException(
+                        new ValidationExceptionEnvelope(error.getField(), error.getDefaultMessage())));
+            } else {
+                String parameter = result.getMethodParameter().getParameterName();
+                result.getResolvableErrors().forEach(error -> exceptionEnvelope.addValidationException(
+                        new ValidationExceptionEnvelope(parameter, error.getDefaultMessage())));
+            }
+        }
+        return exceptionEnvelope;
+    }
+
+    private ExceptionEnvelope validationEnvelope() {
+        return ExceptionEnvelope.builder()
+                .errorCode(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
+                .message("Validation Exception")
+                .description("One or more fields, parameters or type do not pass violation criteria")
+                .build();
     }
 
     private void processFieldErrors(ExceptionEnvelope exceptionEnvelope, Set<ConstraintViolation<?>> violations) {

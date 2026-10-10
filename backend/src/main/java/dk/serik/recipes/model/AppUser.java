@@ -9,8 +9,9 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * An account that can sign in. Read-only in this application: the only row is created by
- * {@code AdminBootstrap} with plain SQL, and there is no user administration.
+ * An account that can sign in. Read-only through JPA: rows are created with plain SQL by
+ * {@code AppUserWriter} - the first by {@code AdminBootstrap}, the rest by registration - and there
+ * is no user administration.
  * <p>
  * Named {@code AppUser} because {@code user} is a reserved word in several databases, and
  * {@code User} clashes with Spring Security's own class.

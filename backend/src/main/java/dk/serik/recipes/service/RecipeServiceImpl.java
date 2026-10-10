@@ -6,6 +6,7 @@ import dk.serik.recipes.dto.RecipeRatingDTO;
 import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mapper.RecipeMapper;
 import dk.serik.recipes.model.*;
 import dk.serik.recipes.repository.*;
@@ -126,64 +127,6 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     @Override
-    public RecipeDTO addRecipeIngredient(RecipeIngredientDTO dto) {
-        requireRecipeAndIngredientIds(dto);
-        requireUnitAndAmount(dto);
-
-        Recipe recipe = findRecipeOrThrow(dto.getRecipeId());
-        Ingredient ingredient = findIngredientOrThrow(dto.getIngredientId());
-        Unit unit = findUnitOrThrow(dto.getUnitId());
-
-        findRecipeIngredient(dto).ifPresent(existing -> {
-            throw ServiceException.builder()
-                    .message(String.format("Ingredient %s is already part of recipe %s", dto.getIngredientId(), dto.getRecipeId()))
-                    .code(ApplicationErrorCodes.RECIPE_INGREDIENT_ALREADY_EXISTS.getCode())
-                    .httpStatus(HttpStatus.CONFLICT)
-                    .build();
-        });
-
-        RecipeIngredient recipeIngredient = RecipeIngredient.builder()
-                .ingredient(ingredient)
-                .unit(unit)
-                .amount(dto.getAmount())
-                .build();
-        recipe.addRecipeIngredient(recipeIngredient);
-
-        return RecipeMapper.from(repository.save(recipe));
-    }
-
-    @Override
-    public RecipeDTO deleteRecipeIngredient(RecipeIngredientDTO dto) {
-        requireRecipeAndIngredientIds(dto);
-
-        Recipe recipe = findRecipeOrThrow(dto.getRecipeId());
-        RecipeIngredient managed = findRecipeIngredientOrThrow(dto);
-
-        if(Objects.nonNull(recipe.getRecipeIngredients())) {
-            recipe.getRecipeIngredients().remove(managed);
-        }
-        // the association has no orphanRemoval, so the row must be deleted explicitly
-        recipeIngredientJpaRepository.delete(managed);
-
-        return RecipeMapper.from(recipe);
-    }
-
-    @Override
-    public RecipeDTO updateRecipeIngredient(RecipeIngredientDTO dto) {
-        requireRecipeAndIngredientIds(dto);
-        requireUnitAndAmount(dto);
-
-        Recipe recipe = findRecipeOrThrow(dto.getRecipeId());
-        RecipeIngredient managed = findRecipeIngredientOrThrow(dto);
-
-        managed.setAmount(dto.getAmount());
-        managed.setUnit(findUnitOrThrow(dto.getUnitId()));
-        recipeIngredientJpaRepository.save(managed);
-
-        return RecipeMapper.from(recipe);
-    }
-
-    @Override
     public RecipeDTO addRecipeRating(RecipeRatingDTO dto) {
         // Ratings are deliberately out of scope for this version. Fail loudly rather than
         // returning null, so a caller cannot mistake this for a successful no-op.
@@ -202,70 +145,11 @@ public class RecipeServiceImpl implements RecipeService {
         }
     }
 
-    private void requireRecipeAndIngredientIds(RecipeIngredientDTO dto) {
-        if(Objects.isNull(dto)) {
-            throw ServiceException.builder()
-                    .message("RecipeIngredient is null")
-                    .code(ApplicationErrorCodes.RECIPE_INGREDIENT_DTO_IS_NULL.getCode())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        if(Objects.isNull(dto.getRecipeId()) || Objects.isNull(dto.getIngredientId())) {
-            throw ServiceException.builder()
-                    .message("RecipeIngredient requires both a recipe id and an ingredient id")
-                    .code(ApplicationErrorCodes.ID_IS_NULL.getCode())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
-    private void requireUnitAndAmount(RecipeIngredientDTO dto) {
-        if(Objects.isNull(dto.getUnitId()) || Objects.isNull(dto.getAmount())) {
-            throw ServiceException.builder()
-                    .message("RecipeIngredient requires both a unit id and an amount")
-                    .code(ApplicationErrorCodes.ID_IS_NULL.getCode())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-
     private Recipe findRecipeOrThrow(String recipeId) {
         return repository.findById(ServiceArguments.toUuid(recipeId, ApplicationErrorCodes.RECIPE_ID_IS_NULL, "Recipe"))
                 .orElseThrow(() -> ServiceException.builder()
                         .message("Cannot find recipe with id: " + recipeId)
                         .code(ApplicationErrorCodes.RECIPE_NOT_FOUND.getCode())
-                        .httpStatus(HttpStatus.NOT_FOUND)
-                        .build());
-    }
-
-    private Ingredient findIngredientOrThrow(String ingredientId) {
-        return ingredientJpaRepository.findById(ServiceArguments.toUuid(ingredientId, ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient"))
-                .orElseThrow(() -> ServiceException.builder()
-                        .message("Cannot find ingredient with id: " + ingredientId)
-                        .code(ApplicationErrorCodes.INGREDIENT_NOT_FOUND.getCode())
-                        .httpStatus(HttpStatus.NOT_FOUND)
-                        .build());
-    }
-
-    private Unit findUnitOrThrow(String unitId) {
-        return unitJpaRepository.findById(ServiceArguments.toUuid(unitId, ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"))
-                .orElseThrow(() -> ServiceException.builder()
-                        .message("Cannot find unit with id: " + unitId)
-                        .code(ApplicationErrorCodes.UNIT_NOT_FOUND.getCode())
-                        .httpStatus(HttpStatus.NOT_FOUND)
-                        .build());
-    }
-
-    private Optional<RecipeIngredient> findRecipeIngredient(RecipeIngredientDTO dto) {
-        return recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(
-                ServiceArguments.toUuid(dto.getRecipeId(), ApplicationErrorCodes.RECIPE_ID_IS_NULL, "Recipe"), ServiceArguments.toUuid(dto.getIngredientId(), ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient"));
-    }
-
-    private RecipeIngredient findRecipeIngredientOrThrow(RecipeIngredientDTO dto) {
-        return findRecipeIngredient(dto)
-                .orElseThrow(() -> ServiceException.builder()
-                        .message(String.format("Ingredient %s is not part of recipe %s", dto.getIngredientId(), dto.getRecipeId()))
-                        .code(ApplicationErrorCodes.RECIPE_INGREDIENT_NOT_FOUND.getCode())
                         .httpStatus(HttpStatus.NOT_FOUND)
                         .build());
     }
@@ -359,9 +243,10 @@ public class RecipeServiceImpl implements RecipeService {
     /**
      * Resolves the nested ingredient payload onto the recipe.
      * <p>
-     * Every entry is checked before any is attached, and all problems are reported together in one
+     * Every line is checked before any is attached, and all problems are reported together in one
      * 400 rather than one-at-a-time, because a caller fixing a bulk payload needs the whole list.
-     * Each is a sentence naming the ingredient, for the recipe form to show under its lines.
+     * Each is reported on its line and input - {@code recipeIngredients[2].amount} - for the recipe
+     * form to show there, so one line can carry a problem on each of its inputs.
      * Nothing is skipped silently: this method used to log {@code "RecipeIngredientDTO is not
      * valid"} and drop the entry, so a create carrying ingredients returned 201 describing a recipe
      * that had none.
@@ -381,45 +266,54 @@ public class RecipeServiceImpl implements RecipeService {
             return;
         }
 
-        List<String> problems = new ArrayList<>();
+        List<ValidationExceptionEnvelope> problems = new ArrayList<>();
         List<RecipeIngredient> resolved = new ArrayList<>();
-        Set<UUID> listed = new HashSet<>();
+        // The recipe keeps its lines in a set keyed by ingredient, which would silently drop the
+        // second of two lines for the same ingredient. This holds the line each one is first on.
+        Map<UUID, Integer> firstLine = new HashMap<>();
 
-        for(RecipeIngredientDTO dto : recipeDTO.getRecipeIngredients()) {
-            if(Objects.isNull(dto) || Objects.isNull(dto.getIngredientId())) {
-                problems.add("A line has no ingredient.");
-                continue;
+        List<RecipeIngredientDTO> lines = recipeDTO.getRecipeIngredients();
+        for(int index = 0; index < lines.size(); index++) {
+            String field = "recipeIngredients[" + index + "].";
+            // a null in the list is a line with nothing chosen
+            RecipeIngredientDTO dto = Objects.requireNonNullElseGet(lines.get(index), () -> RecipeIngredientDTO.builder().build());
+
+            // Checked in the order the form shows them: ingredient, amount, unit.
+            UUID ingredientId = null;
+            Optional<Ingredient> ingredient = Optional.empty();
+            if(Objects.isNull(dto.getIngredientId())) {
+                problems.add(new ValidationExceptionEnvelope(field + "ingredientId", "Choose an ingredient."));
+            } else {
+                ingredientId = ServiceArguments.toUuid(dto.getIngredientId(), ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient");
+                ingredient = ingredientJpaRepository.findById(ingredientId);
+                if(ingredient.isEmpty()) {
+                    problems.add(new ValidationExceptionEnvelope(field + "ingredientId", "This ingredient does not exist."));
+                } else if(firstLine.containsKey(ingredientId)) {
+                    problems.add(new ValidationExceptionEnvelope(field + "ingredientId",
+                            ingredient.get().getName() + " is already on line " + (firstLine.get(ingredientId) + 1) + "."));
+                } else {
+                    firstLine.put(ingredientId, index);
+                }
             }
 
-            UUID ingredientId = ServiceArguments.toUuid(dto.getIngredientId(), ApplicationErrorCodes.INGREDIENT_ID_IS_NULL, "Ingredient");
-
-            Optional<Ingredient> ingredient = ingredientJpaRepository.findById(ingredientId);
-            if(ingredient.isEmpty()) {
-                problems.add("A line names an ingredient that does not exist.");
-                continue;
-            }
-            String name = ingredient.get().getName();
-            // The recipe keeps its lines in a set keyed by ingredient, which would silently drop the
-            // second of two lines for the same ingredient.
-            if(!listed.add(ingredientId)) {
-                problems.add(name + " is listed more than once.");
-                continue;
-            }
-            if(Objects.isNull(dto.getUnitId())) {
-                problems.add(name + " has no unit.");
-                continue;
-            }
-            Optional<Unit> unit = unitJpaRepository.findById(ServiceArguments.toUuid(dto.getUnitId(), ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"));
-            if(unit.isEmpty()) {
-                problems.add(name + " has a unit that does not exist.");
-                continue;
-            }
             if(Objects.isNull(dto.getAmount()) || dto.getAmount().signum() <= 0) {
-                problems.add(name + " needs an amount above zero.");
-                continue;
+                problems.add(new ValidationExceptionEnvelope(field + "amount", "Needs an amount above zero."));
+            } else if(dto.getAmount().compareTo(MAX_AMOUNT) > 0) {
+                problems.add(new ValidationExceptionEnvelope(field + "amount", "At most " + MAX_AMOUNT.toPlainString() + "."));
             }
-            if(dto.getAmount().compareTo(MAX_AMOUNT) > 0) {
-                problems.add(name + " needs an amount of at most " + MAX_AMOUNT.toPlainString() + ".");
+
+            Optional<Unit> unit = Optional.empty();
+            if(Objects.isNull(dto.getUnitId())) {
+                problems.add(new ValidationExceptionEnvelope(field + "unitId", "Choose a unit."));
+            } else {
+                unit = unitJpaRepository.findById(ServiceArguments.toUuid(dto.getUnitId(), ApplicationErrorCodes.UNIT_ID_IS_NULL, "Unit"));
+                if(unit.isEmpty()) {
+                    problems.add(new ValidationExceptionEnvelope(field + "unitId", "This unit does not exist."));
+                }
+            }
+
+            if(!problems.isEmpty()) {
+                // nothing will be written, so there is no line to build
                 continue;
             }
 
@@ -427,9 +321,10 @@ public class RecipeServiceImpl implements RecipeService {
             Optional<RecipeIngredient> existing = Objects.isNull(recipe.getId())
                     ? Optional.empty()
                     : recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(recipe.getId(), ingredientId);
+            Ingredient chosen = ingredient.get();
             RecipeIngredient line = existing.orElseGet(() -> RecipeIngredient.builder()
                     .recipe(recipe)
-                    .ingredient(ingredient.get())
+                    .ingredient(chosen)
                     .build());
             line.setUnit(unit.get());
             line.setAmount(dto.getAmount());
@@ -437,18 +332,15 @@ public class RecipeServiceImpl implements RecipeService {
         }
 
         if(!problems.isEmpty()) {
-            // One message on the field, sorted: the lines arrive as a set, so their order - and an
-            // index to point at - is lost, and an unsorted message would change from call to call.
             throw ServiceException.builder()
-                    .message(String.join(" ", problems.stream().distinct().sorted().toList()))
+                    .message("One or more ingredient lines are invalid")
                     .code(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode())
                     .httpStatus(HttpStatus.BAD_REQUEST)
-                    .field("recipeIngredients")
+                    .fieldErrors(problems)
                     .build();
         }
 
-        // The association has no orphanRemoval, so a dropped line's row is deleted explicitly, as
-        // deleteRecipeIngredient does.
+        // The association has no orphanRemoval, so a dropped line's row is deleted explicitly.
         if(Objects.nonNull(recipe.getRecipeIngredients())) {
             List<RecipeIngredient> dropped = recipe.getRecipeIngredients().stream()
                     .filter(line -> !resolved.contains(line))

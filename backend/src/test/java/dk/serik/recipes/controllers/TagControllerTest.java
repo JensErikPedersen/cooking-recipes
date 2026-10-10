@@ -22,7 +22,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -99,19 +98,6 @@ public class TagControllerTest {
     }
 
     @Test
-    @DisplayName("Given a malformed id, When GET by id, Then 400 from the service-layer id check")
-    public void shouldReturn400ForMalformedId() throws Exception {
-        given(tagService.findById("not-a-uuid"))
-                .willThrow(ServiceException.badRequest(ApplicationErrorCodes.TAG_ID_IS_NULL,
-                        "Tag Id 'not-a-uuid' is not a valid UUID"));
-
-        mockMvc.perform(get(BASE + "/{id}", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.TAG_ID_IS_NULL.getCode()))
-                .andExpect(jsonPath("$.message").value(containsString("not a valid UUID")));
-    }
-
-    @Test
     @DisplayName("Given a valid payload, When POST, Then 201 with a Location header")
     public void shouldCreateTag() throws Exception {
         given(tagService.save(any())).willReturn(MockTagUtil.mockMexiTagDTO());
@@ -120,7 +106,7 @@ public class TagControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(TagDTO.builder().name("Mexi").build())))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", endsWith(BASE + "/" + ID)))
+                .andExpect(header().string("Location", BASE + "/" + ID))
                 .andExpect(jsonPath("$.name").value("Mexi"));
     }
 

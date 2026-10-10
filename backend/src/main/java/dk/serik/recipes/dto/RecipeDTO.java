@@ -11,6 +11,7 @@ import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -30,7 +31,8 @@ public class RecipeDTO extends BaseIdentityDTO {
 
 	private CategoryDTO category;
 
-	private Set<RecipeIngredientDTO> recipeIngredients;
+	// A list, not a set: the order of a request's lines is what a reported problem can point into.
+	private List<RecipeIngredientDTO> recipeIngredients;
 
 	private Set<RecipeRatingDTO> recipeRatings;
 
@@ -38,7 +40,7 @@ public class RecipeDTO extends BaseIdentityDTO {
 
 	@Builder
 	@Jacksonized
-	public RecipeDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description, String instructions, String categoryId, String categoryName, Set<RecipeIngredientDTO> recipeIngredients, Set<RecipeRatingDTO> recipeRatings, Set<TagDTO> tags) {
+	public RecipeDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description, String instructions, String categoryId, String categoryName, List<RecipeIngredientDTO> recipeIngredients, Set<RecipeRatingDTO> recipeRatings, Set<TagDTO> tags) {
 		super(id, created, createdBy, updated, updatedBy);
 		this.name = name;
 		this.description = description;

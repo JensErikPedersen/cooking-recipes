@@ -163,14 +163,14 @@ class RecipeIT {
 	}
 
 	@Test
-	@DisplayName("Given a line without an amount, When POST, Then 400 on the recipeIngredients field naming the ingredient")
+	@DisplayName("Given a line without an amount, When POST, Then 400 on that line's amount")
 	void shouldRejectLineWithoutAmount() throws Exception {
 		Map<String, Object> body = Map.of(
 				"name", uniqueName(),
 				"category", Map.of("id", BROED),
 				"recipeIngredients", List.of(Map.of("ingredientId", HVEDEMEL, "unitId", GRAM)));
 
-		assertLinesRejected(post(RECIPES), body, "Hvedemel needs an amount above zero.");
+		assertLinesRejected(post(RECIPES), body, "recipeIngredients[0].amount", "Needs an amount above zero.");
 	}
 
 	@Test
@@ -181,22 +181,34 @@ class RecipeIT {
 				"category", Map.of("id", BROED),
 				"recipeIngredients", List.of(line(HVEDEMEL, 10000, GRAM)));
 
-		assertLinesRejected(post(RECIPES), body, "Hvedemel needs an amount of at most 9999.99.");
+		assertLinesRejected(post(RECIPES), body, "recipeIngredients[0].amount", "At most 9999.99.");
 	}
 
 	@Test
-	@DisplayName("Given the same ingredient on two lines, When POST, Then 400 rather than a key violation")
+	@DisplayName("Given the same ingredient on two lines, When POST, Then 400 on the later line's ingredient rather than a key violation")
 	void shouldRejectIngredientListedTwice() throws Exception {
 		Map<String, Object> body = Map.of(
 				"name", uniqueName(),
 				"category", Map.of("id", BROED),
 				"recipeIngredients", List.of(line(HVEDEMEL, 500, GRAM), line(HVEDEMEL, 2, DECILITER)));
 
-		assertLinesRejected(post(RECIPES), body, "Hvedemel is listed more than once.");
+		assertLinesRejected(post(RECIPES), body, "recipeIngredients[1].ingredientId", "Hvedemel is already on line 1.");
 	}
 
 	@Test
-	@DisplayName("Given a line without an ingredient and one without a unit, When PUT, Then 400 listing both, and the recipe is unchanged")
+	@DisplayName("Given two identical lines, When POST, Then 400 like any repeat - the lines are a list, nothing merges them")
+	void shouldRejectIdenticalLines() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(line(HVEDEMEL, 500, GRAM), line(HVEDEMEL, 500, GRAM)));
+
+		// While the lines were a Set, Jackson merged these two before the service saw them: 201, one line.
+		assertLinesRejected(post(RECIPES), body, "recipeIngredients[1].ingredientId", "Hvedemel is already on line 1.");
+	}
+
+	@Test
+	@DisplayName("Given a line without an ingredient and one without a unit, When PUT, Then 400 on each, and the recipe is unchanged")
 	void shouldRejectBadLinesOnUpdateAndChangeNothing() throws Exception {
 		String name = uniqueName();
 		String id = create(name);
@@ -208,8 +220,9 @@ class RecipeIT {
 						Map.of("amount", 1, "unitId", GRAM),
 						Map.of("ingredientId", HVEDEMEL, "amount", 600)));
 
-		// Sorted, so a message listing several problems always reads the same.
-		assertLinesRejected(put(RECIPES + "/" + id), body, "A line has no ingredient. Hvedemel has no unit.");
+		assertLinesRejected(put(RECIPES + "/" + id), body,
+				"recipeIngredients[0].ingredientId", "Choose an ingredient.",
+				"recipeIngredients[1].unitId", "Choose a unit.");
 
 		mockMvc.perform(get(RECIPES + "/" + id))
 				.andExpect(status().isOk())
@@ -218,13 +231,33 @@ class RecipeIT {
 				.andExpect(jsonPath("$.recipeIngredients[?(@.ingredientId == '" + HVEDEMEL + "')].amount", contains(500.0)));
 	}
 
+	@Test
+	@DisplayName("Given three lines, the third with neither unit nor amount, When POST, Then 400 on both of the third line's inputs and nothing else")
+	void shouldPointAtTheLineAtFault() throws Exception {
+		Map<String, Object> body = Map.of(
+				"name", uniqueName(),
+				"category", Map.of("id", BROED),
+				"recipeIngredients", List.of(
+						line(HVEDEMEL, 500, GRAM),
+						line(VAND, 200, GRAM),
+						Map.of("ingredientId", SALT)));
+
+		assertLinesRejected(post(RECIPES), body,
+				"recipeIngredients[2].amount", "Needs an amount above zero.",
+				"recipeIngredients[2].unitId", "Choose a unit.");
+	}
+
+	/** Expects a 400 whose field errors are exactly these, in order: field, message, field, message... */
 	private void assertLinesRejected(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
-									 Map<String, Object> body, String message) throws Exception {
-		mockMvc.perform(request.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(body)))
+									 Map<String, Object> body, String... fieldsAndMessages) throws Exception {
+		var result = mockMvc.perform(request.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jsonMapper.writeValueAsString(body)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.RECIPE_INGREDIENTS_INVALID.getCode()))
-				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("recipeIngredients"))
-				.andExpect(jsonPath("$.validationExceptions[0].message").value(message));
+				.andExpect(jsonPath("$.validationExceptions", hasSize(fieldsAndMessages.length / 2)));
+		for (int i = 0; i < fieldsAndMessages.length / 2; i++) {
+			result.andExpect(jsonPath("$.validationExceptions[" + i + "].objectName").value(fieldsAndMessages[2 * i]))
+					.andExpect(jsonPath("$.validationExceptions[" + i + "].message").value(fieldsAndMessages[2 * i + 1]));
+		}
 	}
 
 	/** POSTs the standard recipe and returns its id. */

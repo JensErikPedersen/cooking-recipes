@@ -4,6 +4,7 @@ import dk.serik.recipes.dto.UnitDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.UnitService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -29,9 +30,12 @@ import java.util.List;
  * endpoint takes no parameters. See {@code docs/future_enhancements.md}.
  */
 @RestController
-@RequestMapping("/api/v1/units")
+@RequestMapping(UnitController.PATH)
 @AllArgsConstructor
 public class UnitController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/units";
 
     private final UnitService unitService;
 
@@ -41,7 +45,7 @@ public class UnitController {
     }
 
     @GetMapping("/{id}")
-    public UnitDTO findById(@PathVariable String id) {
+    public UnitDTO findById(@PathVariable @UUID String id) {
         return unitService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -49,7 +53,7 @@ public class UnitController {
     @PostMapping
     public ResponseEntity<UnitDTO> create(@Valid @RequestBody UnitDTO unitDTO) {
         UnitDTO saved = unitService.save(unitDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();
@@ -61,13 +65,13 @@ public class UnitController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public UnitDTO update(@PathVariable String id, @Valid @RequestBody UnitDTO unitDTO) {
+    public UnitDTO update(@PathVariable @UUID String id, @Valid @RequestBody UnitDTO unitDTO) {
         unitDTO.setId(id);
         return unitService.update(unitDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!unitService.delete(id)) {
             throw notFound(id);
         }

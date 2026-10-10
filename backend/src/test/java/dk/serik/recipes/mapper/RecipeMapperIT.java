@@ -15,7 +15,9 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -61,8 +63,8 @@ public class RecipeMapperIT {
 
     }
 
-    private Set<RecipeIngredientDTO> mockRecipeIngredients() {
-        Set<RecipeIngredientDTO> mocks = new HashSet<>();
+    private List<RecipeIngredientDTO> mockRecipeIngredients() {
+        List<RecipeIngredientDTO> mocks = new ArrayList<>();
         RecipeIngredientDTO dto = RecipeIngredientDTO.builder()
                 .recipeId("5d22c394-b5ce-48c3-8199-72ccc92c737c")
                 .ingredientId("549ab6e6-f2d8-4ab3-8ba8-6bc7af82f2fb")

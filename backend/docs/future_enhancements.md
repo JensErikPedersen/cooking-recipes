@@ -4,55 +4,6 @@ Deliberately deferred work. Each entry records what is missing, why it was left,
 
 ---
 
-## Validation exceptions from path variables and request params are not handled
-
-**What is missing.** The `@ControllerAdvice` layer covers three exception types today:
-
-| Handler | Exception | Result |
-|---|---|---|
-| `MethodArgumentNotValidExceptionHandler` | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` |
-| `ApplicationExceptionHandler` | `ConstraintViolationException` | 400 + `validationExceptions[]` |
-| `ApplicationExceptionHandler` | `ServiceException` | its own status + envelope |
-
-That covers a `@Valid @RequestBody`, which raises `MethodArgumentNotValidException`. It does **not** cover constraints placed directly on `@PathVariable` or `@RequestParam` — for example the project's own `@UUID` annotation:
-
-```java
-public CategoryDTO findById(@PathVariable @UUID String id)   // not currently written this way
-```
-
-Since Spring Framework 6.1 (Spring Boot 3.2+), Spring MVC applies built-in method validation for controller parameters and raises **`HandlerMethodValidationException`**, not `ConstraintViolationException`. Nothing in the advice handles it, so it would fall through to `handleGeneralException` and be reported as **500 Internal Server Error** — the opposite of the intended 400.
-
-**Why it was left.** Controllers currently omit `@UUID` on path variables, so the gap is not reachable. Malformed ids are already rejected with a proper 400 by `ServiceArguments.toUuid` in the service layer (see resolved finding M8), and `CategoryControllerTest.shouldReturn400ForMalformedId` proves it end to end. Adding the annotation without first adding the handler would have turned a working 400 into a 500.
-
-**Update 2026-09-29.** No longer a 500: `HandlerMethodValidationException` implements
-`ErrorResponse` (via `ResponseStatusException`), and the catch-all now passes an `ErrorResponse`'s
-own status through. It would be a 400 - but with only Spring's generic detail, no
-`validationExceptions[]`. The dedicated handler below is still what gives it the same shape as the
-other two validation handlers.
-
-**What it would take.**
-
-1. Add a handler to `ApplicationExceptionHandler`:
-   ```java
-   @ResponseStatus(HttpStatus.BAD_REQUEST)
-   @ExceptionHandler(HandlerMethodValidationException.class)
-   @ResponseBody
-   public ExceptionEnvelope handleHandlerMethodValidationException(HandlerMethodValidationException ex) { ... }
-   ```
-   mapping each `ParameterValidationResult` into a `ValidationExceptionEnvelope`, so the response shape matches the other two handlers.
-2. Add `@UUID` to the `@PathVariable` parameters on every controller.
-3. Test it: assert 400 and a populated `validationExceptions[]` for a malformed id, and confirm the service is never invoked.
-
-**Value.** Rejects malformed ids at the web boundary rather than one layer in, and finally puts the `@UUID` validator (`validator/UUID.java` + `UUIDValidator.java`) to use — it is tested but otherwise unreferenced, and is the last entry on the dead-code list in `code-review.md` kept for exactly this purpose.
-
----
-
-**Re-checked on Spring Boot 4.1.1 (2026-09-08).** Boot 4 brings Jakarta Validation 3.1 and
-Hibernate Validator 9, so this was re-verified rather than assumed. Behaviour is unchanged: the
-`@Valid @RequestBody` path still returns 400 with the full envelope (`errorCode` plus
-`validationExceptions[].objectName`), asserted by the controller slice tests, and the gap described
-above is neither closed nor widened by the upgrade.
-
 ## Name-based lookup is inconsistent across services, and unexposed at the API
 
 **What is missing.** Every domain concept in this application is identified to a user by its
@@ -61,18 +12,23 @@ four different levels of support and one naming inconsistency:
 
 | Service | `findByName` | `findAllByNameContains` | Repository already supports |
 |---|---|---|---|
-| Category | ✅ | ❌ | **both** — `findAllByNameContains` exists but is not exposed |
-| Ingredient | ✅ | ✅ | both (plus `findAllByDescriptionContains`, also unexposed) |
-| Recipe | ❌ | ✅ | `findAllByNameContains`, `findAllByCategoryName` |
+| Category | ✅ | ❌ | `findByName`, and `findAllByNameContains`, which nothing calls |
+| Ingredient | ✅ | ✅ | both, plus `findAllByDescriptionContains`, which nothing calls |
+| Recipe | ❌ | ✅ | `findByName`, `findAllByNameContains`, `findAllByCategoryName` |
 | Tag | ⚠️ `findTagByName` | ❌ | `findTagByName` |
-| Unit | ❌ | ❌ | none |
-| Rating | ❌ | ❌ | none — not applicable, a rating is a 1-5 value |
+| Unit | ❌ | ❌ | `findByName` |
+| Rating | ❌ | ❌ | none - not applicable, a rating is a 1-5 value |
+
+Every repository `findByName` (Tag's `findTagByName`) now has a caller: the duplicate-name check
+in that service's `save` and `update`, added in Parts 5a-7a. Those checks call the repository
+directly, so the service-level `findByName` on Category and Ingredient, and Tag's `findTagByName`,
+are called only by their own tests.
 
 Three specific problems:
 
 1. **Category has the repository method but not the service method.** `CategoryJpaRepository.findAllByNameContains` exists and is covered by `CategoryJpaRepositoryIT` ("two categories containing 'er'"), but `CategoryService` never exposes it, so nothing can reach it. It is working, tested, unreachable code.
 2. **Tag names its method `findTagByName`** rather than `findByName` — the entity name is redundant inside `TagService`, and it breaks the pattern every other service follows.
-3. **None of it is reachable over HTTP.** `CategoryController` and `IngredientController` expose only the five CRUD endpoints, so `findByName` and `findAllByNameContains` have no route at all.
+3. **None of it is reachable over HTTP.** All five controllers expose only the five CRUD endpoints; `TagController` and `UnitController` say why in their class comments. No screen searches by name either.
 
 **What it would take.**
 
@@ -81,7 +37,10 @@ Three specific problems:
    Optional<XDTO> findByName(String name);        // exact match, one result or empty
    List<XDTO>     findAllByNameContains(String name);  // partial match, possibly empty
    ```
-   Add what is missing (`Category.findAllByNameContains`, `Recipe.findByName`, `Tag.findAllByNameContains`), and rename `TagService.findTagByName` to `findByName`.
+   Add what is missing (`Category.findAllByNameContains`, `Tag.findAllByNameContains`, and
+   `Recipe.findByName` over the repository query that already exists), and rename
+   `findTagByName` to `findByName` in `TagService` and `TagJpaRepository`. Whether the
+   service-level `findByName` belongs in the contract at all is part of settling it - see point 3.
 2. Expose partial match as a filter on the collection endpoint, which is the idiomatic REST shape and needs no new path:
    ```
    GET /api/v1/ingredients            -> all
@@ -93,115 +52,16 @@ Three specific problems:
        return Objects.isNull(name) ? service.findAll() : service.findAllByNameContains(name);
    }
    ```
-3. **Do not expose exact match over HTTP, but keep it on the service.** The two are not substitutes:
+3. **Do not expose exact match over HTTP.** The two are not substitutes:
    `findAllByNameContains("Brod")` is a `LIKE` query that also matches `Rugbrod` and `Hvedebrod`, so it
    cannot answer *"is there a category called exactly Brod?"*. The API needs only the partial filter -
-   these names are unique, so a full name returns a single-element list - but the service keeps
-   `findByName` because that exact-match question has a real caller: the duplicate-name pre-check
-   described in the next entry. Deleting it would remove the tool needed to fix that bug.
+   these names are unique, so a full name returns a single-element list. The exact-match query
+   stays in the repository, where the duplicate-name checks use it. The service-level
+   `findByName` has no caller outside its tests; keep or drop it as one decision for all four.
 
-**Deliberately excluded.** `Unit` and `Rating`. Units are a fixed handful of measures and ratings are a 1-5 lookup table; neither has a repository query, and adding name search to them would be ceremony rather than capability. `UnitController` was built with the five CRUD endpoints only, for that reason.
+**Deliberately excluded.** `Unit` and `Rating`. Units are a fixed handful of measures and ratings are a 1-5 lookup table; adding name search to them would be ceremony rather than capability. Unit's only query is the exact `findByName` behind its duplicate-name check. `UnitController` was built with the five CRUD endpoints only, for that reason.
 
 **Value.** One predictable contract across the API instead of per-resource guesswork, and it makes reachable a repository method that is currently tested but dead.
-
----
-
-## A duplicate name returns 500 instead of 409
-
-**Update 2026-10-02.** Unit followed in Part 6a, the same way, counting recipes rather than
-`recipe_ingredient` lines, and Tag in 6b. The entry below says Tag is unaffected because tag names
-are deliberately not unique: that was wrong. The schema has always made `tag.name` unique, and it
-was decided to keep it so. Ingredient followed in 6c and Recipe in 7a, so every entity with a
-unique name now answers a duplicate with its own 409 on the name field.
-
-**Update 2026-10-01.** Done for Category in Part 5a, as described below, plus a check that refuses
-to delete a category recipes use (`CATEGORY_IN_USE`). The `DataIntegrityViolationException`
-handler is in place for every entity, so a duplicate Unit or Ingredient name is already a 409 with
-the generic `DATA_CONFLICT` code. What remains is their service pre-checks, for a message that names
-the field; Part 6 adds them. The same goes for deleting a Unit or Ingredient a recipe uses: the
-`recipe_ingredient` foreign keys make it a generic 409 today, without saying why.
-
-**What is wrong.** `name` is declared `unique = true` on four entities - `Category`, `Ingredient`,
-`Recipe` and `Unit` - but no service checks for an existing name before saving. The unique
-constraint is therefore enforced only by the database, and the resulting
-`DataIntegrityViolationException` is not handled by any `@ControllerAdvice`. It falls through to
-`handleGeneralException`.
-
-Verified against `CategoryController` with a throwaway `@WebMvcTest` that made the service throw
-what the database would throw:
-
-```
-STATUS=500
-BODY={"errorCode":0,"message":"An unexpected error occurred","description":"Reference: 7e9298d8-..."}
-```
-
-A client that posts an existing category name is told the server broke. The correct answer is
-**409 Conflict**, naming the field that collided.
-
-This was unreachable until the REST layer existed. `POST` and `PUT` on Category, Ingredient and
-Unit can all reach it today; Recipe will when its controller lands. `Tag` is unaffected - tag names
-are deliberately not unique.
-
-**What it would take.**
-
-1. Pre-check in the service, which is what `findByName` is for:
-   ```java
-   categoryJpaRepository.findByName(dto.getName()).ifPresent(existing -> {
-       throw ServiceException.builder()
-               .message(String.format("A category named '%s' already exists", dto.getName()))
-               .code(ApplicationErrorCodes.CATEGORY_ALREADY_EXISTS.getCode())
-               .httpStatus(HttpStatus.CONFLICT)
-               .build();
-   });
-   ```
-   with a new `X_ALREADY_EXISTS` code per domain, following the existing grouping. Note `update()`
-   needs the same check but must exclude the row being updated, or renaming a category to its own
-   name would be rejected.
-2. Add a `DataIntegrityViolationException` handler to `ApplicationExceptionHandler` returning 409,
-   as a backstop for the race between the check and the insert, and for constraints the pre-check
-   does not cover. Keep the message generic - the raw exception carries table and constraint names
-   (see resolved finding M5).
-3. Test both paths: the pre-check returning 409, and the handler translating the exception.
-
-**Value.** Turns a 500 into an actionable 409 on the most likely client mistake, and closes the last
-route by which raw persistence errors reach the exception handler of last resort.
-
----
-
-## Recipe line errors cannot point at a line
-
-**What is wrong.** `RecipeDTO.recipeIngredients` is a `Set`, so the order of the lines in a request
-is gone by the time the service checks them. Part 7d therefore reports every line problem in one
-sorted message on the field `recipeIngredients`, naming the ingredient ("Hvedemel needs an amount
-above zero."), and the form shows it under the whole Ingredients section rather than on the line.
-A line with no ingredient chosen can only be described as "A line has no ingredient."
-
-**What it would take.** Make `recipeIngredients` a `List`, report each problem with its index as
-`recipeIngredients[2].amount`, and have the form map those fields onto its rows. The `Set` also
-guards nothing today: duplicates are refused explicitly since 7d.
-
----
-
-## Dates carry no time zone, and do not round-trip
-
-**What is wrong.** `BaseDTO` formats `created` and `updated` with `@JsonFormat(pattern =
-"yyyy-MM-dd HH:mm")`. Two consequences:
-
-1. **No zone.** Jackson writes the time in the zone the `OffsetDateTime` carries, which is the
-   backend JVM's. Proven in Part 5c with a throwaway test against the application's `JsonMapper`:
-   16:51 at +02:00 came out as `"2026-10-01 16:51"` on a host in `Europe/Copenhagen`. The same
-   moment from the container reads 14:51. The client cannot tell which.
-2. **No round trip.** `@Jacksonized` deserializes through the builder, which does not carry the
-   format, so the API cannot read back a date it wrote; a client that PUTs a fetched object
-   unchanged gets a 400.
-
-**Workaround in place.** The backend image sets `TZ=UTC`, and the frontend shows the value with a
-"UTC" label and never sends the audit fields.
-
-**What it would take.** Drop the pattern so the dates serialize as ISO-8601 with an offset
-(`2026-10-01T14:51:00Z`), which also round-trips; have the frontend format them in the browser's
-local time; drop the "UTC" label. Assert the format in `JsonContractIT`. It changes the API
-contract, so frontend and backend move together.
 
 ---
 
@@ -241,8 +101,9 @@ layers are already built and tested:
    deferral, and its two tests go with it.
 3. `@Jacksonized` on `RatingDTO` and `RecipeRatingDTO`, plus `@Min(1) @Max(5)` on `rating`. Nothing
    above the database's `TINYINT` currently constrains the value.
-4. `RatingController` (five CRUD endpoints) and `/api/v1/recipes/{id}/ratings` routes shaped like the
-   existing ingredients sub-resource.
+4. `RatingController` (five CRUD endpoints), and a recipe's ratings written either with the recipe,
+   as its ingredient lines are, or under `/api/v1/recipes/{id}/ratings` - the ingredient lines'
+   own sub-resource of that shape was removed in V3 Part 5 for want of a caller.
 
 **Value.** The feature the whole `recipe_rating` table exists for. Until then the guard keeps the
 limitation explicit at the API boundary rather than silent.
@@ -257,10 +118,10 @@ make a second user meaningful.
 
 **What is missing.**
 
-1. **No way to create a second account.** `AdminBootstrap` runs only while the table is empty, so
-   after first run the only route to another account is an INSERT by hand. Needs a user
-   administration screen, or at minimum a sign-up endpoint, both of which need roles enforced
-   first.
+1. **Accounts are created only by registering.** Open sign-up exists since `docs/PLAN_V2.md`
+   Part 5, **without** enforcing roles, by decision: every account has the rights the first one
+   has. A user administration screen - creating, disabling or deleting accounts for others - still
+   needs roles enforced first. Until then the only way to remove an account is SQL.
 2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
    security chain authenticates every endpoint, but nothing authorises differently per role - an
    ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
@@ -271,10 +132,38 @@ make a second user meaningful.
    their audit trail. Turning it into a FK requires migrating every existing row and changing
    every DTO that exposes it - do not do it as a side effect of something else.
 4. **No password change, no reset, no disable-in-the-UI.** The `enabled` column exists and is
-   honoured on login; nothing sets it.
+   honoured on login; nothing sets it. Reset has its own entry below.
 
 **Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
 trusted rather than read as a string.
+
+---
+
+## A forgotten password cannot be reset
+
+**What is missing.** A user who forgets their password has no way back in. There is no reset, and
+no change of password either. With one bootstrapped account this hardly mattered: the operator
+could delete the row and let `AdminBootstrap` recreate it. Once anyone can register
+(`docs/PLAN_V2.md` Part 5), a forgotten password locks that user out for good.
+
+**Why it was left.** A real reset needs a channel the application can reach the user through,
+and the application has none. `app_user` holds no email address, and the stack has no mail server.
+
+**What it would take.** Two pieces, in this order:
+
+1. **Change password, signed in.** `PUT /api/v1/auth/password` taking the current and the new
+   password, with the same rules as registration. It needs no new infrastructure, and the reset
+   reuses it.
+2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
+   `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
+   takes that token plus a new password. Store the token hashed, as a password is. Answer the
+   request the same way whether or not the address exists, as login does for usernames. Locally,
+   a Mailpit container in the stack catches the mail, so nothing is really sent.
+
+A reset by an administrator is the alternative to email. It needs role enforcement and an
+administration screen first; see the multiple-users entry above.
+
+**Value.** Self-registration without permanent lockout.
 
 ---
 
@@ -299,32 +188,3 @@ accounts have to be created by an init script mounted into
 **Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
 deliberate act with its own credentials rather than something the runtime user could do by
 accident.
-
----
-
-## Smaller items deferred during Parts 2-7
-
-Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
-step's notes in `docs/PLAN.md`.
-
-- **A POST's `Location` header names the backend's internal address** (`http://backend:8080/...`):
-  the backend builds it from the `Host` the Next.js proxy sends. Nothing reads the header - the
-  frontend uses the id in the body. `server.forward-headers-strategy=framework` would fix it.
-  Found in 4a.
-- **The `DataIntegrityViolationException` handler answers 409 for every constraint**, including a
-  NOT NULL column left empty, which is a server fault rather than a conflict. 7a met exactly that:
-  the `recipe_tag.created_by` failure came back as "The change conflicts with existing data".
-  Hibernate's `ConstraintViolationException.getKind()` tells UNIQUE and FOREIGN_KEY, a 409, from
-  NOT_NULL and CHECK, a 500.
-- **Dead code**: `config/TestingConfiguration` in the tests is referenced by nothing - a
-  `@TestConfiguration` is excluded from component scanning (5a). `backend/HELP.md` is the Spring
-  Initializr's generated help. The unreferenced `@UUID` validator and repository query are noted
-  in the name-lookup entry above.
-- **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
-  in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
-  keep or remove them as one decision.
-- **`RecipeIngredientJpaRepository` declares its id type as `UUID`**, but `RecipeIngredient`'s
-  key is the composite `RecipeIngredientPK`. Every caller uses the derived queries, so nothing
-  breaks; `findById` on it would be wrong. Noticed in 6a.
-- **Sign-in does not return to where you were heading**: after signing in you land on the start
-  page. Deliberately left out in 4b for simplicity.

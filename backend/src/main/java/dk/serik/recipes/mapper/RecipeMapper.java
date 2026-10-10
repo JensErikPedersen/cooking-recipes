@@ -7,11 +7,17 @@ import dk.serik.recipes.dto.TagDTO;
 import dk.serik.recipes.model.Recipe;
 import lombok.extern.slf4j.Slf4j;
 
+import java.text.Collator;
+import java.util.Comparator;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class RecipeMapper {
+
+    private static final Locale DANISH = Locale.of("da");
+
     public static RecipeDTO from(Recipe entity) {
         if(Objects.isNull(entity)) {
             return null;
@@ -29,12 +35,15 @@ public class RecipeMapper {
                 .updatedBy(entity.getUpdatedBy())
                 .build();
         if(Objects.nonNull(entity.getRecipeIngredients())) {
+            // The entity holds its lines in a set; sorted, a GET answers in the same order every time.
             dto.setRecipeIngredients(entity.getRecipeIngredients().stream()
                     .map(ri -> {
                         RecipeIngredientDTO riDto = RecipeIngredientMapper.from(ri);
                         log.debug("Mapped RecipeIngredientDTO: {}", riDto);
                         return riDto;
-                    }).collect(Collectors.toSet()));
+                    })
+                    .sorted(Comparator.comparing(RecipeIngredientDTO::getIngredientName, Collator.getInstance(DANISH)))
+                    .toList());
         }
 
         if(Objects.nonNull(entity.getRecipeRatings())) {

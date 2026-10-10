@@ -4,6 +4,7 @@ import dk.serik.recipes.dto.CategoryDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.CategoryService;
+import dk.serik.recipes.validator.UUID;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
@@ -30,9 +31,12 @@ import java.util.List;
  * no try/catch is needed here.
  */
 @RestController
-@RequestMapping("/api/v1/categories")
+@RequestMapping(CategoryController.PATH)
 @AllArgsConstructor
 public class CategoryController {
+
+    // Also the start of each Location: relative, so it never names the backend's address behind the proxy.
+    static final String PATH = "/api/v1/categories";
 
     private final CategoryService categoryService;
 
@@ -42,7 +46,7 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
-    public CategoryDTO findById(@PathVariable String id) {
+    public CategoryDTO findById(@PathVariable @UUID String id) {
         return categoryService.findById(id)
                 .orElseThrow(() -> notFound(id));
     }
@@ -50,7 +54,7 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<CategoryDTO> create(@Valid @RequestBody CategoryDTO categoryDTO) {
         CategoryDTO saved = categoryService.save(categoryDTO);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        URI location = UriComponentsBuilder.fromPath(PATH)
                 .path("/{id}")
                 .buildAndExpand(saved.getId())
                 .toUri();
@@ -62,13 +66,13 @@ public class CategoryController {
      * cannot silently update a different row.
      */
     @PutMapping("/{id}")
-    public CategoryDTO update(@PathVariable String id, @Valid @RequestBody CategoryDTO categoryDTO) {
+    public CategoryDTO update(@PathVariable @UUID String id, @Valid @RequestBody CategoryDTO categoryDTO) {
         categoryDTO.setId(id);
         return categoryService.update(categoryDTO);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable @UUID String id) {
         if (!categoryService.delete(id)) {
             throw notFound(id);
         }

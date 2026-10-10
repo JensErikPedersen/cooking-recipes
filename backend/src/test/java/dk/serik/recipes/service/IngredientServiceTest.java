@@ -5,6 +5,7 @@ import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.dto.IngredientDTO;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockIngredientUtil;
 import dk.serik.recipes.model.Ingredient;
 import dk.serik.recipes.repository.IngredientJpaRepository;
@@ -380,8 +381,9 @@ public class IngredientServiceTest {
 		assertThatThrownBy(() -> service.save(MockIngredientUtil.mockHvedemelDTO()))
 				.isInstanceOf(ServiceException.class)
 				.hasMessage("An ingredient named 'Hvedemel' already exists")
-				.extracting("code", "httpStatus", "field")
-				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+				.extracting("code", "httpStatus", "fieldErrors")
+				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+				        List.of(new ValidationExceptionEnvelope("name", "An ingredient named 'Hvedemel' already exists")));
 		then(repository).should(never()).save(any());
 	}
 
@@ -393,8 +395,9 @@ public class IngredientServiceTest {
 
 		assertThatThrownBy(() -> service.update(MockIngredientUtil.mockHavsaltDTOToUpdate()))
 				.isInstanceOf(ServiceException.class)
-				.extracting("code", "httpStatus", "field")
-				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT, "name");
+				.extracting("code", "httpStatus", "fieldErrors")
+				.containsExactly(ApplicationErrorCodes.INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT,
+				        List.of(new ValidationExceptionEnvelope("name", "An ingredient named 'Havsalt' already exists")));
 		then(repository).should(never()).save(any());
 	}
 

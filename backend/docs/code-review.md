@@ -392,7 +392,7 @@ Confirmed unreferenced anywhere in `src`:
 | ~~`config/SnakeCasePhysicalNamingStrategy.java`~~ | ✅ deleted, with the commented-out property |
 | ~~`mapper/CategoryCategoryDTOMapper.java`~~ | ✅ removed — see below |
 | `CategoryMapper.fromDto` | the only entity-direction mapper; still unused |
-| `validator/UUID` + `UUIDValidator` | tested but never applied (see M8) |
+| ~~`validator/UUID` + `UUIDValidator`~~ | ✅ on every controller path id since V2 Part 2 |
 
 **Resolved 2026-09-07** — `enums/Rating`, `OperationResultDTO` and `SnakeCasePhysicalNamingStrategy` deleted (the `enums` package is gone entirely), along with the commented-out property that referenced the naming strategy.
 
@@ -591,12 +591,15 @@ Phase 1 plus H7, applied 2026-09-06. Each change was made one at a time, with th
 
 ### Outstanding: credential rotation
 
-H3 removed the password from every tracked file, but **it remains in git history** and, if it was ever used against a real database, is still live. Two actions remain that only you can take:
+H3 removed the password from every tracked file of the codebase this review was made on. **This
+repository's history does not contain it:** H3 was applied before its first commit, and a search of
+every commit (2026-10-03) found only placeholders and the H2 test password. `mysql_users.sql`, and
+the `recipesadmin` account it created, were deleted in Part 3a; the stack's single account is
+created by the MySQL entrypoint from `.env`.
 
-1. **Rotate** the MySQL password(s) that were committed, and the `recipesadmin` / `recipesuser` passwords created by `mysql_users.sql`.
-2. Decide whether to **purge git history** (`git filter-repo` or BFG). For a local-only project this may not be worth the rewrite; for anything pushed to a shared remote it is.
-
-Until the rotation happens, the value in the history is the security exposure - not the working tree.
+One action remains that only you can take: if the old passwords were ever used against a real
+database, or are reused in a `.env`, **rotate** them. The exposure is wherever the code lived
+before this repository, not here.
 
 ### Two notes for whoever picks this up
 

@@ -122,7 +122,7 @@ test("an edited unit shows the change, and keeps it after leaving and returning"
   await expectReadView(page, renamed, "after");
 });
 
-test("the unit edit form shows when, in UTC, and by whom the unit was created", async ({ page }) => {
+test("the unit edit form shows when and by whom the unit was created", async ({ page }) => {
   const id = await createUnit(page, uniqueName(), "audit");
 
   await page.goto(`/units/${id}/edit`);

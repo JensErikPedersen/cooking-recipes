@@ -7,8 +7,8 @@ is in `backend/`.
 ## Authentication
 
 Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `/api` needs a
-session except `POST /api/v1/auth/login`; `/actuator/health` is open for Compose. 401 and 403 come
-back in the error envelope (codes 600-602), never as a redirect.
+session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is open for Compose.
+401 and 403 come back in the error envelope (codes 600-602), never as a redirect.
 
 - **Audit stamping depends on it.** `created_by` is NOT NULL on every table but `recipe_tag`, a
   plain `@ManyToMany` join table whose insert cannot carry it (`db.changelog_1.3.xml`). It is set by
@@ -25,9 +25,19 @@ back in the error envelope (codes 600-602), never as a redirect.
   filter is needed. Login and logout are CSRF-protected too.
 - **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller
   method. It also deletes the `JSESSIONID` cookie, which the frontend's `proxy.ts` checks for.
-- **One account**, created by `AdminBootstrap` with plain SQL from `app.admin.username` /
-  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty. Plain SQL because JPA
-  would fire `BaseEntityListener`, which needs a request. No user administration - by decision.
+- **Accounts**: the first is created by `AdminBootstrap` from `app.admin.username` /
+  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN`. Any
+  other comes from `POST /api/v1/auth/register`: `ROLE_USER`, created by its own username, and
+  signed in on the spot through `login()`. Both insert through `AppUserWriter`, with plain SQL:
+  through JPA `BaseEntityListener` would stamp `created_by` from the `Session`, which holds no
+  signed-in user at startup or during an anonymous registration. Roles are stored, not enforced.
+  No user administration - by decision.
+- **Registration rules**: username 3-64 characters, letters (any alphabet), digits, `.`, `_`, `-`,
+  unique regardless of case - `existsByUsernameIgnoreCase`, since H2 in the tests tells case apart
+  where MySQL's collation does not; taken is a 409 (603) on `username`. Password at least 8
+  characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
+  than encode a longer one, so the service checks before encoding - `æ` counts two. The
+  confirmation is compared there too, a 400 on `confirmPassword`.
 
 ## Layout
 
@@ -42,27 +52,31 @@ back in the error envelope (codes 600-602), never as a redirect.
 | `exceptions` | `ServiceException`, error codes, `@ControllerAdvice`, envelopes |
 | `config` | `SecurityConfig`, `SessionPopulatingFilter`, `AdminBootstrap` (see Authentication) |
 | `bean` | `Session` - request-scoped, holds the username (see Authentication) |
-| `validator` | `@UUID` + `UUIDValidator`. Tested, but **not referenced anywhere** |
+| `validator` | `@UUID` + `UUIDValidator`, on every controller path id |
 | `aspect` | `JpaLoggingAspect` - wraps every `JpaRepository` call for timing |
 
 ## Conventions
 
 **Controllers are thin.** No try/catch, no validation logic. Id parsing, existence checks and
 argument validation all live in the service, which throws `ServiceException` carrying an
-`HttpStatus`; the advice turns that into the envelope. On `PUT` the path id is authoritative and
-any id in the body is overwritten, so a mismatched payload cannot update a different row. `POST`
-returns 201 with a `Location` header built from `ServletUriComponentsBuilder`.
+`HttpStatus`; the advice turns that into the envelope. The one check before the service is `@UUID`
+on every path id, so a malformed one is refused before any service runs. On `PUT` the path id is
+authoritative and any id in the body is overwritten, so a mismatched payload cannot update a
+different row. `POST` returns 201 with a relative `Location`, `/api/v1/tags/{id}`, built from the
+controller's `PATH` constant: one built from the request named `http://backend:8080`, the address
+behind the Next.js proxy, which no browser can reach.
 
 **Services** are `@Transactional` at class level (`READ_COMMITTED`, `REQUIRED`, 5s timeout), with
 read methods re-annotated `readOnly = true`. Ids arrive as `String` and go through
 `ServiceArguments.toUuid`, which converts a null or malformed id into a 400 - without it
-`UUID.fromString` would throw a raw `IllegalArgumentException` and surface as a 500.
+`UUID.fromString` would throw a raw `IllegalArgumentException` and surface as a 500. Path ids are
+already checked by `@UUID`; the ids inside bodies - category, tags, ingredient lines - are not.
 
 **DTOs** are immutable-ish: `@Getter` only, one `@Builder @Jacksonized` constructor, fields
-`private`. `BaseDTO` carries the four audit fields and formats timestamps as
-`yyyy-MM-dd HH:mm` - note that this **does not round-trip**, since the pattern has no offset, so
-assert on responses with `jsonPath` rather than deserialising back into a DTO. Bean Validation
-messages are keys resolved from `ValidationMessages.properties`.
+`private`. `BaseDTO` carries the four audit fields. Dates are Jackson's default, ISO-8601 with
+the offset (`2026-10-04T15:27:58Z`), and read back as they are written - `JsonContractIT` pins
+both. MySQL keeps whole seconds, so a write's response carries fractions its later GET does not.
+Bean Validation messages are keys resolved from `ValidationMessages.properties`.
 
 **Mappers** are static utility classes, `from(entity)` and `fromDto(dto)`, each null-guarded.
 No MapStruct.
@@ -79,12 +93,13 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 
 | Exception | Result |
 |---|---|
-| `ServiceException` | its own `httpStatus` + envelope; its optional `field` becomes a `validationExceptions[]` entry |
+| `ServiceException` | its own `httpStatus` + envelope; its `fieldErrors` become `validationExceptions[]` entries - `field(name)` on the builder makes one with the exception's message |
 | `ConstraintViolationException` | 400 + `validationExceptions[]` |
 | `MethodArgumentNotValidException` | 400 + `validationExceptions[]` (separate advice class) |
+| `HandlerMethodValidationException` (a `@UUID` path id, and a PUT's `@Valid` body with it) | 400 + `validationExceptions[]`, body errors by field, parameters by name |
 | Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
 | `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
-| `DataIntegrityViolationException` (a database constraint, raised at commit) | 409, code `DATA_CONFLICT` (40), generic message; the raw text is logged only |
+| `DataIntegrityViolationException` (a database constraint, raised at commit) | a unique or foreign key violation, or a `DuplicateKeyException`: 409, code `DATA_CONFLICT` (40), generic message, the raw text logged only. Any other kind - NOT NULL, CHECK - goes to the catch-all as a 500 |
 | anything else | 500, message replaced by a random reference id that is logged server-side |
 
 The `ErrorResponse` branch sits inside the catch-all, which checks for it first: without it every
@@ -100,8 +115,10 @@ recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rathe
 same. Tag names are unique, like the others - the schema says so, whatever older comments claimed.
 The database constraint behind each stays the backstop, caught by the
 `DataIntegrityViolationException` handler. `RecipeServiceImpl` rejects a duplicate recipe name
-(53). The backstop catches every `DataIntegrityViolationException`, so a server fault such as a
-NOT NULL column left empty also comes back as a 409 - read the log before believing one.
+(53). The backstop tells a conflict from a server fault by Hibernate's
+`ConstraintViolationException.getKind()` on the cause - the same kinds on H2 and MySQL, checked in
+V3 Part 3 - so a NOT NULL column left empty is a 500, not a 409. `DataIntegrityIT` feeds the real
+handler the violations H2 really raises.
 
 **Recipe writes carry their relations.** A POST or PUT sets the category, the tags and the
 ingredient lines from the body, each by id of an existing row; nothing is created through a
@@ -109,10 +126,13 @@ recipe. The lists are authoritative: a PUT's lines replace the recipe's - an exi
 the new amount and unit, an omitted one is deleted - and its tags replace the tags. An absent list
 leaves that relation as it is. A missing category is a 400 on the field `category` (101). Bad
 lines - no ingredient, no unit, no amount, an amount over 9999.99 (the column is `DECIMAL(6,2)`),
-an ingredient listed twice - are one 400 (63) on the field `recipeIngredients`, its message the
-problems as sentences naming the ingredient, sorted, since the lines arrive as a `Set` without an
-order to point into. Nothing is written when one is refused. The `/recipes/{id}/ingredients`
-sub-resource endpoints still work, but the UI does not use them.
+an ingredient listed twice, identical lines included - are one 400 (63), every problem an entry on
+its line and input: `recipeIngredients[2].amount`, `.ingredientId`, `.unitId`, the index the line's
+place in the request. A repeat is reported on the later line. Nothing is written when one is
+refused. The DTO's lines are a `List`, in the request's order; a response lists them in Danish
+order of ingredient name, while the entity keeps them in a `Set`. The recipe's own POST and PUT
+are the only way to write lines: the `/recipes/{id}/ingredients` sub-resource was removed in V3
+Part 5, and its error codes 60-62 are not reused.
 
 ## Tests
 
@@ -140,16 +160,23 @@ Test layers, and what each one mocks:
 | `*ServiceTest` | Mockito | the repositories |
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
-| `AuthenticationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database |
+| `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
+| `AuthenticationIT`, `RegistrationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**Only `AuthenticationIT` and the `<Entity>IT` classes exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
-and on the join tables. Neither runs in a test transaction: it would postpone the
+and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
 the null `created_by` stayed invisible to a green build until Part 4, and discarded recipe tags
 until `RecipeIT` in Part 7. `JsonContractIT` exists because `@WebMvcTest` builds its own Jackson mapper, so
 slice tests can pass while real serialization is broken - the same class of gap.
+
+**MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
+inside the context's filter with a test one that sets no cookie, for every later test there. A test
+that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
+classes: `RegistrationIT` takes `AuthenticationIT`'s properties to share its context instead.
+Alone it passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
 
@@ -179,8 +206,9 @@ must be reachable before the application starts.
 - The runtime image installs `curl` solely for the Compose healthcheck on `/actuator/health`, the
   only actuator endpoint exposed. It answers only once Liquibase has finished.
 - The container runs as the unprivileged `recipes` user.
-- `ENV TZ=UTC` is load-bearing. Dates leave the API in the JVM's zone without an offset, and the
-  frontend labels them UTC; the base image is UTC already, the line keeps it so.
+- `ENV TZ=UTC` is **not** load-bearing. Dates are stored in UTC whatever the JVM's zone - proven
+  in V2 Part 3 by running the backend in `Europe/Copenhagen` - and leave the API with their offset.
+  The line keeps the JVM's own clock, logs and a write's response, in UTC as well.
 
 ## Gotchas
 
@@ -197,4 +225,7 @@ must be reachable before the application starts.
   carrying `recipeRatings` is rejected with `RECIPE_RATING_NOT_SUPPORTED` (70). Ratings are
   readable but not writable, by decision - see `docs/future_enhancements.md`.
 - `CategoryJpaRepository.findAllByNameContains` is tested but unreachable: no service exposes it.
-  Same for the `@UUID` validator.
+- A constraint on a controller parameter changes how that method's `@Valid` body is validated:
+  Spring validates both in one pass and raises `HandlerMethodValidationException`, not
+  `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take
+  that route; a `POST` without a path id keeps the other. `PathIdValidationTest` covers both.

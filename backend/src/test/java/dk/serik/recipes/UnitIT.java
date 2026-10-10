@@ -135,7 +135,6 @@ class UnitIT {
 		String response = mockMvc.perform(post(UNITS).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name, "x")))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		// Only the id is read: UnitDTO cannot deserialize the "yyyy-MM-dd HH:mm" dates it serializes.
 		return jsonMapper.readTree(response).get("id").asString();
 	}
 

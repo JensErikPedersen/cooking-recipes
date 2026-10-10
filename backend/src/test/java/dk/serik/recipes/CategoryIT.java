@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -127,11 +128,60 @@ class CategoryIT {
 				.andExpect(status().isNotFound());
 	}
 
+	@Test
+	@DisplayName("Given a malformed id, When GET it, Then 400 on the field id, from the web boundary")
+	void shouldRejectMalformedId() throws Exception {
+		mockMvc.perform(get(CATEGORIES + "/not-a-uuid"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("id"))
+				.andExpect(jsonPath("$.validationExceptions[0].message").value("not-a-uuid is not a valid UUID"));
+	}
+
+	@Test
+	@DisplayName("Given a category, When PUT it with a blank name, Then 400 on the field name and the name is unchanged")
+	void shouldReportPutBodyErrorOnTheField() throws Exception {
+		String name = uniqueName();
+		String id = create(name);
+
+		mockMvc.perform(put(CATEGORIES + "/" + id).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body("")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("name"));
+
+		mockMvc.perform(get(CATEGORIES + "/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value(name));
+	}
+
+	@Test
+	@DisplayName("Given a category, When PUT back exactly as GET returned it, Then 200 - the API reads the dates it writes")
+	void shouldAcceptItsOwnResponseAsARequest() throws Exception {
+		String id = create(uniqueName());
+		String fetched = mockMvc.perform(get(CATEGORIES + "/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.created").exists())
+				.andReturn().getResponse().getContentAsString();
+
+		mockMvc.perform(put(CATEGORIES + "/" + id).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(fetched))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("Given a new category, When POST, Then its Location is the path alone - no host for the browser to fail to reach")
+	void shouldAnswerARelativeLocation() throws Exception {
+		var response = mockMvc.perform(post(CATEGORIES).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(uniqueName())))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse();
+		String id = jsonMapper.readTree(response.getContentAsString()).get("id").asString();
+
+		assertThat(response.getHeader("Location")).isEqualTo(CATEGORIES + "/" + id);
+	}
+
 	private String create(String name) throws Exception {
 		String response = mockMvc.perform(post(CATEGORIES).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body(name)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
-		// Only the id is read: CategoryDTO cannot deserialize the "yyyy-MM-dd HH:mm" dates it serializes.
 		return jsonMapper.readTree(response).get("id").asString();
 	}
 

@@ -16,6 +16,7 @@ import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -98,15 +99,28 @@ class JsonContractIT {
     }
 
     @Test
-    @DisplayName("Given an OffsetDateTime field, When serialised, Then it is a formatted string, not a numeric timestamp")
-    void datesSerialiseAsStrings() throws Exception {
+    @DisplayName("Given an OffsetDateTime field, When serialised, Then it is an ISO-8601 string carrying its offset")
+    void datesSerialiseAsIsoWithOffset() throws Exception {
         CategoryDTO dto = CategoryDTO.builder()
                 .name("Dessert")
-                .created(dk.serik.recipes.testutil.OffsetDateTimeProvider.provideIsoFullFormat("2023-01-25T14:25:15"))
+                .created(OffsetDateTime.parse("2023-01-25T14:25:15+01:00"))
+                .updated(OffsetDateTime.parse("2023-01-25T13:25:15Z"))
                 .build();
 
         String json = objectMapper.writeValueAsString(dto);
 
-        assertThat(json).contains("\"created\":\"2023-01-25 14:25\"");
+        assertThat(json).contains("\"created\":\"2023-01-25T14:25:15+01:00\"");
+        assertThat(json).contains("\"updated\":\"2023-01-25T13:25:15Z\"");
+    }
+
+    @Test
+    @DisplayName("Given a serialised CategoryDTO with dates, When read back, Then the dates are the same instants")
+    void datesRoundTrip() throws Exception {
+        OffsetDateTime created = OffsetDateTime.parse("2023-01-25T14:25:15+01:00");
+        String json = objectMapper.writeValueAsString(CategoryDTO.builder().name("Dessert").created(created).build());
+
+        CategoryDTO roundTripped = objectMapper.readValue(json, CategoryDTO.class);
+
+        assertThat(roundTripped.getCreated()).isAtSameInstantAs(created);
     }
 }

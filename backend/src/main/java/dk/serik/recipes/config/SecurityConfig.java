@@ -63,7 +63,7 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.spa())
 			.securityContext(context -> context.securityContextRepository(securityContextRepository))
 			.authorizeHttpRequests(authorize -> authorize
-					.requestMatchers("/api/v1/auth/login", "/actuator/health").permitAll()
+					.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/health").permitAll()
 					.anyRequest().authenticated())
 			// JSON in this application's envelope, not a redirect to a login page.
 			.exceptionHandling(exceptions -> exceptions

@@ -2,8 +2,12 @@ package dk.serik.recipes.service;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
+import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
+import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
+import dk.serik.recipes.repository.AppUserJpaRepository;
+import dk.serik.recipes.repository.AppUserWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
@@ -19,6 +23,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 @Slf4j
@@ -27,6 +35,13 @@ public class AuthServiceImpl implements AuthService {
 	private final AuthenticationManager authenticationManager;
 
 	private final SecurityContextRepository securityContextRepository;
+
+	private final AppUserJpaRepository appUserJpaRepository;
+
+	private final AppUserWriter appUserWriter;
+
+	/** bcrypt reads no further; Spring Security refuses to encode a longer password, with an exception. */
+	private static final int MAX_PASSWORD_BYTES = 72;
 
 	@Override
 	public AuthenticatedUserDTO login(LoginRequestDTO loginRequest, HttpServletRequest request, HttpServletResponse response) {
@@ -60,6 +75,44 @@ public class AuthServiceImpl implements AuthService {
 		securityContextRepository.saveContext(context, request, response);
 
 		return toDto(authentication);
+	}
+
+	@Override
+	public AuthenticatedUserDTO register(RegisterRequestDTO registerRequest, HttpServletRequest request, HttpServletResponse response) {
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		if (registerRequest.getPassword().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+			problems.add(new ValidationExceptionEnvelope("password",
+					"Password is too long: at most 72 characters, fewer with letters such as æ, ø and å"));
+		}
+		if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+			problems.add(new ValidationExceptionEnvelope("confirmPassword", "The passwords do not match"));
+		}
+		if (!problems.isEmpty()) {
+			throw ServiceException.builder()
+					.message("Validation Exception")
+					.code(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
+					.httpStatus(HttpStatus.BAD_REQUEST)
+					.fieldErrors(problems)
+					.build();
+		}
+
+		String username = registerRequest.getUsername();
+		// Telling a caller that a username is taken tells them it exists. With open sign-up that is
+		// unavoidable; login still answers a wrong password and an unknown user alike.
+		if (appUserJpaRepository.existsByUsernameIgnoreCase(username)) {
+			throw ServiceException.builder()
+					.message(String.format("The username '%s' is taken", username))
+					.code(ApplicationErrorCodes.USERNAME_TAKEN.getCode())
+					.httpStatus(HttpStatus.CONFLICT)
+					.field("username")
+					.build();
+		}
+
+		// A new user creates their own account, so it is recorded as created by them.
+		appUserWriter.insert(username, registerRequest.getPassword(), "ROLE_USER", username);
+		log.info("Registered account '{}'", username);
+		return login(LoginRequestDTO.builder().username(username).password(registerRequest.getPassword()).build(),
+				request, response);
 	}
 
 	@Override

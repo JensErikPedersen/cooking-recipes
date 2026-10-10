@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import java.util.Objects;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 public class ValidationExceptionEnvelope {
@@ -34,5 +36,21 @@ public class ValidationExceptionEnvelope {
 
 	public void setObjectName(String field) {
 		this.objectName = field;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		return o instanceof ValidationExceptionEnvelope that
+				&& Objects.equals(objectName, that.objectName) && Objects.equals(message, that.message);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(objectName, message);
+	}
+
+	@Override
+	public String toString() {
+		return objectName + ": " + message;
 	}
 }

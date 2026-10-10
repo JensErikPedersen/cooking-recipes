@@ -149,7 +149,7 @@ test("a cleared description is gone after a reload, not stored as an empty value
   await expect(page.getByLabel("Description")).toHaveValue("");
 });
 
-test("the ingredient edit form shows when, in UTC, and by whom the ingredient was created", async ({ page }) => {
+test("the ingredient edit form shows when and by whom the ingredient was created", async ({ page }) => {
   const id = await createIngredient(page, uniqueName(), "Audited");
 
   await page.goto(`/ingredients/${id}/edit`);

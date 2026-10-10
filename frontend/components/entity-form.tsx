@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fieldErrors, type Audited } from "@/lib/api";
+import { formatDateTime } from "@/lib/date";
 import { DetailList } from "@/components/detail-list";
 import { ErrorMessage } from "@/components/error-message";
 import { primaryButton, secondaryButton } from "@/components/styles";
@@ -49,7 +50,7 @@ export function EntityForm({
       {entity && (
         <DetailList
           rows={[
-            ["Created", `${entity.created} UTC`],
+            ["Created", formatDateTime(entity.created)],
             ["Created by", entity.createdBy],
           ]}
         />

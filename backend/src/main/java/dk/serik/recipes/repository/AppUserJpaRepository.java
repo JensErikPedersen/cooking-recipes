@@ -11,4 +11,7 @@ import java.util.UUID;
 public interface AppUserJpaRepository extends JpaRepository<AppUser, UUID> {
 
 	Optional<AppUser> findByUsername(String username);
+
+	/** Regardless of case, whatever the database's collation: H2 in the tests tells case apart. */
+	boolean existsByUsernameIgnoreCase(String username);
 }

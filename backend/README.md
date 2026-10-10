@@ -47,18 +47,19 @@ date - see `CLAUDE.md`, Gotchas.
 
 ## API
 
-All endpoints are under `/api/v1` and need a signed-in session, except login. Sign-in is a session
-cookie, and every write - login and logout included - must send the `XSRF-TOKEN` cookie's value
-back as the `X-XSRF-TOKEN` header. The one account is created on first start from `APP_ADMIN_*`;
-see `CLAUDE.md`, Authentication.
+All endpoints are under `/api/v1` and need a signed-in session, except login and register. Sign-in
+is a session cookie, and every write - login, register and logout included - must send the
+`XSRF-TOKEN` cookie's value back as the `X-XSRF-TOKEN` header. The first account is created on
+first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authentication.
 
 | Auth | |
 |---|---|
 | `POST /api/v1/auth/login` | `{"username", "password"}`; 200 with the user, 401 on bad credentials |
+| `POST /api/v1/auth/register` | `{"username", "password", "confirmPassword"}`; 201 with the user, signed in; 400 on a rule, 409 on a taken username |
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 
-Every resource offers the same five operations; recipes add a nested ingredients sub-resource.
+Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
 
 | Resource | Endpoints |
 |---|---|
@@ -67,7 +68,6 @@ Every resource offers the same five operations; recipes add a nested ingredients
 | `/api/v1/units` | GET (all, by id), POST, PUT, DELETE |
 | `/api/v1/tags` | GET (all, by id), POST, PUT, DELETE |
 | `/api/v1/recipes` | GET (all, by id), POST, PUT, DELETE |
-| `/api/v1/recipes/{id}/ingredients` | POST, PUT `/{ingredientId}`, DELETE `/{ingredientId}` |
 
 A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
 tags and the lines with the lists it sends.
@@ -83,8 +83,8 @@ Errors return a consistent envelope:
 ```
 
 `200` read · `201` create (with `Location`) · `204` delete · `400` validation · `401` not signed
-in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name or
-sub-resource, or a delete of something still in use.
+in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name, or
+a delete of something still in use.
 
 ### Not in this version
 

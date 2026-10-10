@@ -14,10 +14,12 @@ scripts/start.sh          # PowerShell: .\scripts\start.ps1
 ```
 
 Open http://localhost:3000 and sign in with `APP_ADMIN_USERNAME` and `APP_ADMIN_PASSWORD` from
-`.env`. Stop with `scripts/stop.sh` or `.\scripts\stop.ps1`.
+`.env`, or create an account of your own from the sign-in page. Stop with `scripts/stop.sh` or
+`.\scripts\stop.ps1`.
 
 If PowerShell refuses to run the scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 ## More
 
-`CLAUDE.md` lists every command; `docs/PLAN.md` is the build plan and its progress.
+`CLAUDE.md` lists every command; `docs/PLAN_V3.md` is the current plan and its progress.
+`docs/PLAN.md` (the MVP) and `docs/PLAN_V2.md` are finished.
