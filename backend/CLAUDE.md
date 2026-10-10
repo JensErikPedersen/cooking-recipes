@@ -130,8 +130,9 @@ an ingredient listed twice, identical lines included - are one 400 (63), every p
 its line and input: `recipeIngredients[2].amount`, `.ingredientId`, `.unitId`, the index the line's
 place in the request. A repeat is reported on the later line. Nothing is written when one is
 refused. The DTO's lines are a `List`, in the request's order; a response lists them in Danish
-order of ingredient name, while the entity keeps them in a `Set`. The `/recipes/{id}/ingredients`
-sub-resource endpoints still work, but the UI does not use them.
+order of ingredient name, while the entity keeps them in a `Set`. The recipe's own POST and PUT
+are the only way to write lines: the `/recipes/{id}/ingredients` sub-resource was removed in V3
+Part 5, and its error codes 60-62 are not reused.
 
 ## Tests
 

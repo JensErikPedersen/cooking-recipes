@@ -11,9 +11,7 @@ public enum ApplicationErrorCodes {
     RECIPE_DTO_IS_NULL(51),
     RECIPE_ID_IS_NULL(52),
     RECIPE_ALREADY_EXISTS(53),
-    RECIPE_INGREDIENT_DTO_IS_NULL(60),
-    RECIPE_INGREDIENT_NOT_FOUND(61),
-    RECIPE_INGREDIENT_ALREADY_EXISTS(62),
+    // 60-62 belonged to the recipe ingredient sub-resource, removed in V3; not to be reused.
     RECIPE_INGREDIENTS_INVALID(63),
     RECIPE_RATING_NOT_SUPPORTED(70),
     CATEGORY_NOT_FOUND(100),

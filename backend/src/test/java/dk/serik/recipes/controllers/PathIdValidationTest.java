@@ -42,8 +42,6 @@ public class PathIdValidationTest {
 
     private static final String ID = "913a5159-3717-4b9d-a290-0158d31ea8aa";
 
-    private static final String LINE = "{\"ingredientId\":\"" + ID + "\",\"unitId\":\"" + ID + "\",\"amount\":1}";
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -91,24 +89,6 @@ public class PathIdValidationTest {
         verifyNoInteractions(categoryService, ingredientService, recipeService, tagService, unitService);
     }
 
-    @ParameterizedTest(name = "{0} {1} -> {2}")
-    @CsvSource(delimiter = '|', value = {
-            "POST   | /api/v1/recipes/not-a-uuid/ingredients              | id",
-            "PUT   | /api/v1/recipes/not-a-uuid/ingredients/" + ID + "   | id",
-            "PUT    | /api/v1/recipes/" + ID + "/ingredients/not-a-uuid   | ingredientId",
-            "DELETE | /api/v1/recipes/not-a-uuid/ingredients/" + ID + "   | id",
-            "DELETE | /api/v1/recipes/" + ID + "/ingredients/not-a-uuid   | ingredientId",
-    })
-    @DisplayName("Given a malformed id on the recipe ingredient sub-resource, Then 400 on that path variable")
-    public void shouldRejectMalformedIdOnRecipeIngredients(String method, String path, String field) throws Exception {
-        perform(method, path, LINE)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
-                .andExpect(jsonPath("$.validationExceptions[*].objectName", containsInAnyOrder(field)));
-
-        verifyNoInteractions(recipeService);
-    }
-
     @ParameterizedTest(name = "PUT {0} -> {1}")
     @CsvSource(delimiter = '|', value = {
             "/api/v1/categories/" + ID + "                    | name",
@@ -116,7 +96,6 @@ public class PathIdValidationTest {
             "/api/v1/recipes/" + ID + "                       | name",
             "/api/v1/tags/" + ID + "                          | name",
             "/api/v1/units/" + ID + "                         | label",
-            "/api/v1/recipes/" + ID + "/ingredients/" + ID + "| amount",
     })
     @DisplayName("Given a well-formed id and an invalid body, When PUT, Then 400 on the body's field, not on the parameter")
     public void shouldReportPutBodyErrorsOnTheField(String path, String field) throws Exception {

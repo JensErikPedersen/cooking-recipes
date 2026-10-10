@@ -101,8 +101,9 @@ layers are already built and tested:
    deferral, and its two tests go with it.
 3. `@Jacksonized` on `RatingDTO` and `RecipeRatingDTO`, plus `@Min(1) @Max(5)` on `rating`. Nothing
    above the database's `TINYINT` currently constrains the value.
-4. `RatingController` (five CRUD endpoints) and `/api/v1/recipes/{id}/ratings` routes shaped like the
-   existing ingredients sub-resource.
+4. `RatingController` (five CRUD endpoints), and a recipe's ratings written either with the recipe,
+   as its ingredient lines are, or under `/api/v1/recipes/{id}/ratings` - the ingredient lines'
+   own sub-resource of that shape was removed in V3 Part 5 for want of a caller.
 
 **Value.** The feature the whole `recipe_rating` table exists for. Until then the guard keeps the
 limitation explicit at the API boundary rather than silent.
@@ -195,8 +196,5 @@ accident.
 Each was found on the way, judged not worth its step, and is recorded here rather than lost in a
 step's notes in `docs/PLAN.md`.
 
-- **The `/recipes/{id}/ingredients` sub-resource endpoints are unused**: the form sends the lines
-  in the recipe's PUT, so Cancel can undo them (decided in Part 7). They still work and are tested;
-  keep or remove them as one decision.
 - **Sign-in does not return to where you were heading**: after signing in you land on the start
   page. Deliberately left out in 4b for simplicity.

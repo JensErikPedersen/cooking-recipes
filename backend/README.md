@@ -59,7 +59,7 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 
-Every resource offers the same five operations; recipes add a nested ingredients sub-resource.
+Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
 
 | Resource | Endpoints |
 |---|---|
@@ -68,7 +68,6 @@ Every resource offers the same five operations; recipes add a nested ingredients
 | `/api/v1/units` | GET (all, by id), POST, PUT, DELETE |
 | `/api/v1/tags` | GET (all, by id), POST, PUT, DELETE |
 | `/api/v1/recipes` | GET (all, by id), POST, PUT, DELETE |
-| `/api/v1/recipes/{id}/ingredients` | POST, PUT `/{ingredientId}`, DELETE `/{ingredientId}` |
 
 A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
 tags and the lines with the lists it sends.
@@ -84,8 +83,8 @@ Errors return a consistent envelope:
 ```
 
 `200` read · `201` create (with `Location`) · `204` delete · `400` validation · `401` not signed
-in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name or
-sub-resource, or a delete of something still in use.
+in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name, or
+a delete of something still in use.
 
 ### Not in this version
 

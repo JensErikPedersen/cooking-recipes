@@ -1,7 +1,6 @@
 package dk.serik.recipes.controllers;
 
 import dk.serik.recipes.dto.RecipeDTO;
-import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.service.RecipeService;
@@ -24,7 +23,8 @@ import java.net.URI;
 import java.util.List;
 
 /**
- * Recipes, plus their ingredients as a nested sub-resource.
+ * Recipes. A recipe's ingredient lines are written with the recipe itself, in its POST or PUT;
+ * there is no sub-resource for them.
  * <p>
  * Ratings are read-only in this version: {@code RecipeMapper} populates {@code recipeRatings} on
  * the way out, but writes carrying ratings are rejected by the service with 400. There are
@@ -77,57 +77,6 @@ public class RecipeController {
             throw notFound(id);
         }
         return ResponseEntity.noContent().build();
-    }
-
-    // ---------------------------------------------------------------- ingredients sub-resource
-
-    /**
-     * Adds an ingredient to a recipe. The recipe comes from the path; which ingredient, in what
-     * amount and unit, comes from the body. Responds with the updated recipe.
-     */
-    @PostMapping("/{id}/ingredients")
-    public ResponseEntity<RecipeDTO> addIngredient(@PathVariable @UUID String id,
-                                                   @Valid @RequestBody RecipeIngredientDTO recipeIngredientDTO) {
-        RecipeDTO updated = recipeService.addRecipeIngredient(withPath(id, recipeIngredientDTO.getIngredientId(), recipeIngredientDTO));
-        URI location = UriComponentsBuilder.fromPath(PATH)
-                .path("/{id}/ingredients/{ingredientId}")
-                .buildAndExpand(id, recipeIngredientDTO.getIngredientId())
-                .toUri();
-        return ResponseEntity.created(location).body(updated);
-    }
-
-    /**
-     * Both ids come from the path, so the body carries only the amount and unit.
-     */
-    @PutMapping("/{id}/ingredients/{ingredientId}")
-    public RecipeDTO updateIngredient(@PathVariable @UUID String id,
-                                      @PathVariable @UUID String ingredientId,
-                                      @Valid @RequestBody RecipeIngredientDTO recipeIngredientDTO) {
-        return recipeService.updateRecipeIngredient(withPath(id, ingredientId, recipeIngredientDTO));
-    }
-
-    /**
-     * Returns the updated recipe rather than 204, so the caller can see what is left.
-     */
-    @DeleteMapping("/{id}/ingredients/{ingredientId}")
-    public RecipeDTO deleteIngredient(@PathVariable @UUID String id, @PathVariable @UUID String ingredientId) {
-        return recipeService.deleteRecipeIngredient(RecipeIngredientDTO.builder()
-                .recipeId(id)
-                .ingredientId(ingredientId)
-                .build());
-    }
-
-    /**
-     * Rebuilds the DTO with the path ids authoritative. {@code RecipeIngredientDTO} is immutable,
-     * so this is a copy rather than a mutation - and it makes explicit which fields the path owns.
-     */
-    private RecipeIngredientDTO withPath(String recipeId, String ingredientId, RecipeIngredientDTO body) {
-        return RecipeIngredientDTO.builder()
-                .recipeId(recipeId)
-                .ingredientId(ingredientId)
-                .amount(body.getAmount())
-                .unitId(body.getUnitId())
-                .build();
     }
 
     private ServiceException notFound(String id) {

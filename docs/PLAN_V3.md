@@ -214,15 +214,15 @@ r.headers.get("Location");   // no "backend:8080"; then delete the tag from the 
 
 One step, backend only (decision 1).
 
-- [ ] Confirm nothing calls them: no frontend code, no e2e spec, no document other than the
+- [x] Confirm nothing calls them: no frontend code, no e2e spec, no document other than the
       backend's own
-- [ ] Remove `POST /recipes/{id}/ingredients`, `PUT` and `DELETE /recipes/{id}/ingredients/{ingredientId}`
+- [x] Remove `POST /recipes/{id}/ingredients`, `PUT` and `DELETE /recipes/{id}/ingredients/{ingredientId}`
       from `RecipeController`, and `addRecipeIngredient`, `updateRecipeIngredient`,
       `deleteRecipeIngredient` with their private helpers from the service
-- [ ] Error codes 60-62 go if nothing else uses them; the codes are not reused
-- [ ] Their tests go: `RecipeControllerTest`, `RecipeServiceTest`, the rows in
+- [x] Error codes 60-62 go if nothing else uses them; the codes are not reused
+- [x] Their tests go: `RecipeControllerTest`, `RecipeServiceTest`, the rows in
       `PathIdValidationTest`, any `RecipeIT` case
-- [ ] Docs: `backend/README.md` ("recipes add a nested ingredients sub-resource"),
+- [x] Docs: `backend/README.md` ("recipes add a nested ingredients sub-resource"),
       `backend/CLAUDE.md` (the sentence that they "still work, but the UI does not use them"); the
       item leaves `future_enhancements.md`
 
@@ -232,6 +232,25 @@ which use the recipe's own PUT, still pass unchanged.
 **Verify it yourself.** `.\mvnw clean verify`; the counts drop by exactly the tests removed, listed
 in the Done notes. Playwright unchanged. A `POST /api/v1/recipes/{id}/ingredients` now answers 405
 or 404 - say which.
+
+**Done (2026-10-10).** Deviations and findings:
+
+- Confirmed unused: the only `/ingredients/...` URLs in the frontend and e2e are the ingredient
+  pages themselves
+- Removed: the three endpoints and `withPath` from `RecipeController`; `addRecipeIngredient`,
+  `updateRecipeIngredient` and `deleteRecipeIngredient` from the service and its interface, with
+  the five helpers only they used. `findRecipeOrThrow` stays - the recipe's own update uses it.
+  Error codes 60-62 had no other user and are gone, with a comment in `ApplicationErrorCodes`
+  that they are not to be reused
+- Tests removed, 21 executions: 7 in `RecipeControllerTest`, 8 in `RecipeServiceTest`, and in
+  `PathIdValidationTest` the sub-resource method (5 cases) and one PUT row. `./mvnw clean verify`:
+  263 unit (284 - 21 exactly), 135 integration (unchanged - `RecipeIT`'s line tests use the
+  recipe's own PUT). Playwright: 103
+- On the stack, POST, PUT and DELETE on the old paths answer **404**, `REQUEST_REJECTED` (10) -
+  no route matches any more, so Spring reports no resource rather than a wrong method
+- Docs: `backend/README.md` (the endpoint table, and a 409 line that mentioned the sub-resource),
+  `backend/CLAUDE.md`, and the ratings entry in `future_enhancements.md`, which pointed at the
+  sub-resource as the shape for rating routes
 
 ---
 

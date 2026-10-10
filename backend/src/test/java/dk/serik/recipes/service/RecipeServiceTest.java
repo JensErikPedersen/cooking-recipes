@@ -289,172 +289,6 @@ public class RecipeServiceTest {
     }
 
     @Test
-    @DisplayName("Given a Recipe and a new Ingredient, When adding a RecipeIngredient, Then it is added to the Recipe")
-    public void shouldAddRecipeIngredient() {
-        // Given
-        RecipeIngredientDTO toAdd = RecipeIngredientDTO.builder()
-                .recipeId(RECIPE_ID)
-                .ingredientId(RUGMEL_ID)
-                .unitId(GRAM_ID)
-                .amount(new BigDecimal(200))
-                .build();
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
-        when(ingredientJpaRepository.findById(UUID.fromString(RUGMEL_ID))).thenReturn(Optional.of(MockIngredientUtil.mockRugmel()));
-        when(unitJpaRepository.findById(UUID.fromString(GRAM_ID))).thenReturn(Optional.of(MockUnitUtil.mockGram()));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(RUGMEL_ID)))
-                .thenReturn(Optional.empty());
-        when(recipeJpaRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        RecipeDTO updated = service.addRecipeIngredient(toAdd);
-
-        // Then
-        verify(recipeJpaRepository).save(recipeCaptor.capture());
-        assertThat(recipeCaptor.getValue().getRecipeIngredients()).hasSize(4);
-        assertThat(updated.getRecipeIngredients()).extracting("ingredientName").contains("Rugmel");
-    }
-
-    @Test
-    @DisplayName("Given an Ingredient already on the Recipe, When adding it again, Then a conflict is reported")
-    public void shouldRejectDuplicateRecipeIngredient() {
-        // Given
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
-        when(ingredientJpaRepository.findById(UUID.fromString(HVEDEMEL_ID))).thenReturn(Optional.of(MockIngredientUtil.mockHvedemel()));
-        when(unitJpaRepository.findById(UUID.fromString(GRAM_ID))).thenReturn(Optional.of(MockUnitUtil.mockGram()));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(HVEDEMEL_ID)))
-                .thenReturn(Optional.of(MockRecipeIngredientUtil.mockSavedRecipeIngredientHvedemel()));
-
-        // When / Then
-        assertThatThrownBy(() -> service.addRecipeIngredient(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel()))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("is already part of recipe")
-                .extracting("code", "httpStatus")
-                .containsExactly(ApplicationErrorCodes.RECIPE_INGREDIENT_ALREADY_EXISTS.getCode(), HttpStatus.CONFLICT);
-        verify(recipeJpaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Given an unknown Recipe, When adding a RecipeIngredient, Then RECIPE_NOT_FOUND is reported")
-    public void shouldRejectAddForUnknownRecipe() {
-        // Given
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.empty());
-
-        // When / Then
-        assertThatThrownBy(() -> service.addRecipeIngredient(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel()))
-                .isInstanceOf(ServiceException.class)
-                .extracting("code", "httpStatus")
-                .containsExactly(ApplicationErrorCodes.RECIPE_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("Given a RecipeIngredient without a unit, When adding it, Then a bad request is reported")
-    public void shouldRejectAddWithoutUnit() {
-        // Given
-        RecipeIngredientDTO noUnit = RecipeIngredientDTO.builder()
-                .recipeId(RECIPE_ID)
-                .ingredientId(RUGMEL_ID)
-                .amount(new BigDecimal(200))
-                .build();
-
-        // When / Then
-        assertThatThrownBy(() -> service.addRecipeIngredient(noUnit))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("requires both a unit id and an amount")
-                .extracting("httpStatus")
-                .isEqualTo(HttpStatus.BAD_REQUEST);
-    }
-
-    @Test
-    @DisplayName("Given an existing RecipeIngredient, When the amount is updated, Then the new amount is saved")
-    public void shouldUpdateRecipeIngredient() {
-        // Given
-        RecipeIngredientDTO toUpdate = RecipeIngredientDTO.builder()
-                .recipeId(RECIPE_ID)
-                .ingredientId(HVEDEMEL_ID)
-                .unitId(GRAM_ID)
-                .amount(new BigDecimal(750))
-                .build();
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(HVEDEMEL_ID)))
-                .thenReturn(Optional.of(MockRecipeIngredientUtil.mockSavedRecipeIngredientHvedemel()));
-        when(unitJpaRepository.findById(UUID.fromString(GRAM_ID))).thenReturn(Optional.of(MockUnitUtil.mockGram()));
-
-        // When
-        service.updateRecipeIngredient(toUpdate);
-
-        // Then
-        verify(recipeIngredientJpaRepository).save(recipeIngredientCaptor.capture());
-        assertThat(recipeIngredientCaptor.getValue().getAmount()).isEqualByComparingTo(new BigDecimal(750));
-        assertThat(recipeIngredientCaptor.getValue().getUnit().getLabel()).isEqualTo("g");
-    }
-
-    @Test
-    @DisplayName("Given an Ingredient not on the Recipe, When updating it, Then RECIPE_INGREDIENT_NOT_FOUND is reported")
-    public void shouldRejectUpdateForUnknownRecipeIngredient() {
-        // Given
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(RUGMEL_ID)))
-                .thenReturn(Optional.empty());
-        RecipeIngredientDTO unknown = RecipeIngredientDTO.builder()
-                .recipeId(RECIPE_ID)
-                .ingredientId(RUGMEL_ID)
-                .unitId(GRAM_ID)
-                .amount(new BigDecimal(200))
-                .build();
-
-        // When / Then
-        assertThatThrownBy(() -> service.updateRecipeIngredient(unknown))
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining("is not part of recipe")
-                .extracting("code", "httpStatus")
-                .containsExactly(ApplicationErrorCodes.RECIPE_INGREDIENT_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("Given an existing RecipeIngredient, When deleted, Then it is removed from the Recipe")
-    public void shouldDeleteRecipeIngredient() {
-        // Given
-        Recipe recipe = mockSavedRecipeWheatBread();
-        // the persistence context hands back the same instance the Recipe already holds,
-        // so take it from the recipe rather than building a detached copy
-        RecipeIngredient managed = recipe.getRecipeIngredients().stream()
-                .filter(ri -> ri.getIngredient().getId().toString().equals(HVEDEMEL_ID))
-                .findFirst()
-                .orElseThrow();
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(recipe));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(HVEDEMEL_ID)))
-                .thenReturn(Optional.of(managed));
-
-        // When
-        RecipeDTO updated = service.deleteRecipeIngredient(MockRecipeIngredientUtil.mockRecipeIngredientDTOHvedemel());
-
-        // Then
-        verify(recipeIngredientJpaRepository).delete(managed);
-        assertThat(recipe.getRecipeIngredients()).hasSize(2);
-        assertThat(updated.getRecipeIngredients()).extracting("ingredientName").doesNotContain("Hvedemel");
-    }
-
-    @Test
-    @DisplayName("Given an Ingredient not on the Recipe, When deleting it, Then RECIPE_INGREDIENT_NOT_FOUND is reported")
-    public void shouldRejectDeleteForUnknownRecipeIngredient() {
-        // Given
-        when(recipeJpaRepository.findById(UUID.fromString(RECIPE_ID))).thenReturn(Optional.of(mockSavedRecipeWheatBread()));
-        when(recipeIngredientJpaRepository.findByRecipeIdAndIngredientId(UUID.fromString(RECIPE_ID), UUID.fromString(RUGMEL_ID)))
-                .thenReturn(Optional.empty());
-        RecipeIngredientDTO unknown = RecipeIngredientDTO.builder()
-                .recipeId(RECIPE_ID)
-                .ingredientId(RUGMEL_ID)
-                .build();
-
-        // When / Then
-        assertThatThrownBy(() -> service.deleteRecipeIngredient(unknown))
-                .isInstanceOf(ServiceException.class)
-                .extracting("code", "httpStatus")
-                .containsExactly(ApplicationErrorCodes.RECIPE_INGREDIENT_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
-        verify(recipeIngredientJpaRepository, never()).delete(any());
-    }
-
-    @Test
     @DisplayName("Given ratings are out of scope, When adding a RecipeRating, Then it fails loudly")
     public void shouldRejectAddRecipeRating() {
         assertThatThrownBy(() -> service.addRecipeRating(null))
@@ -621,7 +455,6 @@ public class RecipeServiceTest {
         verify(recipeJpaRepository, never()).save(any());
     }
 
-
     @Test
     @DisplayName("Given RecipeDTO is null, When saving, Then a bad request is reported")
     public void shouldRejectSaveOfNullRecipe() {
@@ -659,7 +492,6 @@ public class RecipeServiceTest {
                 .extracting("code", "httpStatus")
                 .containsExactly(ApplicationErrorCodes.RECIPE_ID_IS_NULL.getCode(), HttpStatus.BAD_REQUEST);
     }
-
 
     @Test
     @DisplayName("Given a Category id that does not exist, When saving a Recipe, Then CATEGORY_NOT_FOUND is reported")

@@ -2,7 +2,6 @@ package dk.serik.recipes.controllers;
 
 import tools.jackson.databind.json.JsonMapper;
 import dk.serik.recipes.dto.RecipeDTO;
-import dk.serik.recipes.dto.RecipeIngredientDTO;
 import dk.serik.recipes.dto.RecipeRatingDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
@@ -19,7 +18,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -220,134 +218,4 @@ public class RecipeControllerTest {
 
     // ------------------------------------------------------------------ ingredients sub-resource
 
-    @Test
-    @DisplayName("Given a recipe, When POST an ingredient, Then 201 with a Location header and the path recipe id is used")
-    public void shouldAddIngredient() throws Exception {
-        given(recipeService.addRecipeIngredient(any())).willReturn(aRecipe());
-
-        mockMvc.perform(post(BASE + "/{id}/ingredients", ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .ingredientId(INGREDIENT_ID)
-                                .unitId(UNIT_ID)
-                                .amount(new BigDecimal(500))
-                                .build())))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", BASE + "/" + ID + "/ingredients/" + INGREDIENT_ID));
-
-        ArgumentCaptor<RecipeIngredientDTO> captor = ArgumentCaptor.forClass(RecipeIngredientDTO.class);
-        verify(recipeService).addRecipeIngredient(captor.capture());
-        assertThat(captor.getValue().getRecipeId()).isEqualTo(ID);
-        assertThat(captor.getValue().getIngredientId()).isEqualTo(INGREDIENT_ID);
-    }
-
-    @Test
-    @DisplayName("Given an ingredient payload with no amount, When POST, Then 400 and the service is never called")
-    public void shouldRejectAddIngredientWithoutAmount() throws Exception {
-        mockMvc.perform(post(BASE + "/{id}/ingredients", ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .ingredientId(INGREDIENT_ID)
-                                .unitId(UNIT_ID)
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()));
-
-        verify(recipeService, never()).addRecipeIngredient(any());
-    }
-
-    @Test
-    @DisplayName("Given an amount of zero, When POST an ingredient, Then 400")
-    public void shouldRejectAddIngredientWithZeroAmount() throws Exception {
-        mockMvc.perform(post(BASE + "/{id}/ingredients", ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .ingredientId(INGREDIENT_ID)
-                                .unitId(UNIT_ID)
-                                .amount(BigDecimal.ZERO)
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationExceptions[0].objectName").value("amount"));
-
-        verify(recipeService, never()).addRecipeIngredient(any());
-    }
-
-    @Test
-    @DisplayName("Given a duplicate ingredient, When POST, Then the service's 409 is surfaced")
-    public void shouldReturn409ForDuplicateIngredient() throws Exception {
-        given(recipeService.addRecipeIngredient(any())).willThrow(ServiceException.builder()
-                .message("Ingredient " + INGREDIENT_ID + " is already part of recipe " + ID)
-                .code(ApplicationErrorCodes.RECIPE_INGREDIENT_ALREADY_EXISTS.getCode())
-                .httpStatus(HttpStatus.CONFLICT)
-                .build());
-
-        mockMvc.perform(post(BASE + "/{id}/ingredients", ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .ingredientId(INGREDIENT_ID)
-                                .unitId(UNIT_ID)
-                                .amount(new BigDecimal(500))
-                                .build())))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode")
-                        .value(ApplicationErrorCodes.RECIPE_INGREDIENT_ALREADY_EXISTS.getCode()));
-    }
-
-    @Test
-    @DisplayName("Given a recipe ingredient, When PUT, Then both ids come from the path")
-    public void shouldUpdateIngredientUsingPathIds() throws Exception {
-        given(recipeService.updateRecipeIngredient(any())).willReturn(aRecipe());
-
-        mockMvc.perform(put(BASE + "/{id}/ingredients/{ingredientId}", ID, INGREDIENT_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .recipeId("00000000-0000-0000-0000-000000000000")   // ignored
-                                .ingredientId("11111111-1111-1111-1111-111111111111") // ignored
-                                .unitId(UNIT_ID)
-                                .amount(new BigDecimal(750))
-                                .build())))
-                .andExpect(status().isOk());
-
-        ArgumentCaptor<RecipeIngredientDTO> captor = ArgumentCaptor.forClass(RecipeIngredientDTO.class);
-        verify(recipeService).updateRecipeIngredient(captor.capture());
-        assertThat(captor.getValue().getRecipeId()).isEqualTo(ID);
-        assertThat(captor.getValue().getIngredientId()).isEqualTo(INGREDIENT_ID);
-        assertThat(captor.getValue().getAmount()).isEqualByComparingTo(new BigDecimal(750));
-    }
-
-    @Test
-    @DisplayName("Given an ingredient not on the recipe, When PUT, Then the service's 404 is surfaced")
-    public void shouldReturn404WhenUpdatingUnknownRecipeIngredient() throws Exception {
-        given(recipeService.updateRecipeIngredient(any())).willThrow(ServiceException.builder()
-                .message("Ingredient " + INGREDIENT_ID + " is not part of recipe " + ID)
-                .code(ApplicationErrorCodes.RECIPE_INGREDIENT_NOT_FOUND.getCode())
-                .httpStatus(HttpStatus.NOT_FOUND)
-                .build());
-
-        mockMvc.perform(put(BASE + "/{id}/ingredients/{ingredientId}", ID, INGREDIENT_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(RecipeIngredientDTO.builder()
-                                .unitId(UNIT_ID)
-                                .amount(new BigDecimal(750))
-                                .ingredientId(INGREDIENT_ID)
-                                .build())))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errorCode")
-                        .value(ApplicationErrorCodes.RECIPE_INGREDIENT_NOT_FOUND.getCode()));
-    }
-
-    @Test
-    @DisplayName("Given a recipe ingredient, When DELETE, Then 200 and the updated recipe is returned")
-    public void shouldDeleteIngredient() throws Exception {
-        given(recipeService.deleteRecipeIngredient(any())).willReturn(aRecipe());
-
-        mockMvc.perform(delete(BASE + "/{id}/ingredients/{ingredientId}", ID, INGREDIENT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Hvedebrød"));
-
-        ArgumentCaptor<RecipeIngredientDTO> captor = ArgumentCaptor.forClass(RecipeIngredientDTO.class);
-        verify(recipeService).deleteRecipeIngredient(captor.capture());
-        assertThat(captor.getValue().getRecipeId()).isEqualTo(ID);
-        assertThat(captor.getValue().getIngredientId()).isEqualTo(INGREDIENT_ID);
-    }
 }
