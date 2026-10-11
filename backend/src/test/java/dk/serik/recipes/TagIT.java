@@ -23,6 +23,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * Tag writes through the whole stack, against the database's own constraints - see
@@ -121,6 +125,25 @@ class TagIT {
 
 		mockMvc.perform(get(TAGS + "/" + id))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("Given the seeded tags, When GET the collection with ?name=GODT, Then both 'Godt til' tags, and only names containing it in any case")
+	void shouldFilterByPartialNameIgnoringCase() throws Exception {
+		// Other tests share this database and add rows of their own, so the seeded ones are looked for
+		// among the results rather than as the whole of them.
+		mockMvc.perform(get(TAGS).param("name", "GODT"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", hasItems("Godt til grillen", "Godt til kaffen")))
+				.andExpect(jsonPath("$[*].name", everyItem(containsStringIgnoringCase("GODT"))));
+	}
+
+	@Test
+	@DisplayName("Given no name containing it, When GET the collection with ?name=, Then 200 and an empty list")
+	void shouldAnswerEmptyListWhenNoNameMatches() throws Exception {
+		mockMvc.perform(get(TAGS).param("name", "no such name anywhere"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
 	}
 
 	private String create(String name) throws Exception {

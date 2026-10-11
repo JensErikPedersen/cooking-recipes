@@ -54,21 +54,8 @@ public class IngredientServiceImpl implements IngredientService {
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
-    public Optional<IngredientDTO> findByName(String name) {
-        Optional<Ingredient> ingredient =
-                repository.findByName(name);
-
-        if(ingredient.isPresent()) {
-            return Optional.of(IngredientMapper.from(ingredient.get()));
-        }
-
-        return Optional.empty();
-    }
-
-    @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
     public List<IngredientDTO> findAllByNameContains(String name) {
-        return repository.findAllByNameContains(name).stream()
+        return repository.findAllByNameContainingIgnoreCase(name).stream()
                 .map(IngredientMapper::from)
                 .collect(Collectors.toList());
     }

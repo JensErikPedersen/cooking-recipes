@@ -63,6 +63,21 @@ public class TagControllerTest {
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].name").value("Mexi"))
                 .andExpect(jsonPath("$[1].name").value("Sødt"));
+
+        verify(tagService, never()).findAllByNameContains(any());
+    }
+
+    @Test
+    @DisplayName("Given ?name=, When GET the collection, Then the partial match is answered, not the whole list")
+    public void shouldFilterTagsByName() throws Exception {
+        given(tagService.findAllByNameContains("mex")).willReturn(List.of(MockTagUtil.mockMexiTagDTO()));
+
+        mockMvc.perform(get(BASE).param("name", "mex"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Mexi"));
+
+        verify(tagService, never()).findAll();
     }
 
     @Test

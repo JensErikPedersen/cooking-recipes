@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Ingredients are a flat lookup resource, shaped identically to {@link CategoryController}.
@@ -39,9 +41,10 @@ public class IngredientController {
 
     private final IngredientService ingredientService;
 
+    /** Everything, or with {@code ?name=} only those whose name contains it, in any case. */
     @GetMapping
-    public List<IngredientDTO> findAll() {
-        return ingredientService.findAll();
+    public List<IngredientDTO> findAll(@RequestParam(required = false) String name) {
+        return Objects.isNull(name) ? ingredientService.findAll() : ingredientService.findAllByNameContains(name);
     }
 
     @GetMapping("/{id}")

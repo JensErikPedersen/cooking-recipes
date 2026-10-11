@@ -61,6 +61,21 @@ public class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].name").value("Dessert"));
+
+        verify(categoryService, never()).findAllByNameContains(any());
+    }
+
+    @Test
+    @DisplayName("Given ?name=, When GET the collection, Then the partial match is answered, not the whole list")
+    public void shouldFilterCategoriesByName() throws Exception {
+        given(categoryService.findAllByNameContains("ess")).willReturn(List.of(MockCategoryUtil.mockToBeSavedDessertDTO()));
+
+        mockMvc.perform(get(BASE).param("name", "ess"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Dessert"));
+
+        verify(categoryService, never()).findAll();
     }
 
     @Test

@@ -16,18 +16,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Tags label recipes, shaped like {@link CategoryController}.
- * <p>
- * {@code TagService.findTagByName} is not exposed: the name filter is being standardised across
- * resources as {@code ?name=} backed by a partial match, and Tag has no partial-match query yet.
- * See {@code docs/future_enhancements.md}.
  */
 @RestController
 @RequestMapping(TagController.PATH)
@@ -39,9 +37,10 @@ public class TagController {
 
     private final TagService tagService;
 
+    /** Everything, or with {@code ?name=} only those whose name contains it, in any case. */
     @GetMapping
-    public List<TagDTO> findAll() {
-        return tagService.findAll();
+    public List<TagDTO> findAll(@RequestParam(required = false) String name) {
+        return Objects.isNull(name) ? tagService.findAll() : tagService.findAllByNameContains(name);
     }
 
     @GetMapping("/{id}")

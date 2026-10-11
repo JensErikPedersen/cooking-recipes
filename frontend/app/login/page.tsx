@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, auth } from "@/lib/api";
 import { afterSignIn } from "@/lib/return-to";
+import { useHydrated } from "@/lib/use-hydrated";
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const hydrated = useHydrated();
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -29,38 +31,40 @@ export default function LoginPage() {
   return (
     <main className="mx-auto mt-24 w-full max-w-sm px-8">
       <h1 className="text-2xl font-bold">Sign in</h1>
-      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          Username
-          <input
-            name="username"
-            autoComplete="username"
-            required
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          Password
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="rounded border px-3 py-2"
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-sm text-red-700">
-            {error}
-          </p>
-        )}
-        <button type="submit" className="rounded bg-gray-900 px-3 py-2 text-white hover:bg-gray-700">
-          Sign in
-        </button>
+      <form onSubmit={onSubmit} className="mt-6">
+        <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
+          <label className="flex flex-col gap-1">
+            Username
+            <input
+              name="username"
+              autoComplete="username"
+              required
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="rounded border px-3 py-2"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="rounded border px-3 py-2"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-sm text-red-700">
+              {error}
+            </p>
+          )}
+          <button type="submit" className="rounded bg-gray-900 px-3 py-2 text-white hover:bg-gray-700">
+            Sign in
+          </button>
+        </fieldset>
       </form>
       <p className="mt-6 text-sm">
         No account yet?{" "}

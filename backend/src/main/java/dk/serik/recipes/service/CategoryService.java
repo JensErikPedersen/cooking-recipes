@@ -11,8 +11,8 @@ public interface CategoryService {
 
 	Optional<CategoryDTO> findById(String id);
 
-	Optional<CategoryDTO> findByName(String string);
-	
+	List<CategoryDTO> findAllByNameContains(String name);
+
 	CategoryDTO save(CategoryDTO categoryDto);
 
 	boolean delete(String id);

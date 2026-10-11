@@ -1,6 +1,7 @@
 package dk.serik.recipes.controllers;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
+import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.service.AuthService;
@@ -11,13 +12,15 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Sign in, register a new account - which signs it in - and report who is signed in.
+ * Sign in, register a new account - which signs it in - change one's own password, and report who
+ * is signed in.
  * <p>
  * There is no logout method: Spring Security's logout filter handles
  * {@code POST /api/v1/auth/logout}, invalidates the session and answers 204 - see
@@ -41,6 +44,12 @@ public class AuthController {
 	public AuthenticatedUserDTO register(@Valid @RequestBody RegisterRequestDTO registerRequest,
 										 HttpServletRequest request, HttpServletResponse response) {
 		return authService.register(registerRequest, request, response);
+	}
+
+	@PutMapping("/password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void changePassword(@Valid @RequestBody ChangePasswordRequestDTO changeRequest, HttpServletRequest request) {
+		authService.changePassword(changeRequest, request);
 	}
 
 	@GetMapping("/me")

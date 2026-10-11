@@ -38,6 +38,12 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
   than encode a longer one, so the service checks before encoding - `æ` counts two. The
   confirmation is compared there too, a 400 on `confirmPassword`.
+- **Changing a password**: `PUT /api/v1/auth/password`, signed in. The new password takes
+  registration's rules, from the same `checkNewPassword`. A wrong current password is a 400 on
+  `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
+  to sign in. The current one is checked with the `AuthenticationManager`, as login does, and the
+  new hash written by `AppUserWriter.updatePassword` - every password is encoded in that class.
+  The session gets a new id, as at login; other sessions of the account stay signed in.
 
 ## Layout
 
@@ -161,10 +167,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
-| `AuthenticationIT`, `RegistrationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
+| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**`AuthenticationIT`, `RegistrationIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
 and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
@@ -175,8 +181,8 @@ slice tests can pass while real serialization is broken - the same class of gap.
 **MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
 inside the context's filter with a test one that sets no cookie, for every later test there. A test
 that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
-classes: `RegistrationIT` takes `AuthenticationIT`'s properties to share its context instead.
-Alone it passed; after `CategoryIT` every test found no cookie.
+classes: `RegistrationIT` and `PasswordChangeIT` take `AuthenticationIT`'s properties to share its
+context instead. Alone `RegistrationIT` passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
 
@@ -184,12 +190,17 @@ Normally in the Docker stack. On the host, against the stack's MySQL on port 330
 backend first, since both use 8080:
 
 ```powershell
-$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; $env:DB_ADMIN_PASSWORD="..."; ./mvnw spring-boot:run
 ```
 
-`DB_PASSWORD` has no default. Spring does not error on an unresolved placeholder - it passes the
-literal text through - so a missing password surfaces as `Access denied for user 'recipesuser'`
-from Liquibase at startup, not as a configuration error. Add
+**Two database accounts.** Liquibase connects as `DB_ADMIN_USERNAME` (`recipesadmin`), which may
+change the schema; the application as `DB_USERNAME` (`recipesuser`), which may only `SELECT`,
+`INSERT`, `UPDATE` and `DELETE` - `spring.liquibase.user` / `.password` give Liquibase its own
+connection on the datasource's url. The stack creates both in `mysql/initdb/accounts.sh`, on a
+fresh volume only. Neither password has a default. Spring does not error on an unresolved
+placeholder - it passes the literal text through - so a missing one surfaces as `Access denied for
+user 'recipesadmin'` from Liquibase at startup, or `'recipesuser'` after it, not as a configuration
+error. The tests run on H2 as its own `sa`, untouched by either. Add
 `-Dspring-boot.run.profiles=dev` for SQL and bind-value logging; do not enable it where real user
 data flows.
 
@@ -224,7 +235,16 @@ must be reachable before the application starts.
 - `RecipeService.addRecipeRating` throws `UnsupportedOperationException`, and a recipe write
   carrying `recipeRatings` is rejected with `RECIPE_RATING_NOT_SUPPORTED` (70). Ratings are
   readable but not writable, by decision - see `docs/future_enhancements.md`.
-- `CategoryJpaRepository.findAllByNameContains` is tested but unreachable: no service exposes it.
+- Name lookup: Category, Ingredient, Tag and Recipe services expose one query,
+  `findAllByNameContains`, over the repository's `findAllByNameContainingIgnoreCase`. Without
+  `IgnoreCase` it ignored case on MySQL, by its collation, and not on H2. The exact `findByName`
+  stays in the repositories for the duplicate-name checks and nothing else. `?name=` on the list
+  endpoints reaches the partial match; a controller only picks between it and `findAll`.
+- The schema's collation is Danish, `utf8mb4_da_0900_ai_ci` (`db.changelog_1.4.xml`, MySQL only):
+  `æ`, `ø` and `å` are letters of their own, so `Brod` and `Brød` - or `soren` and `Søren` - are
+  different names, and case is still ignored. For `=`, Danish also takes `aa` for `å`: `Aalborg` is
+  taken by `Ålborg`; `LIKE` does not. H2 has no such collation, so no test sees any of this - prove a
+  change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

@@ -23,6 +23,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * Ingredient writes through the whole stack, against the database's own constraints - see
@@ -126,6 +130,25 @@ class IngredientIT {
 
 		mockMvc.perform(get(INGREDIENTS + "/" + id))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("Given the seeded ingredients, When GET the collection with ?name=MEL, Then the three flours, and only names containing it in any case")
+	void shouldFilterByPartialNameIgnoringCase() throws Exception {
+		// Other tests share this database and add rows of their own, so the seeded ones are looked for
+		// among the results rather than as the whole of them.
+		mockMvc.perform(get(INGREDIENTS).param("name", "MEL"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", hasItems("Fuldkorns hvedemel", "Hvedemel", "Rugmel")))
+				.andExpect(jsonPath("$[*].name", everyItem(containsStringIgnoringCase("MEL"))));
+	}
+
+	@Test
+	@DisplayName("Given no name containing it, When GET the collection with ?name=, Then 200 and an empty list")
+	void shouldAnswerEmptyListWhenNoNameMatches() throws Exception {
+		mockMvc.perform(get(INGREDIENTS).param("name", "no such name anywhere"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
 	}
 
 	private String create(String name) throws Exception {

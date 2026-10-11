@@ -11,6 +11,7 @@ export default function RecipesPage() {
       path="/recipes"
       newLabel="New recipe"
       load={recipes.list}
+      searchable
       columns={[
         ["Category", (recipe) => recipe.category.name],
         ["Tags", (recipe) => (recipe.tags ?? []).map((tag) => tag.name).toSorted(danish).join(", ")],

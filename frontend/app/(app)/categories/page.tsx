@@ -10,6 +10,7 @@ export default function CategoriesPage() {
       path="/categories"
       newLabel="New category"
       load={categories.list}
+      searchable
       columns={[["Description", (category) => category.description]]}
     />
   );

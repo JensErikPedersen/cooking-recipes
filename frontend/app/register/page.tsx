@@ -7,6 +7,7 @@ import { auth, fieldErrors } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
 import { TextField } from "@/components/text-field";
 import { primaryButton } from "@/components/styles";
+import { useHydrated } from "@/lib/use-hydrated";
 
 // A new account, for a visitor who has none. The backend checks every rule - the confirmation
 // included - and signs the new account in, so success goes straight to the Welcome page.
@@ -18,6 +19,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<unknown>();
   const [saving, setSaving] = useState(false);
   const errors = fieldErrors(error);
+  const hydrated = useHydrated();
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -34,38 +36,40 @@ export default function RegisterPage() {
   return (
     <main className="mx-auto mt-24 w-full max-w-sm px-8">
       <h1 className="text-2xl font-bold">Create an account</h1>
-      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-        <TextField
-          label="Username"
-          name="username"
-          value={username}
-          onChange={setUsername}
-          error={errors.username}
-          autoComplete="username"
-        />
-        <TextField
-          label="Password"
-          name="password"
-          value={password}
-          onChange={setPassword}
-          error={errors.password}
-          type="password"
-          autoComplete="new-password"
-        />
-        <TextField
-          label="Confirm password"
-          name="confirmPassword"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-          error={errors.confirmPassword}
-          type="password"
-          autoComplete="new-password"
-        />
-        {/* An error that belongs to no field - a failure rather than a rule. */}
-        {error !== undefined && Object.keys(errors).length === 0 && <ErrorMessage error={error} />}
-        <button type="submit" disabled={saving} className={primaryButton}>
-          Register
-        </button>
+      <form onSubmit={onSubmit} className="mt-6">
+        <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
+          <TextField
+            label="Username"
+            name="username"
+            value={username}
+            onChange={setUsername}
+            error={errors.username}
+            autoComplete="username"
+          />
+          <TextField
+            label="Password"
+            name="password"
+            value={password}
+            onChange={setPassword}
+            error={errors.password}
+            type="password"
+            autoComplete="new-password"
+          />
+          <TextField
+            label="Confirm password"
+            name="confirmPassword"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            error={errors.confirmPassword}
+            type="password"
+            autoComplete="new-password"
+          />
+          {/* An error that belongs to no field - a failure rather than a rule. */}
+          {error !== undefined && Object.keys(errors).length === 0 && <ErrorMessage error={error} />}
+          <button type="submit" disabled={saving} className={primaryButton}>
+            Register
+          </button>
+        </fieldset>
       </form>
       <p className="mt-6 text-sm">
         <Link href="/login" className="underline">

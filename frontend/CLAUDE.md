@@ -35,7 +35,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Logging out goes to the bare `/login`.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
-  it is given; "No <things> yet." when empty. A read view or edit page wraps itself in
+  it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
+  Ingredients and Tags, not Units - has a "Search by name" field that asks the API with
+  `?name=`, never filters in the page, and says "No <things> match "<term>"." when nothing does;
+  an empty field asks for everything again. Its effect drops a response for a term no longer
+  searched: the list asked for on arrival can come back after a quick search. A read view or edit page wraps itself in
   `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
   otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
   a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame. Not server components: they
@@ -68,11 +72,20 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
   its editable fields, never the audit fields. The register form follows the same rule: the
   password confirmation is checked by the backend, not here.
+- The login and register pages are rendered on the server, so their fields exist before React
+  does. What is typed into them then, React never sees: the form would send it empty. Each wraps
+  its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
+  Playwright waits for a field to be enabled, so its tests wait too. The signed-in pages do not
+  need it: `AppShell` renders nothing until the session is confirmed, which is after hydration.
+- `/account/password`, reached from the username in the header, changes the signed-in user's own
+  password. Not an `EntityForm`: there is no entity and no read view, so after a change it stays,
+  empties its fields and says so in a `role="status"` line. A wrong current password comes back as
+  a 400 on its field - a 401 would send the browser to sign in from `lib/api.ts`.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
-  and the `<main>` every page renders into. Pages start at their `<h1>`.
+  the username, linked to `/account/password`, and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
 - Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
   on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A

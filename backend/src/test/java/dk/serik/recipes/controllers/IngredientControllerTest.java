@@ -62,6 +62,21 @@ public class IngredientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].name").value("Havsalt"));
+
+        verify(ingredientService, never()).findAllByNameContains(any());
+    }
+
+    @Test
+    @DisplayName("Given ?name=, When GET the collection, Then the partial match is answered, not the whole list")
+    public void shouldFilterIngredientsByName() throws Exception {
+        given(ingredientService.findAllByNameContains("mel")).willReturn(List.of(MockIngredientUtil.mockHvedemelDTO()));
+
+        mockMvc.perform(get(BASE).param("name", "mel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Hvedemel"));
+
+        verify(ingredientService, never()).findAll();
     }
 
     @Test

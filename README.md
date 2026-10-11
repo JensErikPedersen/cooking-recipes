@@ -19,7 +19,13 @@ Open http://localhost:3000 and sign in with `APP_ADMIN_USERNAME` and `APP_ADMIN_
 
 If PowerShell refuses to run the scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
+The database accounts are created only on a fresh database volume. A database from before
+version 4 has one account where there are now two, and the backend stops with
+`Access denied for user 'recipesadmin'`: add `DB_ADMIN_USERNAME` and `DB_ADMIN_PASSWORD` to `.env`
+as `.env.example` shows, then `docker compose down -v` - which deletes all data, accounts included -
+and start again.
+
 ## More
 
-`CLAUDE.md` lists every command; `docs/PLAN_V3.md` is the current plan and its progress.
-`docs/PLAN.md` (the MVP) and `docs/PLAN_V2.md` are finished.
+`CLAUDE.md` lists every command; `docs/PLAN_V4.md` is the current plan and its progress.
+`docs/PLAN.md` (the MVP), `docs/PLAN_V2.md` and `docs/PLAN_V3.md` are finished.

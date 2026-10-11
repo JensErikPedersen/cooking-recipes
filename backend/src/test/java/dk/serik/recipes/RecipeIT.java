@@ -247,6 +247,26 @@ class RecipeIT {
 				"recipeIngredients[2].unitId", "Choose a unit.");
 	}
 
+	@Test
+	@DisplayName("Given a recipe, When GET the collection with ?name= part of its name in other case, Then that recipe alone")
+	void shouldFilterByPartialNameIgnoringCase() throws Exception {
+		// Recipes are not seeded in the tests, so the test makes its own; its random part is unique.
+		String name = uniqueName();
+		create(name);
+
+		mockMvc.perform(get(RECIPES).param("name", name.substring("Recipe ".length()).toUpperCase()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", contains(name)));
+	}
+
+	@Test
+	@DisplayName("Given no name containing it, When GET the collection with ?name=, Then 200 and an empty list")
+	void shouldAnswerEmptyListWhenNoNameMatches() throws Exception {
+		mockMvc.perform(get(RECIPES).param("name", "no such name anywhere"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
+	}
+
 	/** Expects a 400 whose field errors are exactly these, in order: field, message, field, message... */
 	private void assertLinesRejected(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
 									 Map<String, Object> body, String... fieldsAndMessages) throws Exception {

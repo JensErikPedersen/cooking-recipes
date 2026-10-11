@@ -1,0 +1,38 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!--
+      Danish names compare as Danish (docs/PLAN_V4.md Part 8). MySQL's default collation,
+      utf8mb4_0900_ai_ci, ignores accents as well as case: to it ø is o and Æ is Ae, so the
+      category Brod was refused as taken by Brød, ?name=brod found brød, and the username soren was
+      taken by Søren. utf8mb4_da_0900_ai_ci keeps æ, ø and å as letters of their own and still
+      ignores case. One Danish rule comes with it, accepted: for =, aa is å - Aalborg is taken by
+      Ålborg - though not for LIKE.
+
+      Every table of the application, so every text column follows one rule. Liquibase's own two
+      tables are left as they are. The schema's default follows, so a later table is born Danish.
+      Foreign key checks are off while the tables convert one by one: the id columns are text too,
+      and a key may not join columns of two collations.
+
+      MySQL only: H2 in the tests has no such collation, and only the stack can prove this.
+    -->
+    <changeSet author="jense" id="20261011-danish-collation" dbms="mysql">
+        <sql>
+            SET FOREIGN_KEY_CHECKS = 0;
+            ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE app_user CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE category CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE ingredient CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE rating CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE recipe CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE recipe_ingredient CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE recipe_rating CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE recipe_tag CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE tag CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            ALTER TABLE unit CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci;
+            SET FOREIGN_KEY_CHECKS = 1;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

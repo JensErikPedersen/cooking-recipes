@@ -5,13 +5,16 @@ services:
     image: mysql:9.7
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is not set - copy .env.example to .env}
-      # The entrypoint creates this database and this account, with all privileges on it, only
-      # while the volume is empty. Liquibase and the application both connect as this account.
+      # The entrypoint creates this database, only while the volume is empty. The two accounts are
+      # created then too, by mysql/initdb/accounts.sh: one for Liquibase, one for the application.
       MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set - copy .env.example to .env}
+      DB_ADMIN_USERNAME: ${DB_ADMIN_USERNAME:?DB_ADMIN_USERNAME is not set - copy .env.example to .env}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:?DB_ADMIN_PASSWORD is not set - copy .env.example to .env}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set - copy .env.example to .env}
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # TCP via 127.0.0.1, not the socket: during first-run initialisation the entrypoint runs a
       # temporary server with networking off, which would answer a socket ping too early.
@@ -30,6 +33,9 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Liquibase's own account, which alone may change the schema.
+      DB_ADMIN_USERNAME: ${DB_ADMIN_USERNAME}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD}
       APPLICATION_PORT: ${APPLICATION_PORT}
       # The first account, created by AdminBootstrap only while app_user is empty.
       APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:?APP_ADMIN_USERNAME is not set - copy .env.example to .env}

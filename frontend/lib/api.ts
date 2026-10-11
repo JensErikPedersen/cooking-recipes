@@ -70,6 +70,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/** A list path, with ?name= when a search term is given. */
+function listPath(path: string, name?: string): string {
+  return name === undefined ? path : `${path}?name=${encodeURIComponent(name)}`;
+}
+
 /** The field errors of a failed call by field name: a validation 400 and a 409 on a field alike. */
 export function fieldErrors(error: unknown): Record<string, string> {
   if (!(error instanceof ApiError)) {
@@ -99,7 +104,8 @@ export interface Category extends Audited {
 export type CategoryInput = Pick<Category, "name" | "description">;
 
 export const categories = {
-  list: () => request<Category[]>("GET", "/categories"),
+  /** All, or with a name only those whose name contains it, in any case. */
+  list: (name?: string) => request<Category[]>("GET", listPath("/categories", name)),
   get: (id: string) => request<Category>("GET", `/categories/${encodeURIComponent(id)}`),
   create: (input: CategoryInput) => request<Category>("POST", "/categories", input),
   update: (id: string, input: CategoryInput) =>
@@ -139,7 +145,8 @@ export interface RecipeInput {
 }
 
 export const recipes = {
-  list: () => request<Recipe[]>("GET", "/recipes"),
+  /** All, or with a name only those whose name contains it, in any case. */
+  list: (name?: string) => request<Recipe[]>("GET", listPath("/recipes", name)),
   get: (id: string) => request<Recipe>("GET", `/recipes/${encodeURIComponent(id)}`),
   create: (input: RecipeInput) => request<Recipe>("POST", "/recipes", input),
   update: (id: string, input: RecipeInput) => request<Recipe>("PUT", `/recipes/${encodeURIComponent(id)}`, input),
@@ -154,7 +161,8 @@ export interface Ingredient extends Audited {
 export type IngredientInput = Pick<Ingredient, "name" | "description">;
 
 export const ingredients = {
-  list: () => request<Ingredient[]>("GET", "/ingredients"),
+  /** All, or with a name only those whose name contains it, in any case. */
+  list: (name?: string) => request<Ingredient[]>("GET", listPath("/ingredients", name)),
   get: (id: string) => request<Ingredient>("GET", `/ingredients/${encodeURIComponent(id)}`),
   create: (input: IngredientInput) => request<Ingredient>("POST", "/ingredients", input),
   update: (id: string, input: IngredientInput) =>
@@ -169,7 +177,8 @@ export interface Tag extends Audited {
 export type TagInput = Pick<Tag, "name">;
 
 export const tags = {
-  list: () => request<Tag[]>("GET", "/tags"),
+  /** All, or with a name only those whose name contains it, in any case. */
+  list: (name?: string) => request<Tag[]>("GET", listPath("/tags", name)),
   get: (id: string) => request<Tag>("GET", `/tags/${encodeURIComponent(id)}`),
   create: (input: TagInput) => request<Tag>("POST", "/tags", input),
   update: (id: string, input: TagInput) => request<Tag>("PUT", `/tags/${encodeURIComponent(id)}`, input),
@@ -199,4 +208,7 @@ export const auth = {
   /** Creates the account and signs it in. The backend checks every rule, the confirmation too. */
   register: (username: string, password: string, confirmPassword: string) =>
     request<AuthenticatedUser>("POST", "/auth/register", { username, password, confirmPassword }),
+  /** The signed-in user's own password. A wrong current one is a 400 on its field, never a 401. */
+  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
+    request<void>("PUT", "/auth/password", { currentPassword, newPassword, confirmPassword }),
 };

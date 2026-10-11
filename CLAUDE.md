@@ -15,18 +15,19 @@ This project is building a MVP version of a Cooking Recipe App. Key features:
 
 The MVP has a single user account, created on first run from environment-supplied credentials, in
 an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
-(`docs/PLAN_V2.md` Part 5). There is still no user administration screen, no password change or
-reset, no enforcement of roles and no per-user ownership of data: every account sees and edits
-everything. Those are future versions.
+(`docs/PLAN_V2.md` Part 5), and version 4 lets a signed-in user change their own password
+(`docs/PLAN_V4.md` Parts 2-3). There is still no user administration screen, no password reset, no
+enforcement of roles and no per-user ownership of data: every account sees and edits everything.
+Those are future versions.
 
-Ratings are out of scope, in the MVP and in versions 2 and 3. The `Rating` and `RecipeRating` entities exist in the
+Ratings are out of scope, in the MVP and in versions 2, 3 and 4. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
 
 For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-All commands below work today. Each part of `docs/PLAN_V3.md` confirms its commands here as it lands.
+All commands below work today. Each part of `docs/PLAN_V4.md` confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 
@@ -57,8 +58,8 @@ Backend, from `backend/`. Tests run on in-memory H2 and need no database or Dock
 Always `clean`: VS Code's Java extension compiles into the same `target/` with the Eclipse
 compiler, without the Lombok and Jackson 3 setup Maven uses, and Maven takes those classes as up
 to date - the symptom is "Unresolved compilation problem" in a test. Do not isolate an integration
-test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD`, and
-`DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
+test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD` and
+`DB_ADMIN_PASSWORD`, and `DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
 
 Frontend, from `frontend/` (Node 22). There are no frontend unit tests; Playwright covers behaviour:
 
@@ -106,7 +107,9 @@ They also assume the seeds are intact: after deleting a seeded row by hand, rest
   what finally populates `createdBy` / `updatedBy`. This is ported from the reference
   implementation rather than designed fresh - see `docs/PLAN.md` Part 4.
 - e2e tests use Playwright, run against the Docker stack. Comprehensive and thorough.
-- MySQL database, schema managed by Liquibase, which is already in place.
+- MySQL database, schema managed by Liquibase, which is already in place. Liquibase connects as
+  its own account, which may change the schema; the application's may only read and write rows
+  (`docs/PLAN_V4.md` Part 7).
 
 ## Starting Point
 
@@ -131,9 +134,9 @@ failed. Sign in (Part 4) made the application writable - see `backend/CLAUDE.md`
 ## Working documentation
 
 All documents for planning and executing this project are in `docs/`.
-`docs/PLAN_V3.md` is the current plan; review it before proceeding. `docs/PLAN.md` (the MVP) and
-`docs/PLAN_V2.md` (the first enhancements) are finished, kept as the record of how and why each
-was built.
+`docs/PLAN_V4.md` is the current plan; review it before proceeding. `docs/PLAN.md` (the MVP),
+`docs/PLAN_V2.md` and `docs/PLAN_V3.md` (the first two rounds of enhancements) are finished, kept
+as the record of how and why each was built.
 
 There is a `CLAUDE.md` per layer: this file holds project-wide rules, `backend/CLAUDE.md` maps the
 existing backend code, and `frontend/CLAUDE.md` holds frontend conventions once that layer exists.
@@ -141,12 +144,12 @@ Keep each one to what is specific to its layer; do not duplicate this file.
 
 ## Work process
 
-When implementing the solution, start by reading `docs/PLAN_V3.md`.
+When implementing the solution, start by reading `docs/PLAN_V4.md`.
 Be critical of the plan and suggest improvements if something can be sliced better. The main goal
 is structured, well-tested, robust, minor increments.
 Never proceed from one step to the next automatically. Wait for review and acceptance first.
 Commits to git happen after every step involving code or documentation updates.
-Enrich `docs/PLAN_V3.md` as work progresses and check off each step to show progress.
+Enrich `docs/PLAN_V4.md` as work progresses and check off each step to show progress.
 ALWAYS ask questions when in doubt.
 Never make any major decision without consulting first.
 

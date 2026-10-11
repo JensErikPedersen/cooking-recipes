@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RecipeService {
-    List<RecipeDTO> findAllByCategoryName(String categoryName);
-
     List<RecipeDTO> findAllByNameContains(String name);
 
     List<RecipeDTO> findAll();

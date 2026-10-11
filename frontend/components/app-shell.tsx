@@ -14,7 +14,8 @@ const NAVIGATION = [
   { href: "/tags", label: "Tags" },
 ];
 
-// The frame of every signed-in page: the header with the menu, the user and the logout button, and
+// The frame of every signed-in page: the header with the menu, the user - a link to their password
+// page - and the logout button, and
 // the page area below it. It renders nothing until the backend confirms the session, so an expired
 // session never shows a page.
 export function AppShell({ children }: { children: ReactNode }) {
@@ -69,7 +70,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               })}
             </ul>
           </nav>
-          <span className="ml-auto text-sm">{user.username}</span>
+          {/* The account's own page: changing its password. */}
+          <Link href="/account/password" className="ml-auto text-sm underline hover:no-underline">
+            {user.username}
+          </Link>
           <button type="button" onClick={logout} className="rounded border px-3 py-1 text-sm hover:bg-gray-100">
             Log out
           </button>

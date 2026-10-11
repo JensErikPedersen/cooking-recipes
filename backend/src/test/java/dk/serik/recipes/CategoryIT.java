@@ -24,6 +24,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * Category writes through the whole stack: controller, service, repository and the database's own
@@ -176,6 +180,25 @@ class CategoryIT {
 		String id = jsonMapper.readTree(response.getContentAsString()).get("id").asString();
 
 		assertThat(response.getHeader("Location")).isEqualTo(CATEGORIES + "/" + id);
+	}
+
+	@Test
+	@DisplayName("Given the seeded categories, When GET the collection with ?name=ER, Then Dessert and Kager, and only names containing it in any case")
+	void shouldFilterByPartialNameIgnoringCase() throws Exception {
+		// Other tests share this database and add rows of their own, so the seeded ones are looked for
+		// among the results rather than as the whole of them.
+		mockMvc.perform(get(CATEGORIES).param("name", "ER"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[*].name", hasItems("Dessert", "Kager")))
+				.andExpect(jsonPath("$[*].name", everyItem(containsStringIgnoringCase("ER"))));
+	}
+
+	@Test
+	@DisplayName("Given no name containing it, When GET the collection with ?name=, Then 200 and an empty list")
+	void shouldAnswerEmptyListWhenNoNameMatches() throws Exception {
+		mockMvc.perform(get(CATEGORIES).param("name", "no such name anywhere"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(0)));
 	}
 
 	private String create(String name) throws Exception {

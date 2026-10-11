@@ -86,18 +86,6 @@ RecipeJpaRepositoryIT {
 	
 	@Test
 	@Sql("/db/test-data/insert_recipes.sql")
-	@DisplayName("Given three recipes with category 'Hovedret', When all Recipes by category 'Hovedret' is fetched, Then three is returned")
-	public void shouldReturnThreeRecipesByCategoryMainDish() {
-		//When
-		List<Recipe> recipes = recipeJpaRepository.findAllByCategoryName("Hovedret");
-
-		//Then
-		Assertions.assertFalse(recipes.isEmpty());
-		Assertions.assertEquals(3, recipes.size());
-	}
-	
-	@Test
-	@Sql("/db/test-data/insert_recipes.sql")
 	@DisplayName("Given new valid Recipe with category 'kager', When saved to database, Then Recipe is saved ok and one more recipe added to category 'Kager'")
 	public void shouldSaveNewRecipeWithCategoryCake() {
 		//Given
@@ -123,9 +111,7 @@ RecipeJpaRepositoryIT {
 		assertThat(savedRecipe.getRecipeIngredients().size()).isEqualTo(1);
 		
 //		Assertions.assertEquals("Majken", recipeEntity.getCreatedBy());
-		List<Recipe> recipes = recipeJpaRepository.findAllByCategoryName("Kager");
-		Assertions.assertFalse(recipes.isEmpty());
-		Assertions.assertEquals(2, recipes.size());
+		assertThat(recipeJpaRepository.countByCategoryId(recipe.getCategory().getId())).isEqualTo(2);
 
 	}
 		
@@ -173,11 +159,21 @@ RecipeJpaRepositoryIT {
 	@DisplayName("Given Two Breads exists, When Fetching All By name contains 'brød', Then two are fetched")
 	public void shouldReturnTwoRecipesWithNameContainsBread() {
 		// When
-		List<Recipe> opRecipes = recipeJpaRepository.findAllByNameContains("brød");
+		List<Recipe> opRecipes = recipeJpaRepository.findAllByNameContainingIgnoreCase("brød");
 
 		// Then
 		Assertions.assertTrue(!opRecipes.isEmpty());
 		Assertions.assertEquals(3, opRecipes.size());
+	}
+
+	@Test
+	@Sql("/db/test-data/insert_recipes.sql")
+	@DisplayName("Given three breads, When fetching all by name contains 'BRØD', Then the same three - case is ignored, Danish letters too")
+	public void shouldIgnoreCaseWhenFetchingByName() {
+		List<Recipe> opRecipes = recipeJpaRepository.findAllByNameContainingIgnoreCase("BRØD");
+
+		assertThat(opRecipes).extracting(Recipe::getName)
+				.containsExactlyInAnyOrder("Fuldkorns hvedebrød", "Hvedebrød med Rugmel", "Ølandshvedebrød");
 	}
 	
 	@Test

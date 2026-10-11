@@ -11,8 +11,6 @@ public interface IngredientService {
 
     Optional<IngredientDTO> findById(String string);
 
-    Optional<IngredientDTO> findByName(String string);
-
     List<IngredientDTO> findAllByNameContains(String name);
 
     IngredientDTO save(IngredientDTO dto);

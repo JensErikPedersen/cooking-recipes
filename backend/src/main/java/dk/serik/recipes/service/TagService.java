@@ -11,13 +11,11 @@ public interface TagService {
 
     List<TagDTO> findAll();
 
+    List<TagDTO> findAllByNameContains(String name);
+
     TagDTO save(TagDTO dto);
 
     boolean delete(String id);
 
     TagDTO update(TagDTO dto);
-
-    Optional<TagDTO> findTagByName(String name);
-
-
 }
