@@ -35,7 +35,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Logging out goes to the bare `/login`.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
-  it is given; "No <things> yet." when empty. A read view or edit page wraps itself in
+  it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
+  Ingredients and Tags, not Units - has a "Search by name" field that asks the API with
+  `?name=`, never filters in the page, and says "No <things> match "<term>"." when nothing does;
+  an empty field asks for everything again. Its effect drops a response for a term no longer
+  searched: the list asked for on arrival can come back after a quick search. A read view or edit page wraps itself in
   `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
   otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
   a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame. Not server components: they

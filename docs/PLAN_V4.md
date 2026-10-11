@@ -346,12 +346,12 @@ browser: the flours, and nothing else.
 
 One step, frontend and e2e.
 
-- [ ] `EntityList` takes an optional search: a labelled field and a Search button above the table,
+- [x] `EntityList` takes an optional search: a labelled field and a Search button above the table,
       submitting on Enter (decision 7). Its `load` receives the term
-- [ ] Recipes, Categories, Ingredients and Tags use it; Units do not
-- [ ] With a term and no match the page says "No <things> match "<term>"." rather than
+- [x] Recipes, Categories, Ingredients and Tags use it; Units do not
+- [x] With a term and no match the page says "No <things> match "<term>"." rather than
       "No <things> yet."; clearing the field and searching again shows everything
-- [ ] Docs: `frontend/CLAUDE.md`; the name-lookup entry leaves `future_enhancements.md`
+- [x] Docs: `frontend/CLAUDE.md`; the name-lookup entry leaves `future_enhancements.md`
 
 **Tests.** Playwright, per list: a search narrows the list to the matching seeded rows, ignoring
 case; a term nothing matches shows the empty message; clearing it brings back the whole list. One
@@ -359,6 +359,25 @@ test proves the page asked the API - the request carries `?name=` - rather than 
 already had.
 
 **Verify it yourself.** On Ingredients, search for `mel`: only the flours remain.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Tests first: `e2e/tests/search.spec.ts`. Per list a search in another case than the names it
+  finds - the exact seeded rows, since other tests' "E2E" names can contain none of the terms - and
+  a term nothing matches; clearing the search; Enter as well as the button; the request carries
+  `?name=`; Units have no field. 11 failed before the change - all but the Units one
+- **Found on the way and fixed: a search could be overwritten by the list asked for on arrival.**
+  The first full run after the change failed once: a search made before the page's own list had
+  come back was replaced by that list when it did. A test now holds the first response back until
+  the search is answered - it failed 3 times of 3 - and `EntityList` loads in an effect on the
+  searched term that drops a response for a term no longer searched, React's own pattern. The same
+  term searched again does nothing; its result is already shown
+- `lib/api.ts`: the four `list` calls take an optional name, through one `listPath`. The field is
+  a `type="search"` input in a `role="search"` form, labelled "Search by name" for screen readers
+  with the same words as its placeholder
+- Lint and `tsc` clean. Playwright: 128 (115 + 13), and the search spec 3 times over. Phone checks
+  of the four lists, with the field, still pass. Backend unchanged: 262 unit, 156 integration
+- Docs: `frontend/CLAUDE.md`; the name-lookup entry has left `future_enhancements.md`
 
 ---
 

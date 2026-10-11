@@ -10,6 +10,7 @@ export default function IngredientsPage() {
       path="/ingredients"
       newLabel="New ingredient"
       load={ingredients.list}
+      searchable
       columns={[["Description", (ingredient) => ingredient.description]]}
     />
   );
