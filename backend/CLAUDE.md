@@ -38,6 +38,12 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
   than encode a longer one, so the service checks before encoding - `æ` counts two. The
   confirmation is compared there too, a 400 on `confirmPassword`.
+- **Changing a password**: `PUT /api/v1/auth/password`, signed in. The new password takes
+  registration's rules, from the same `checkNewPassword`. A wrong current password is a 400 on
+  `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
+  to sign in. The current one is checked with the `AuthenticationManager`, as login does, and the
+  new hash written by `AppUserWriter.updatePassword` - every password is encoded in that class.
+  The session gets a new id, as at login; other sessions of the account stay signed in.
 
 ## Layout
 
@@ -161,10 +167,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
-| `AuthenticationIT`, `RegistrationIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
+| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**`AuthenticationIT`, `RegistrationIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
 and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
@@ -175,8 +181,8 @@ slice tests can pass while real serialization is broken - the same class of gap.
 **MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
 inside the context's filter with a test one that sets no cookie, for every later test there. A test
 that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
-classes: `RegistrationIT` takes `AuthenticationIT`'s properties to share its context instead.
-Alone it passed; after `CategoryIT` every test found no cookie.
+classes: `RegistrationIT` and `PasswordChangeIT` take `AuthenticationIT`'s properties to share its
+context instead. Alone `RegistrationIT` passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
 

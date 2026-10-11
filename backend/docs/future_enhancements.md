@@ -131,8 +131,9 @@ make a second user meaningful.
    to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
    their audit trail. Turning it into a FK requires migrating every existing row and changing
    every DTO that exposes it - do not do it as a side effect of something else.
-4. **No password change, no reset, no disable-in-the-UI.** The `enabled` column exists and is
-   honoured on login; nothing sets it. Reset has its own entry below.
+4. **No reset, no disable-in-the-UI.** A signed-in user can change their own password since
+   `docs/PLAN_V4.md` Part 2. The `enabled` column exists and is honoured on login; nothing sets it.
+   Reset has its own entry below.
 
 **Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
 trusted rather than read as a string.
@@ -141,19 +142,20 @@ trusted rather than read as a string.
 
 ## A forgotten password cannot be reset
 
-**What is missing.** A user who forgets their password has no way back in. There is no reset, and
-no change of password either. With one bootstrapped account this hardly mattered: the operator
-could delete the row and let `AdminBootstrap` recreate it. Once anyone can register
-(`docs/PLAN_V2.md` Part 5), a forgotten password locks that user out for good.
+**What is missing.** A user who forgets their password has no way back in. There is no reset. With
+one bootstrapped account this hardly mattered: the operator could delete the row and let
+`AdminBootstrap` recreate it. Once anyone can register (`docs/PLAN_V2.md` Part 5), a forgotten
+password locks that user out for good.
 
 **Why it was left.** A real reset needs a channel the application can reach the user through,
 and the application has none. `app_user` holds no email address, and the stack has no mail server.
 
 **What it would take.** Two pieces, in this order:
 
-1. **Change password, signed in.** `PUT /api/v1/auth/password` taking the current and the new
-   password, with the same rules as registration. It needs no new infrastructure, and the reset
-   reuses it.
+1. **Change password, signed in.** Done in `docs/PLAN_V4.md` Part 2: `PUT /api/v1/auth/password`
+   with the current and the new password, to registration's rules. It leaves other sessions of the
+   account signed in; ending them - what a user who suspects a stolen password wants - needs
+   Spring Security's `SessionRegistry`, which nothing here uses yet.
 2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
    `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
    takes that token plus a new password. Store the token hashed, as a password is. Answer the

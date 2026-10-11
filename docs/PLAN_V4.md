@@ -44,7 +44,7 @@ them by number.
    means "no session" in this application: `lib/api.ts` answers one by sending the browser to
    `/login`, so a mistyped password would look like being thrown out. (Part 2)
 2. **The session that changes the password stays signed in, with a new session id**, as at login.
-   Other sessions of the same account are not ended: that needs Spring Session's
+   Other sessions of the same account are not ended: that needs Spring Security's
    `SessionRegistry`, which nothing else here uses. Recorded in `future_enhancements.md` as what
    remains. (Part 2)
 3. **One set of password rules.** Change takes registration's rules unchanged - at least 8
@@ -109,16 +109,16 @@ version 4 too; its "no password change" stays until Part 3 delivers one.
 
 One step, backend only.
 
-- [ ] `PUT /api/v1/auth/password`, taking `currentPassword`, `newPassword`, `confirmPassword`;
+- [x] `PUT /api/v1/auth/password`, taking `currentPassword`, `newPassword`, `confirmPassword`;
       204 on success. Signed in only - it is not added to `SecurityConfig`'s open paths - and
       CSRF-protected like every write
-- [ ] `ChangePasswordRequestDTO`: all three `@NotNull`, `newPassword` `@Size(min = 8)`, messages from
+- [x] `ChangePasswordRequestDTO`: all three `@NotNull`, `newPassword` `@Size(min = 8)`, messages from
       `ValidationMessages.properties` as registration's are
-- [ ] `AuthServiceImpl.changePassword`: the current password checked against the stored hash
+- [x] `AuthServiceImpl.changePassword`: the current password checked against the stored hash
       (decision 1), then the shared rules (decision 3) - every problem in one 400, as registration
       reports them - then the new hash (decision 4) and a new session id (decision 2)
-- [ ] `AppUserWriter.updatePassword(username, password, updatedBy)`
-- [ ] Docs: `backend/CLAUDE.md` Authentication, `backend/README.md` endpoint table; in
+- [x] `AppUserWriter.updatePassword(username, password, updatedBy)`
+- [x] Docs: `backend/CLAUDE.md` Authentication, `backend/README.md` endpoint table; in
       `future_enhancements.md` step 1 of the reset entry and point 4 of Multiple users say it is
       done, and the entry records that other sessions stay signed in
 
@@ -132,9 +132,41 @@ the stored hash unchanged after each; without a session the change is a 401, wit
 header a 403; the stored value is a bcrypt hash, never the plaintext. Registration's own tests
 pass unchanged after its rules move.
 
-**Verify it yourself.** `.\mvnw clean verify`. On the stack, with `api.sh` or the browser console:
-register a throwaway account, change its password, sign in with the new one, then delete the
-account with the SQL in `e2e/support/accounts.ts`.
+**Verify it yourself.** `.\mvnw clean verify`. On the stack, in a private window: register a
+throwaway account, then in the dev tools console
+
+```js
+const t = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
+const r = await fetch("/api/v1/auth/password", {method: "PUT", headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": t}, body: JSON.stringify({currentPassword: "...", newPassword: "...", confirmPassword: "..."})});
+r.status;   // 204; a wrong currentPassword gives 400 and its message in await r.json()
+```
+
+Log out and sign in with the new password. Then delete the account with the SQL in
+`e2e/support/accounts.ts`.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Tests first: `PasswordChangeIT`, 11 tests. Before the endpoint existed 9 failed on 404; the 401
+  and the 403 passed from the start, since the security chain answers them for any path
+- **Two rounds, as registration.** A missing field and a new password under 8 characters are Bean
+  Validation's, answered before the service runs; a wrong current password, the 72-byte limit and
+  the confirmation are the service's, and those three come in one 400 together. `confirmPassword`
+  is not `@NotNull`, as at registration: an absent one is a mismatch
+- The current password is checked with the `AuthenticationManager`, as login checks it, rather
+  than by reading the hash and calling the encoder: no new dependency in `AuthServiceImpl`
+- `checkNewPassword` and `throwIfAny` hold the rules registration had inline; `RegistrationIT`, 18
+  tests, passes unchanged
+- The new session id is load-bearing: with `changeSessionId()` removed,
+  `shouldKeepTheSessionUnderANewId` failed
+- On the stack, through the proxy: register 201, a wrong current password 400 on
+  `currentPassword`, the change 204, `/me` still 200 on the same cookies, the old password 401
+  and the new one 200 after logging out; the row held a new `{bcrypt}` hash, `updated` a second
+  after `created`, `updated_by` the user. The probe account deleted; `app_user` holds `admin` only
+- `./mvnw clean verify`: 263 unit, 146 integration (+11). Playwright: 107, against the rebuilt
+  backend
+- Docs: `backend/CLAUDE.md` Authentication and its test notes, `backend/README.md`;
+  `future_enhancements.md` - and decision 2 here - name `SessionRegistry` as Spring Security's,
+  which the draft had attributed to Spring Session
 
 ---
 

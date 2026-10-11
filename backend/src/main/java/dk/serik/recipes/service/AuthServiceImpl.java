@@ -1,6 +1,7 @@
 package dk.serik.recipes.service;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
+import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
@@ -80,21 +81,8 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	public AuthenticatedUserDTO register(RegisterRequestDTO registerRequest, HttpServletRequest request, HttpServletResponse response) {
 		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
-		if (registerRequest.getPassword().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
-			problems.add(new ValidationExceptionEnvelope("password",
-					"Password is too long: at most 72 characters, fewer with letters such as æ, ø and å"));
-		}
-		if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
-			problems.add(new ValidationExceptionEnvelope("confirmPassword", "The passwords do not match"));
-		}
-		if (!problems.isEmpty()) {
-			throw ServiceException.builder()
-					.message("Validation Exception")
-					.code(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
-					.httpStatus(HttpStatus.BAD_REQUEST)
-					.fieldErrors(problems)
-					.build();
-		}
+		checkNewPassword(registerRequest.getPassword(), "password", registerRequest.getConfirmPassword(), problems);
+		throwIfAny(problems);
 
 		String username = registerRequest.getUsername();
 		// Telling a caller that a username is taken tells them it exists. With open sign-up that is
@@ -116,8 +104,50 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
+	public void changePassword(ChangePasswordRequestDTO changeRequest, HttpServletRequest request) {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		// A 400 on the field, not login's 401: to the frontend a 401 means the session has ended.
+		try {
+			authenticationManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(
+					username, changeRequest.getCurrentPassword()));
+		} catch (AuthenticationException ex) {
+			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
+		}
+		checkNewPassword(changeRequest.getNewPassword(), "newPassword", changeRequest.getConfirmPassword(), problems);
+		throwIfAny(problems);
+
+		appUserWriter.updatePassword(username, changeRequest.getNewPassword(), username);
+		// As at login. The session stays signed in; any other session of the account does too.
+		request.changeSessionId();
+		log.info("Changed the password of '{}'", username);
+	}
+
+	@Override
 	public AuthenticatedUserDTO currentUser() {
 		return toDto(SecurityContextHolder.getContext().getAuthentication());
+	}
+
+	/** The rules for a new password that Bean Validation cannot check, for registration and change alike. */
+	private static void checkNewPassword(String password, String field, String confirmation, List<ValidationExceptionEnvelope> problems) {
+		if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+			problems.add(new ValidationExceptionEnvelope(field,
+					"Password is too long: at most 72 characters, fewer with letters such as æ, ø and å"));
+		}
+		if (!password.equals(confirmation)) {
+			problems.add(new ValidationExceptionEnvelope("confirmPassword", "The passwords do not match"));
+		}
+	}
+
+	private static void throwIfAny(List<ValidationExceptionEnvelope> problems) {
+		if (!problems.isEmpty()) {
+			throw ServiceException.builder()
+					.message("Validation Exception")
+					.code(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode())
+					.httpStatus(HttpStatus.BAD_REQUEST)
+					.fieldErrors(problems)
+					.build();
+		}
 	}
 
 	private AuthenticatedUserDTO toDto(Authentication authentication) {

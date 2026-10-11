@@ -56,6 +56,7 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 |---|---|
 | `POST /api/v1/auth/login` | `{"username", "password"}`; 200 with the user, 401 on bad credentials |
 | `POST /api/v1/auth/register` | `{"username", "password", "confirmPassword"}`; 201 with the user, signed in; 400 on a rule, 409 on a taken username |
+| `PUT /api/v1/auth/password` | `{"currentPassword", "newPassword", "confirmPassword"}`; 204, the session kept under a new id; 400 on a wrong current password or a rule |
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 
