@@ -46,6 +46,22 @@ test("logging out returns to the login page, and the back button does not re-ent
   await expect(page.getByRole("banner")).toHaveCount(0);
 });
 
+// Before the page's script has run, React does not see what is typed, and would send an empty form.
+// The fields wait until it has. Delaying the script, and not waiting for the page's load event as
+// goto() otherwise does, makes the race certain - as after a redirect, where it showed after a cold
+// start of the frontend.
+test("typing waits until the page is ready, so nothing typed early is lost", async ({ page }) => {
+  await page.route("**/_next/static/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.continue();
+  });
+  await page.goto("/login", { waitUntil: "commit" });
+
+  await signInHere(page);
+
+  await expectSignedIn(page);
+});
+
 // Signs in on the login page as it stands - unlike signIn(), without loading /login afresh, which
 // would drop the ?next= the redirect put there.
 async function signInHere(page: import("@playwright/test").Page) {

@@ -23,6 +23,10 @@ test.afterEach(async ({ page }) => {
 
 async function register(page: Page, username: string, password = PASSWORD, confirm = password) {
   await page.goto("/register");
+  await fillAndRegister(page, username, password, confirm);
+}
+
+async function fillAndRegister(page: Page, username: string, password: string, confirm: string) {
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByLabel("Confirm password").fill(confirm);
@@ -56,6 +60,23 @@ test("registering signs the new user in on the Welcome page, and they can sign i
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL("/login");
   await signIn(page, username, PASSWORD);
+
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("banner")).toContainText(username);
+});
+
+test("typing waits until the page is ready, so nothing typed early is lost", async ({ page }) => {
+  // As on the login page: with the script delayed and the load event not awaited, early typing would
+  // be lost without the wait.
+  await page.route("**/_next/static/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.continue();
+  });
+  const username = uniqueUsername();
+  accounts.push(username);
+  await page.goto("/register", { waitUntil: "commit" });
+
+  await fillAndRegister(page, username, PASSWORD, PASSWORD);
 
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("banner")).toContainText(username);

@@ -68,6 +68,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
   its editable fields, never the audit fields. The register form follows the same rule: the
   password confirmation is checked by the backend, not here.
+- The login and register pages are rendered on the server, so their fields exist before React
+  does. What is typed into them then, React never sees: the form would send it empty. Each wraps
+  its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
+  Playwright waits for a field to be enabled, so its tests wait too. The signed-in pages do not
+  need it: `AppShell` renders nothing until the session is confirmed, which is after hydration.
 - `/account/password`, reached from the username in the header, changes the signed-in user's own
   password. Not an `EntityForm`: there is no entity and no read view, so after a change it stays,
   empties its fields and says so in a `role="status"` line. A wrong current password comes back as

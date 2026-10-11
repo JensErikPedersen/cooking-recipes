@@ -17,6 +17,7 @@ kind of infrastructure the stack lacks today:
 | 1 | Baseline and scope | docs | - |
 | 2 | Change password, in the API | backend | Password reset, step 1 (and Multiple users, point 4) |
 | 3 | Change password, on a page | frontend, e2e | the same |
+| 3b | Nothing typed before the page is ready is lost | frontend, e2e | - (found in Part 3) |
 | 4 | One name-lookup contract | backend | Name-based lookup, points 1 and 3 |
 | 5 | `?name=` on the list endpoints | backend | Name-based lookup, point 2 |
 | 6 | A search field on the list pages | frontend, e2e | Name-based lookup, "no screen searches" |
@@ -210,7 +211,39 @@ sign in with the new password.
   the page then shows empty fields and "Validation Exception". Playwright fills the controlled
   inputs before React has hydrated; hydration renders them from empty state, and the click, by
   then handled by React, sends an empty form. The race is version 3's, not this part's, and a
-  user who types on a slow connection could meet it too. Raised for a decision before Part 4
+  user who types on a slow connection could meet it too. Fixed in Part 3b
+
+---
+
+## Part 3b: Nothing typed before the page is ready is lost
+
+Added 2026-10-11, after the finding in Part 3. Of the three ways offered - disable the fields until
+React runs, read the values from the form on submit, or only make the tests wait - the first was
+chosen: the smallest change, and it protects a user as well as the tests.
+
+- [x] `lib/use-hydrated.ts`: `useHydrated()`, false in the server's HTML and true once React runs,
+      by `useSyncExternalStore` - no effect that sets state
+- [x] The login and register pages wrap their fields and button in
+      `<fieldset disabled={!hydrated}>`. The signed-in pages need nothing: `AppShell` renders them
+      only after hydration
+- [x] Docs: `frontend/CLAUDE.md`
+
+**Tests.** One in `auth.spec.ts` and one in `register.spec.ts`: with `/_next/static/**` delayed by
+a second, open the page without waiting for its load event, fill it in and submit - signed in, or
+registered, all the same.
+
+**Verify it yourself.** In Chrome's dev tools, Network, throttle to "3G" and open `/login`: the fields
+take no typing until the page is ready, and what is typed after that signs in as usual.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- The first version of each test passed before the fix: `goto()` waits for the load event, and
+  by then the scripts have run. The race needs a page that is not yet loaded - as after
+  `lib/api.ts`'s redirect, where the failing test met it. With `waitUntil: "commit"` all 6 runs
+  (3 each) failed before the fix and pass after it
+- `/login` and `/register` are still prerendered; lint and `tsc` clean
+- Playwright: 115 (113 + 2), and four full runs, each straight after a restart of the frontend
+  container - the condition the failure was seen under - all green. Backend unchanged
 
 ---
 
