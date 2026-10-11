@@ -190,12 +190,17 @@ Normally in the Docker stack. On the host, against the stack's MySQL on port 330
 backend first, since both use 8080:
 
 ```powershell
-$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; $env:DB_ADMIN_PASSWORD="..."; ./mvnw spring-boot:run
 ```
 
-`DB_PASSWORD` has no default. Spring does not error on an unresolved placeholder - it passes the
-literal text through - so a missing password surfaces as `Access denied for user 'recipesuser'`
-from Liquibase at startup, not as a configuration error. Add
+**Two database accounts.** Liquibase connects as `DB_ADMIN_USERNAME` (`recipesadmin`), which may
+change the schema; the application as `DB_USERNAME` (`recipesuser`), which may only `SELECT`,
+`INSERT`, `UPDATE` and `DELETE` - `spring.liquibase.user` / `.password` give Liquibase its own
+connection on the datasource's url. The stack creates both in `mysql/initdb/accounts.sh`, on a
+fresh volume only. Neither password has a default. Spring does not error on an unresolved
+placeholder - it passes the literal text through - so a missing one surfaces as `Access denied for
+user 'recipesadmin'` from Liquibase at startup, or `'recipesuser'` after it, not as a configuration
+error. The tests run on H2 as its own `sa`, untouched by either. Add
 `-Dspring-boot.run.profiles=dev` for SQL and bind-value logging; do not enable it where real user
 data flows.
 

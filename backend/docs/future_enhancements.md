@@ -108,30 +108,6 @@ administration screen first; see the multiple-users entry above.
 
 ---
 
-## A single database account does all the work
-
-**What is missing.** The stack creates one MySQL account, and both Liquibase and the running
-application connect as it. That account therefore needs DDL rights permanently, because Liquibase
-creates tables at every startup where a changeset is pending - which means the runtime datasource
-can also drop them.
-
-**Why it was left.** Two accounts is the correct production shape, but for a local MVP it doubles
-the credentials in `.env` and adds an init script to maintain, in exchange for a boundary that
-nothing local crosses.
-
-**What it would take.** A `recipesadmin` account with DDL rights on the schema for
-`spring.liquibase.user` / `.password`, and `recipesuser` restricted to `SELECT, INSERT, UPDATE,
-DELETE` for the runtime datasource. MySQL's entrypoint cannot express this - setting
-`MYSQL_USER` / `MYSQL_PASSWORD` grants that account `ALL PRIVILEGES` on the schema - so both
-accounts have to be created by an init script mounted into
-`/docker-entrypoint-initdb.d`, which runs once while the data volume is empty.
-
-**Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
-deliberate act with its own credentials rather than something the runtime user could do by
-accident.
-
----
-
 ## Names compare without accents on MySQL: Brod is taken by Brød
 
 **What is missing.** Every `name` column has MySQL's default collation, `utf8mb4_0900_ai_ci`, which

@@ -385,20 +385,20 @@ already had.
 
 One step, the stack and its configuration (decision 8).
 
-- [ ] **Prove first** the problem it fixes: on the current stack, connected as `recipesuser`,
+- [x] **Prove first** the problem it fixes: on the current stack, connected as `recipesuser`,
       `CREATE TABLE v4_probe (id INT)` succeeds; drop the probe
-- [ ] An init script, `mysql/initdb/accounts.sh` - shell, not SQL, since it reads the passwords from
+- [x] An init script, `mysql/initdb/accounts.sh` - shell, not SQL, since it reads the passwords from
       the container's environment - mounted read-only into `/docker-entrypoint-initdb.d`. It
       creates both accounts with the grants of decision 8. `.gitattributes` already keeps `*.sh`
       at LF, which the container's shell needs
-- [ ] `docker-compose.yml`: `MYSQL_USER` and `MYSQL_PASSWORD` go; the mysql service receives both
+- [x] `docker-compose.yml`: `MYSQL_USER` and `MYSQL_PASSWORD` go; the mysql service receives both
       accounts' names and passwords for the script; the backend receives `DB_ADMIN_USERNAME` and
       `DB_ADMIN_PASSWORD`, required with `:?` like the others
-- [ ] `application.properties`: `spring.liquibase.user` and `.password` from them. The test
+- [x] `application.properties`: `spring.liquibase.user` and `.password` from them. The test
       properties replace the main file and use H2's own account, so the tests do not change
-- [ ] `.env.example`: the two variables, and the paragraph that calls one account the MVP's shape
-- [ ] `db/liquibase.properties`, the Maven plugin's config, names `recipesadmin`: it runs DDL too
-- [ ] Docs: `README.md` - the switch needs `docker compose down -v`, and what that deletes; root
+- [x] `.env.example`: the two variables, and the paragraph that calls one account the MVP's shape
+- [x] `db/liquibase.properties`, the Maven plugin's config, names `recipesadmin`: it runs DDL too
+- [x] Docs: `README.md` - the switch needs `docker compose down -v`, and what that deletes; root
       `CLAUDE.md` and `backend/CLAUDE.md` - a host-side `spring-boot:run` exports the admin
       variables as well; `backend/README.md`; the entry leaves `future_enhancements.md`
 
@@ -413,6 +413,30 @@ Playwright suite is green, which covers every write and registration as `recipes
 ```powershell
 docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW GRANTS FOR recipesuser; SHOW GRANTS FOR recipesadmin"'
 ```
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Proven first, on the old stack: `recipesuser` held `ALL PRIVILEGES ON recipes.*`, and created
+  and dropped `v4_probe`
+- `mysql/initdb/accounts.sh` uses the root password the entrypoint already has, and adds no
+  `set -e`: the entrypoint sources a script that is not executable, and options set there would
+  leak into it. `mysql` is its last command, so a failure is its exit status either way
+- `.env`: `DB_ADMIN_USERNAME=recipesadmin` and a random password were added to the working
+  `.env`, at your request; `.env.example` documents both, and that neither password may hold a
+  single quote, since the script puts them in SQL literals
+- **What an old volume does**, seen before deleting it: the backend exits at startup with
+  `Access denied for user 'recipesadmin'` - which also showed Liquibase connecting as that account.
+  `README.md` names the message and the way out
+- From a fresh volume: the entrypoint log shows `accounts.sh` ran; `SHOW GRANTS` gives
+  `recipesuser` `SELECT, INSERT, UPDATE, DELETE` and `recipesadmin` `ALL PRIVILEGES`, both on
+  `recipes.*` only; as `recipesuser`, `CREATE TABLE v4_probe` and `DROP TABLE tag` are refused
+  with error 1142, while reads work. Liquibase ran all 33 changeSets, and the seeds loaded
+- The test properties replace the main file, so H2 needed nothing: 262 unit, 156 integration,
+  unchanged. Playwright: 128 on the fresh stack - every write and registration as `recipesuser`;
+  the e2e account cleanup connects as root and is unaffected
+- Docs: `README.md`, root `CLAUDE.md` (host run, Technical Decisions), `backend/CLAUDE.md` and
+  `backend/README.md` (host run, variables), `docker-compose.yml`'s comments; the entry has left
+  `future_enhancements.md`
 
 ---
 

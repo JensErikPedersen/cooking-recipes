@@ -58,8 +58,8 @@ Backend, from `backend/`. Tests run on in-memory H2 and need no database or Dock
 Always `clean`: VS Code's Java extension compiles into the same `target/` with the Eclipse
 compiler, without the Lombok and Jackson 3 setup Maven uses, and Maven takes those classes as up
 to date - the symptom is "Unresolved compilation problem" in a test. Do not isolate an integration
-test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD`, and
-`DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
+test with `./mvnw verify -Dtest=...`: Failsafe ignores `-Dtest` and runs every `*IT`. `spring-boot:run` does not read `.env` either - export `DB_PASSWORD` and
+`DB_ADMIN_PASSWORD`, and `DB_PORT=3307` to reach the stack's MySQL (see `backend/CLAUDE.md`).
 
 Frontend, from `frontend/` (Node 22). There are no frontend unit tests; Playwright covers behaviour:
 
@@ -107,7 +107,9 @@ They also assume the seeds are intact: after deleting a seeded row by hand, rest
   what finally populates `createdBy` / `updatedBy`. This is ported from the reference
   implementation rather than designed fresh - see `docs/PLAN.md` Part 4.
 - e2e tests use Playwright, run against the Docker stack. Comprehensive and thorough.
-- MySQL database, schema managed by Liquibase, which is already in place.
+- MySQL database, schema managed by Liquibase, which is already in place. Liquibase connects as
+  its own account, which may change the schema; the application's may only read and write rows
+  (`docs/PLAN_V4.md` Part 7).
 
 ## Starting Point
 

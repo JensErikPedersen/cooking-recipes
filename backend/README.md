@@ -5,8 +5,8 @@ A RESTful recipe application — Spring Boot 4.1.1 on Java 25, MySQL, Liquibase-
 ## Running it
 
 Normally as part of the Docker stack - see the root `README.md`. On first start the `mysql`
-container creates the database and its one account from `.env`, and Liquibase builds the schema
-when the application starts. There is no manual database setup.
+container creates the database and its two accounts from `.env` - `mysql/initdb/accounts.sh` - and
+Liquibase builds the schema when the application starts. There is no manual database setup.
 
 To run the backend on the host instead, against the stack's MySQL, stop the stack's backend first
 (`docker compose stop backend`) - both use port 8080. Spring Boot does not read `.env`, so set the
@@ -14,21 +14,26 @@ variables yourself:
 
 ```bash
 # Bash
-DB_PORT=3307 DB_PASSWORD=... ./mvnw spring-boot:run
+DB_PORT=3307 DB_PASSWORD=... DB_ADMIN_PASSWORD=... ./mvnw spring-boot:run
 ```
 
 ```powershell
 # PowerShell
-$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; ./mvnw spring-boot:run
+$env:DB_PORT="3307"; $env:DB_PASSWORD="..."; $env:DB_ADMIN_PASSWORD="..."; ./mvnw spring-boot:run
 ```
 
-Without `DB_PASSWORD` the application fails at startup with `Access denied for user 'recipesuser'`.
+Liquibase connects as `DB_ADMIN_USERNAME`, which may change the schema, and the application as
+`DB_USERNAME`, which may only read and write rows. Without `DB_ADMIN_PASSWORD` the application fails
+at startup with `Access denied for user 'recipesadmin'`; without `DB_PASSWORD`, with the same for
+`'recipesuser'`.
 
 | Variable | Default |
 |---|---|
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `3306` / `recipes` |
 | `DB_USERNAME` | `recipesuser` |
 | `DB_PASSWORD` | *none — required* |
+| `DB_ADMIN_USERNAME` | `recipesadmin` |
+| `DB_ADMIN_PASSWORD` | *none — required* |
 | `APPLICATION_PORT` | `8080` |
 
 Add `-Dspring-boot.run.profiles=dev` for SQL statement and bind-value logging. Do not enable it in
