@@ -68,11 +68,15 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
   its editable fields, never the audit fields. The register form follows the same rule: the
   password confirmation is checked by the backend, not here.
+- `/account/password`, reached from the username in the header, changes the signed-in user's own
+  password. Not an `EntityForm`: there is no entity and no read view, so after a change it stays,
+  empties its fields and says so in a `role="status"` line. A wrong current password comes back as
+  a 400 on its field - a 401 would send the browser to sign in from `lib/api.ts`.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
-  and the `<main>` every page renders into. Pages start at their `<h1>`.
+  the username, linked to `/account/password`, and the `<main>` every page renders into. Pages start at their `<h1>`.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
 - Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
   on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A

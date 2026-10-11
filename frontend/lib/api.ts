@@ -199,4 +199,7 @@ export const auth = {
   /** Creates the account and signs it in. The backend checks every rule, the confirmation too. */
   register: (username: string, password: string, confirmPassword: string) =>
     request<AuthenticatedUser>("POST", "/auth/register", { username, password, confirmPassword }),
+  /** The signed-in user's own password. A wrong current one is a 400 on its field, never a 401. */
+  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
+    request<void>("PUT", "/auth/password", { currentPassword, newPassword, confirmPassword }),
 };

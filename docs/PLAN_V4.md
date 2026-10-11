@@ -174,12 +174,12 @@ Log out and sign in with the new password. Then delete the account with the SQL 
 
 One step, frontend and e2e.
 
-- [ ] `auth.changePassword` in `lib/api.ts`
-- [ ] `app/(app)/account/password/page.tsx`: three password fields with `autoComplete`
+- [x] `auth.changePassword` in `lib/api.ts`
+- [x] `app/(app)/account/password/page.tsx`: three password fields with `autoComplete`
       `current-password` and `new-password`, the server's errors under each, and the message of
       decision 5 after a change
-- [ ] The username in `AppShell`'s header becomes a link to it
-- [ ] Docs: `frontend/CLAUDE.md`
+- [x] The username in `AppShell`'s header becomes a link to it
+- [x] Docs: `frontend/CLAUDE.md`
 
 **Tests.** Playwright, on a throwaway account from `uniqueUsername()` - never the shared admin, whose
 password every other test signs in with: the header link leads to the page; a change succeeds,
@@ -190,6 +190,27 @@ confirmation shows its error. Each test removes its account with `deleteAccount`
 
 **Verify it yourself.** Register an account, change its password from the header link, log out, and
 sign in with the new password.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Tests first: `e2e/tests/password.spec.ts`, 5 tests, each on an account it registers and removes.
+  Before the page existed all 5 failed at the header link. `/account/password` joined the phone
+  list in `phone.spec.ts`; that one passed before the page too - an unknown URL shows not found,
+  which also fits a phone - so it guards the layout, not the page's existence
+- Beyond the plan's list: the session survives the change - the next page opens signed in - and a
+  too-short new password is shown on its field
+- The page is not an `EntityForm`, which ends in a read view; it keeps its own state, as the
+  register page does. The success line is `role="status"`
+- Lint and `tsc` clean. Playwright: 113 (107 + 5 + 1). Backend unchanged: 263 unit, 146 integration
+- Docs: root `CLAUDE.md` Limitations (password change exists; reset does not), `frontend/CLAUDE.md`
+- **Found on the way, not fixed here: sign-in can be filled before the page hydrates.** Twice, the
+  first full run after the frontend container (re)started failed in `states.spec.ts`, "when the
+  session ends while a page is open": still on `/login?next=%2Fcategories` after Sign in. Proven
+  with a throwaway spec that delays `/_next/static/**` by 1.5 s: the same failure every time, and
+  the page then shows empty fields and "Validation Exception". Playwright fills the controlled
+  inputs before React has hydrated; hydration renders them from empty state, and the click, by
+  then handled by React, sends an empty form. The race is version 3's, not this part's, and a
+  user who types on a slow connection could meet it too. Raised for a decision before Part 4
 
 ---
 
