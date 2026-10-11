@@ -22,10 +22,13 @@ kind of infrastructure the stack lacks today:
 | 5 | `?name=` on the list endpoints | backend | Name-based lookup, point 2 |
 | 6 | A search field on the list pages | frontend, e2e | Name-based lookup, "no screen searches" |
 | 7 | Two database accounts | Docker, backend config, docs | A single database account |
+| 8 | Danish names compare as Danish | Liquibase, backend docs | Names compare without accents (found in Part 5) |
 
 **Order.** What a user gains first, then the API clean-up and the feature built on it, and the
 change to the stack last: Part 7 needs a fresh database volume, which should not interrupt the
 parts before it. Parts 2-3, 4-6 and 7 are independent groups and could be taken in any order.
+Part 8, added 2026-10-11 from a finding in Part 5, comes after Part 7: its schema change is then
+the first one Liquibase runs as `recipesadmin`.
 
 **Out of scope, by decision of 2026-10-10.** Ratings, role enforcement and ownership, and reset by
 email. Each needs a decision of its own first: a change of scope, a change of who may do what, and
@@ -391,3 +394,38 @@ Playwright suite is green, which covers every write and registration as `recipes
 ```powershell
 docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW GRANTS FOR recipesuser; SHOW GRANTS FOR recipesadmin"'
 ```
+
+---
+
+## Part 8: Danish names compare as Danish
+
+Added 2026-10-11, from the finding in Part 5. One step, a Liquibase change and its proof on the
+stack. Its open questions are settled before it starts, as the others were in Part 1.
+
+**Open questions, with the draft's recommendation.**
+
+- *Which columns.* Every text column of the application's tables, by converting each table -
+  `ALTER TABLE ... CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci` - rather than
+  only the `name` columns: one rule for the schema, and `app_user.username` has the same problem
+  (`soren` is taken by `Søren` today). The schema's own default follows, so a later table is born
+  Danish
+- *H2.* The changeSet is `dbms="mysql"`; H2 has no such collation and the tests keep running
+  without it. Only the stack can prove this part
+
+- [ ] **Prove first**, on the current stack: `Brod` is refused as taken by `Brød`, `?name=brod`
+      finds the breads, and `soren` is refused as taken by `Søren` after registering `Søren`.
+      Then, on a throwaway table, what `utf8mb4_da_0900_ai_ci` does with `ø`/`o`, `æ`/`ae`,
+      `å`/`aa` and case, for `=` and for `LIKE` - Danish treats `aa` as `å`, and the result decides
+      whether this collation is the right one
+- [ ] A changeSet in a new `db.changelog_1.4.xml`, included from the master changelog
+- [ ] Docs: `backend/CLAUDE.md` Gotchas (the collation note), `backend/README.md` (the `?name=`
+      line about accents), the entry leaves `future_enhancements.md`
+
+**Tests.** The backend suite is unchanged on H2. On the stack, after the change: `Brod` can be
+created beside `Brød` and both deleted again; `?name=brød` finds the breads and `?name=brod` does
+not; `?name=BRØD` still does - case is still ignored; registering `soren` beside `Søren` succeeds.
+The whole Playwright suite is green.
+
+**Verify it yourself.** `scripts\start.ps1` on the existing volume - the changeSet runs once - then
+create a category `Brod`: it is saved, next to `Brød`. Delete it again.
+
