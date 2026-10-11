@@ -67,7 +67,7 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 
 Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
 `?name=` on a list answers only the rows whose name contains it, in any case, and `[]` when none
-does. On MySQL accents are ignored too, so `brod` also finds `brød` - its collation's doing.
+does. Names compare as Danish: `brød` finds `Brød`, `brod` does not.
 
 | Resource | Endpoints |
 |---|---|

@@ -443,9 +443,12 @@ docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW 
 ## Part 8: Danish names compare as Danish
 
 Added 2026-10-11, from the finding in Part 5. One step, a Liquibase change and its proof on the
-stack. Its open questions are settled before it starts, as the others were in Part 1.
+stack.
 
-**Open questions, with the draft's recommendation.**
+**Settled 2026-10-11**, after a probe on a throwaway table compared the two collations (see Done):
+every text column of the application's tables, `app_user` included - `soren` and `Søren` are two
+users - and Danish's `aa` = `å` for exact comparison is accepted: `Aalborg` is taken by `Ålborg`.
+The draft's questions, as they stood:
 
 - *Which columns.* Every text column of the application's tables, by converting each table -
   `ALTER TABLE ... CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_da_0900_ai_ci` - rather than
@@ -455,13 +458,13 @@ stack. Its open questions are settled before it starts, as the others were in Pa
 - *H2.* The changeSet is `dbms="mysql"`; H2 has no such collation and the tests keep running
   without it. Only the stack can prove this part
 
-- [ ] **Prove first**, on the current stack: `Brod` is refused as taken by `Brød`, `?name=brod`
+- [x] **Prove first**, on the current stack: `Brod` is refused as taken by `Brød`, `?name=brod`
       finds the breads, and `soren` is refused as taken by `Søren` after registering `Søren`.
       Then, on a throwaway table, what `utf8mb4_da_0900_ai_ci` does with `ø`/`o`, `æ`/`ae`,
       `å`/`aa` and case, for `=` and for `LIKE` - Danish treats `aa` as `å`, and the result decides
       whether this collation is the right one
-- [ ] A changeSet in a new `db.changelog_1.4.xml`, included from the master changelog
-- [ ] Docs: `backend/CLAUDE.md` Gotchas (the collation note), `backend/README.md` (the `?name=`
+- [x] A changeSet in a new `db.changelog_1.4.xml`, included from the master changelog
+- [x] Docs: `backend/CLAUDE.md` Gotchas (the collation note), `backend/README.md` (the `?name=`
       line about accents), the entry leaves `future_enhancements.md`
 
 **Tests.** The backend suite is unchanged on H2. On the stack, after the change: `Brod` can be
@@ -472,3 +475,41 @@ The whole Playwright suite is green.
 **Verify it yourself.** `scripts\start.ps1` on the existing volume - the changeSet runs once - then
 create a category `Brod`: it is saved, next to `Brød`. Delete it again.
 
+**Done (2026-10-11).** Deviations and findings:
+
+- **The probe that settled the questions**, on a throwaway table, `=` and `LIKE` in both collations:
+  `Brød`/`Brod`, `Søren`/`soren`, `Æble`/`Aeble` and `Såby`/`Saby` were equal before and differ
+  after; `BRØD`/`Brød` and `æble`/`Æble` stay equal - case is still ignored; `Saaby`/`Såby` and
+  `Aalborg`/`Ålborg` differ before and are equal after for `=`, though not for `LIKE`. Also seen:
+  the old collation took `Æble` for `Aeble`
+- Proven first, on the stack: `Brod` refused as taken by `Brød`, `?name=brod` found the 3 breads,
+  `soren-v4probe` refused as taken by `Søren-v4probe`
+- **A slip of mine on the way, harmless:** the cleanup SQL also had
+  `DELETE FROM category WHERE name = 'Brod'`, though no `Brod` had been made. Under the old
+  collation it matched `Brød`, and only the recipes' foreign key refused it. Nothing was lost - 4
+  categories, 7 recipes, checked by hex. Later cleanups compared with `BINARY`
+- `db.changelog_1.4.xml`: the schema's default and each of the ten application tables converted,
+  `dbms="mysql"`; Liquibase's own tables left alone. Foreign key checks are off around it, and
+  that is load-bearing: on throwaway tables, converting a referenced table with them on fails with
+  error 3780, "incompatible". All 8 foreign keys are there afterwards
+- On the existing volume the changeSet ran once, in 654 ms, as `recipesadmin` - the first schema
+  change made by that account. Every application column is Danish afterwards, none left behind
+- After, through the API: `Brod` created beside `Brød`, then deleted; `?name=brød` and
+  `?name=BRØD` find the 3 breads, `?name=brod` none; `soren-v4probe` registered beside
+  `Søren-v4probe`, both then removed
+- From a fresh volume as well: all tables Danish, 34 changeSets, Playwright green
+- `./mvnw clean verify`: 262 unit, 156 integration, unchanged - H2 skips the changeSet.
+  Playwright: 128, on the converted volume and on a fresh one
+- Docs: `backend/CLAUDE.md` Gotchas, `backend/README.md`; the entry has left
+  `future_enhancements.md`
+
+## Version 4 as a whole
+
+**Done.** A signed-in user changes their own password, in the API and on a page; the four list
+pages search by name through a `?name=` filter backed by one service contract that ignores case;
+Liquibase and the application connect as two accounts, and the application's can no longer change
+the schema; names compare as Danish. Found on the way and fixed: sign-in and registration losing
+what was typed before the page was ready (Part 3b), a search overwritten by the list asked for on
+arrival (Part 6), and MySQL taking `ø` for `o` (Part 8). `future_enhancements.md` keeps ratings,
+multiple users and password reset by email. `./mvnw clean verify`: 262 unit, 156 integration.
+Playwright: 128.

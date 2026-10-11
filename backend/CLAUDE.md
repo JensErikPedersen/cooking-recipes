@@ -240,9 +240,11 @@ must be reachable before the application starts.
   `IgnoreCase` it ignored case on MySQL, by its collation, and not on H2. The exact `findByName`
   stays in the repositories for the duplicate-name checks and nothing else. `?name=` on the list
   endpoints reaches the partial match; a controller only picks between it and `findAll`.
-- MySQL's `utf8mb4_0900_ai_ci`, the `name` columns' collation, ignores accents as well as case: `ø`
-  compares equal to `o`. So `?name=brod` finds `brød` on MySQL and not on H2, and the duplicate-name
-  checks take `Brod` for `Brød`. Found in V4 Part 5, not changed.
+- The schema's collation is Danish, `utf8mb4_da_0900_ai_ci` (`db.changelog_1.4.xml`, MySQL only):
+  `æ`, `ø` and `å` are letters of their own, so `Brod` and `Brød` - or `soren` and `Søren` - are
+  different names, and case is still ignored. For `=`, Danish also takes `aa` for `å`: `Aalborg` is
+  taken by `Ålborg`; `LIKE` does not. H2 has no such collation, so no test sees any of this - prove a
+  change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

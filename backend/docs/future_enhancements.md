@@ -105,22 +105,3 @@ A reset by an administrator is the alternative to email. It needs role enforceme
 administration screen first; see the multiple-users entry above.
 
 **Value.** Self-registration without permanent lockout.
-
----
-
-## Names compare without accents on MySQL: Brod is taken by Brød
-
-**What is missing.** Every `name` column has MySQL's default collation, `utf8mb4_0900_ai_ci`, which
-ignores accents as well as case. To it `ø` is `o`, so `POST /api/v1/categories` with `Brod` answers
-409 "A category named 'Brod' already exists" while only `Brød` does, and `?name=brod` finds `brød`.
-In Danish they are different words. Found in `docs/PLAN_V4.md` Part 5; H2 in the tests does not
-behave this way, so no test shows it.
-
-**Why it was left.** It is a schema change, and outside the part that found it.
-
-**What it would take.** A Liquibase changeSet giving the `name` columns - or the schema - the Danish
-collation, `utf8mb4_da_0900_ai_ci`, which keeps `æ`, `ø` and `å` as letters of their own while still
-ignoring case. Check first what it does to the unique indexes on existing rows, and that `?name=`
-still finds `Brød` from `brød`. Only the stack can prove it: H2 has no such collation.
-
-**Value.** Danish names that are different words are treated as different.
