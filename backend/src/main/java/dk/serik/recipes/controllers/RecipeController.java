@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Recipes. A recipe's ingredient lines are written with the recipe itself, in its POST or PUT;
@@ -40,9 +42,10 @@ public class RecipeController {
 
     private final RecipeService recipeService;
 
+    /** Everything, or with {@code ?name=} only those whose name contains it, in any case. */
     @GetMapping
-    public List<RecipeDTO> findAll() {
-        return recipeService.findAll();
+    public List<RecipeDTO> findAll(@RequestParam(required = false) String name) {
+        return Objects.isNull(name) ? recipeService.findAll() : recipeService.findAllByNameContains(name);
     }
 
     @GetMapping("/{id}")

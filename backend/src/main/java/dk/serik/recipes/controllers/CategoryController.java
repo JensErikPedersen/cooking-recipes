@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Categories are a flat lookup resource.
@@ -40,9 +42,10 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
+    /** Everything, or with {@code ?name=} only those whose name contains it, in any case. */
     @GetMapping
-    public List<CategoryDTO> findAll() {
-        return categoryService.findAll();
+    public List<CategoryDTO> findAll(@RequestParam(required = false) String name) {
+        return Objects.isNull(name) ? categoryService.findAll() : categoryService.findAllByNameContains(name);
     }
 
     @GetMapping("/{id}")

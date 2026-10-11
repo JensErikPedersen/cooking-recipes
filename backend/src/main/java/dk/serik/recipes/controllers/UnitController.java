@@ -25,9 +25,9 @@ import java.util.List;
 /**
  * Units of measure - a small, fixed lookup resource, shaped like {@link CategoryController}.
  * <p>
- * Unlike Category and Ingredient there is deliberately no name lookup or filter here: units are
- * a fixed handful of measures, so {@code UnitService} exposes no name query and the collection
- * endpoint takes no parameters. See {@code docs/future_enhancements.md}.
+ * Unlike the other four there is deliberately no {@code ?name=} filter here: units are a fixed
+ * handful of measures, so {@code UnitService} exposes no name query and the collection endpoint
+ * takes no parameters.
  */
 @RestController
 @RequestMapping(UnitController.PATH)

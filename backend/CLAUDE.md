@@ -233,8 +233,11 @@ must be reachable before the application starts.
 - Name lookup: Category, Ingredient, Tag and Recipe services expose one query,
   `findAllByNameContains`, over the repository's `findAllByNameContainingIgnoreCase`. Without
   `IgnoreCase` it ignored case on MySQL, by its collation, and not on H2. The exact `findByName`
-  stays in the repositories for the duplicate-name checks and nothing else. No endpoint reaches the
-  partial match yet (`docs/PLAN_V4.md` Part 5).
+  stays in the repositories for the duplicate-name checks and nothing else. `?name=` on the list
+  endpoints reaches the partial match; a controller only picks between it and `findAll`.
+- MySQL's `utf8mb4_0900_ai_ci`, the `name` columns' collation, ignores accents as well as case: `ø`
+  compares equal to `o`. So `?name=brod` finds `brød` on MySQL and not on H2, and the duplicate-name
+  checks take `Brod` for `Brød`. Found in V4 Part 5, not changed.
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

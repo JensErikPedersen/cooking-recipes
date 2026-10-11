@@ -81,6 +81,21 @@ public class RecipeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].name").value("Hvedebrød"));
+
+        verify(recipeService, never()).findAllByNameContains(any());
+    }
+
+    @Test
+    @DisplayName("Given ?name=, When GET the collection, Then the partial match is answered, not the whole list")
+    public void shouldFilterRecipesByName() throws Exception {
+        given(recipeService.findAllByNameContains("brød")).willReturn(List.of(aRecipe()));
+
+        mockMvc.perform(get(BASE).param("name", "brød"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Hvedebrød"));
+
+        verify(recipeService, never()).findAll();
     }
 
     @Test

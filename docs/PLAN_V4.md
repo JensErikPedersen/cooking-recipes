@@ -295,12 +295,12 @@ what is added and removed, listed in the Done notes.
 
 One step, backend only.
 
-- [ ] `GET /api/v1/{categories,ingredients,tags,recipes}?name=...` answers the partial match, 200
+- [x] `GET /api/v1/{categories,ingredients,tags,recipes}?name=...` answers the partial match, 200
       and a possibly empty list; without `name` it answers everything, as today. Units have no
       filter (the entry's exclusion stands)
-- [ ] The controller only chooses between the two service calls, as the entry sketches. A blank
+- [x] The controller only chooses between the two service calls, as the entry sketches. A blank
       `name` is not special: containing "" matches every row
-- [ ] Docs: `backend/README.md` endpoint table; `TagController`'s and `UnitController`'s class
+- [x] Docs: `backend/README.md` endpoint table; `TagController`'s and `UnitController`'s class
       comments; the name-lookup entry leaves `future_enhancements.md` if Part 6 is not taken, or
       with Part 6
 
@@ -310,6 +310,32 @@ row, and a name nothing contains answers `[]`.
 
 **Verify it yourself.** Signed in, open `http://localhost:3000/api/v1/ingredients?name=MEL` in the
 browser: the flours, and nothing else.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Tests first: per resource a slice test with `?name=` that must reach the partial match and never
+  `findAll`, and the existing list test now also checks the opposite; per resource two `*IT`
+  cases, a case-differing partial name and a name nothing contains. All 12 new tests failed before
+  the change, as the endpoints ignored the parameter
+- The ITs look for the seeded rows among the results, and require every name to contain the term:
+  all `*IT` classes share one H2 database, and other tests add rows - `RegistrationIT`'s "Category
+  of user-..." contains "er". Recipes are not seeded in the tests, so `RecipeIT` makes one and finds
+  it by its random part in upper case
+- `UnitController` takes no parameter, as before: `?name=gram` on units is ignored and answers
+  all four
+- **Found on the stack: MySQL ignores accents too.** `?name=brod` finds the three `brød` recipes,
+  and a POST of the category `Brod` answers 409 "A category named 'Brod' already exists", with only
+  `Brød` there. The `name` columns' collation, `utf8mb4_0900_ai_ci`, compares `ø` equal to `o`; H2
+  does not, so no test can show it. Older than this version and a schema change to fix, so not
+  changed: recorded in `future_enhancements.md` with the Danish collation as the way out
+- On the stack, through the proxy: `categories?name=ER` Dessert and Kager, `ingredients?name=MEL`
+  the three flours, `tags?name=godt` both "Godt til" tags, `recipes?name=BRØD` the three breads,
+  a name nothing contains `[]`, an empty `?name=` everything
+- `./mvnw clean verify`: 262 unit (+4), 156 integration (+8). Playwright: 115, against the rebuilt
+  backend
+- Docs: `backend/README.md` endpoint table, `backend/CLAUDE.md` Gotchas, the class comments of
+  `TagController` and `UnitController`, and `future_enhancements.md` - the name-lookup entry's
+  status, and the new collation entry
 
 ---
 

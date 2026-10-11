@@ -7,9 +7,9 @@ Deliberately deferred work. Each entry records what is missing, why it was left,
 ## Name-based lookup is inconsistent across services, and unexposed at the API
 
 **Status.** Points 1 and 3 below are done, in `docs/PLAN_V4.md` Part 4: the four services expose
-`findAllByNameContains` alone, ignoring case, and the service-level exact lookups are gone. The
-table and the three problems describe the state before it. Point 2, the `?name=` filter, and a
-screen that uses it are Parts 5 and 6; this entry goes with them.
+`findAllByNameContains` alone, ignoring case, and the service-level exact lookups are gone. Point
+2, the `?name=` filter, is done in Part 5. The table and the three problems describe the state
+before both. A screen that uses the filter is Part 6; this entry goes with it.
 
 **What is missing.** Every domain concept in this application is identified to a user by its
 name, but the ability to look one up by name was added ad hoc, service by service. The result is
@@ -195,3 +195,22 @@ accounts have to be created by an init script mounted into
 **Value.** The application can no longer drop its own tables, and a Liquibase change becomes a
 deliberate act with its own credentials rather than something the runtime user could do by
 accident.
+
+---
+
+## Names compare without accents on MySQL: Brod is taken by Brød
+
+**What is missing.** Every `name` column has MySQL's default collation, `utf8mb4_0900_ai_ci`, which
+ignores accents as well as case. To it `ø` is `o`, so `POST /api/v1/categories` with `Brod` answers
+409 "A category named 'Brod' already exists" while only `Brød` does, and `?name=brod` finds `brød`.
+In Danish they are different words. Found in `docs/PLAN_V4.md` Part 5; H2 in the tests does not
+behave this way, so no test shows it.
+
+**Why it was left.** It is a schema change, and outside the part that found it.
+
+**What it would take.** A Liquibase changeSet giving the `name` columns - or the schema - the Danish
+collation, `utf8mb4_da_0900_ai_ci`, which keeps `æ`, `ø` and `å` as letters of their own while still
+ignoring case. Check first what it does to the unique indexes on existing rows, and that `?name=`
+still finds `Brød` from `brød`. Only the stack can prove it: H2 has no such collation.
+
+**Value.** Danish names that are different words are treated as different.

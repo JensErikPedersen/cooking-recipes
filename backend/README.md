@@ -61,14 +61,16 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 | `POST /api/v1/auth/logout` | 204 |
 
 Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
+`?name=` on a list answers only the rows whose name contains it, in any case, and `[]` when none
+does. On MySQL accents are ignored too, so `brod` also finds `brød` - its collation's doing.
 
 | Resource | Endpoints |
 |---|---|
-| `/api/v1/categories` | GET (all, by id), POST, PUT, DELETE |
-| `/api/v1/ingredients` | GET (all, by id), POST, PUT, DELETE |
+| `/api/v1/categories` | GET (all, `?name=`, by id), POST, PUT, DELETE |
+| `/api/v1/ingredients` | GET (all, `?name=`, by id), POST, PUT, DELETE |
 | `/api/v1/units` | GET (all, by id), POST, PUT, DELETE |
-| `/api/v1/tags` | GET (all, by id), POST, PUT, DELETE |
-| `/api/v1/recipes` | GET (all, by id), POST, PUT, DELETE |
+| `/api/v1/tags` | GET (all, `?name=`, by id), POST, PUT, DELETE |
+| `/api/v1/recipes` | GET (all, `?name=`, by id), POST, PUT, DELETE |
 
 A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
 tags and the lines with the lists it sends.
