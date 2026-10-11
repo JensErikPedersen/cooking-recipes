@@ -59,14 +59,10 @@ public class CategoryServiceImpl implements CategoryService {
 
 	@Override
 	@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
-	public Optional<CategoryDTO> findByName(String name) {
-		Optional<Category> categoryEntity =  categoryJpaRepository.findByName(name);
-		
-		if(categoryEntity.isPresent()) {
-			return Optional.ofNullable(CategoryMapper.from(categoryEntity.get()));
-		}
-		
-		return Optional.empty();
+	public List<CategoryDTO> findAllByNameContains(String name) {
+		return categoryJpaRepository.findAllByNameContainingIgnoreCase(name).stream()
+				.map(CategoryMapper::from)
+				.collect(Collectors.toList());
 	}
 
 	@Override

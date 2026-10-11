@@ -49,17 +49,8 @@ public class RecipeServiceImpl implements RecipeService {
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
-    public List<RecipeDTO> findAllByCategoryName(String categoryName) {
-        return repository.findAllByCategoryName(categoryName).stream()
-                .map(RecipeMapper::from)
-                .toList();
-
-    }
-
-    @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
     public List<RecipeDTO> findAllByNameContains(String name) {
-        return repository.findAllByNameContains(name).stream()
+        return repository.findAllByNameContainingIgnoreCase(name).stream()
                 .map(RecipeMapper::from)
                 .toList();
     }

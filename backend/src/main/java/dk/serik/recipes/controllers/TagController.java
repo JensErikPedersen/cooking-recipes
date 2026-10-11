@@ -25,9 +25,8 @@ import java.util.List;
 /**
  * Tags label recipes, shaped like {@link CategoryController}.
  * <p>
- * {@code TagService.findTagByName} is not exposed: the name filter is being standardised across
- * resources as {@code ?name=} backed by a partial match, and Tag has no partial-match query yet.
- * See {@code docs/future_enhancements.md}.
+ * {@code TagService.findAllByNameContains} is not exposed yet: the {@code ?name=} filter on the
+ * list endpoints comes in {@code docs/PLAN_V4.md} Part 5.
  */
 @RestController
 @RequestMapping(TagController.PATH)

@@ -297,50 +297,18 @@ public class RecipeServiceTest {
     }
 
     @Test
-    void shouldFindAllByCategoryName() {
-        // Given
-        List<Recipe> recipeList = new ArrayList<>();
-        recipeList.add(mockSavedRecipeWheatBread());
-        recipeList.add(mockSavedRecipeRyeBread());
-        when(recipeJpaRepository.findAllByCategoryName("Brød")).thenReturn(recipeList);
-
-        // When
-        List<RecipeDTO> recipeDTOS = service.findAllByCategoryName("Brød");
-
-        // Then
-        verify(recipeJpaRepository, times(1)).findAllByCategoryName(any());
-        assertThat(recipeDTOS).isNotNull();
-        assertThat(recipeDTOS).isNotEmpty();
-        assertThat(recipeDTOS.size()).isEqualTo(2);
-    }
-
-    @Test
-    void shouldNotFindAnyByCategoryName() {
-        // Given
-        when(recipeJpaRepository.findAllByCategoryName("Brød")).thenReturn(new ArrayList<>());
-
-        // When
-        List<RecipeDTO> recipeDTOS = service.findAllByCategoryName("Brød");
-
-        // Then
-        verify(recipeJpaRepository, times(1)).findAllByCategoryName(any());
-        assertThat(recipeDTOS).isNotNull();
-        assertThat(recipeDTOS).isEmpty();
-    }
-
-    @Test
     void shouldFindAllByNameContains() {
         // Given
         List<Recipe> recipeList = new ArrayList<>();
         recipeList.add(mockSavedRecipeWheatBread());
         recipeList.add(mockSavedRecipeRyeBread());
-        when(recipeJpaRepository.findAllByNameContains("br")).thenReturn(recipeList);
+        when(recipeJpaRepository.findAllByNameContainingIgnoreCase("br")).thenReturn(recipeList);
 
         // When
         List<RecipeDTO> recipeDTOS = service.findAllByNameContains("br");
 
         // Then
-        verify(recipeJpaRepository, times(1)).findAllByNameContains(any());
+        verify(recipeJpaRepository, times(1)).findAllByNameContainingIgnoreCase(any());
         assertThat(recipeDTOS).isNotNull();
         assertThat(recipeDTOS).isNotEmpty();
         assertThat(recipeDTOS.size()).isEqualTo(2);
@@ -349,13 +317,13 @@ public class RecipeServiceTest {
     @Test
     void shouldNotFindAnyByNameContains() {
         // Given
-        when(recipeJpaRepository.findAllByNameContains("br")).thenReturn(new ArrayList<>());
+        when(recipeJpaRepository.findAllByNameContainingIgnoreCase("br")).thenReturn(new ArrayList<>());
 
         // When
         List<RecipeDTO> recipeDTOS = service.findAllByNameContains("br");
 
         // Then
-        verify(recipeJpaRepository, times(1)).findAllByNameContains(any());
+        verify(recipeJpaRepository, times(1)).findAllByNameContainingIgnoreCase(any());
         assertThat(recipeDTOS).isNotNull();
         assertThat(recipeDTOS).isEmpty();
     }

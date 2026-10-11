@@ -6,6 +6,11 @@ Deliberately deferred work. Each entry records what is missing, why it was left,
 
 ## Name-based lookup is inconsistent across services, and unexposed at the API
 
+**Status.** Points 1 and 3 below are done, in `docs/PLAN_V4.md` Part 4: the four services expose
+`findAllByNameContains` alone, ignoring case, and the service-level exact lookups are gone. The
+table and the three problems describe the state before it. Point 2, the `?name=` filter, and a
+screen that uses it are Parts 5 and 6; this entry goes with them.
+
 **What is missing.** Every domain concept in this application is identified to a user by its
 name, but the ability to look one up by name was added ad hoc, service by service. The result is
 four different levels of support and one naming inconsistency:

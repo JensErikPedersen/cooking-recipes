@@ -83,8 +83,15 @@ CategoryJpaRepositoryIT {
 	@Test
 	@DisplayName("Given existing categories containing 'er' in name, When finding all by name contains 'er', Then two categories is returned")
 	public void shouldReturnTwoCategoriesWhenFetchByName() {
-		List<Category> opCategories = categoryRepository.findAllByNameContains("er");
+		List<Category> opCategories = categoryRepository.findAllByNameContainingIgnoreCase("er");
 		Assertions.assertEquals(2, opCategories.size());
+	}
+
+	@Test
+	@DisplayName("Given categories containing 'er', When finding all by name contains 'ER', Then the same two - case is ignored, as MySQL's collation ignores it")
+	public void shouldIgnoreCaseWhenFetchByName() {
+		List<Category> opCategories = categoryRepository.findAllByNameContainingIgnoreCase("ER");
+		assertThat(opCategories).extracting(Category::getName).containsExactlyInAnyOrder("Dessert", "Kager");
 	}
 	
 	private Category buildWienerBreadEntity() {

@@ -100,24 +100,20 @@ public class CategoryServiceTest {
 	}
 	
 	@Test
-	@DisplayName("Given Known Category, When FindByName, Then none is found")
-	public void shouldReturnNoneWhenFindByName() {
-		lenient().when(repository.findByName("Vand")).thenReturn(Optional.of(MockCategoryUtil.dessertToBeSaved()));  // name: Water
-		assertThat(service.findByName("Brød")).isEmpty();
-		verify(repository).findByName("Brød");
+	@DisplayName("Given a category whose name contains 'ess', When finding all by name contains 'ess', Then it is returned as a DTO")
+	public void shouldReturnCategoriesWhenFindAllByNameContains() {
+		when(repository.findAllByNameContainingIgnoreCase("ess")).thenReturn(List.of(MockCategoryUtil.mockDessert()));
+
+		assertThat(service.findAllByNameContains("ess")).extracting(CategoryDTO::getName).containsExactly("Dessert");
+		verify(repository).findAllByNameContainingIgnoreCase("ess");
 	}
-	
+
 	@Test
-	@DisplayName("Given Known Category When FindByName Then one is found")
-	public void shouldReturnOneWhenFindByName() {
-		//Given
-		when(repository.findByName("Dessert")).thenReturn(Optional.of(MockCategoryUtil.dessertToBeSaved()));  // name: Dessert
+	@DisplayName("Given no category whose name contains 'xyz', When finding all by name contains 'xyz', Then the list is empty")
+	public void shouldReturnEmptyWhenFindAllByNameContainsMatchesNone() {
+		when(repository.findAllByNameContainingIgnoreCase("xyz")).thenReturn(List.of());
 
-		//When
-		assertThat(service.findByName("Dessert")).isPresent();
-
-		//Then
-		verify(repository).findByName(any());
+		assertThat(service.findAllByNameContains("xyz")).isEmpty();
 	}
 
 	@Test

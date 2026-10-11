@@ -252,14 +252,14 @@ take no typing until the page is ready, and what is typed after that signs in as
 One step, backend only. Nothing reachable over HTTP changes: this is the clean-up the filter in
 Part 5 builds on.
 
-- [ ] Per decision 6: `findAllByNameContains` on `CategoryService` and `TagService`, over a
+- [x] Per decision 6: `findAllByNameContains` on `CategoryService` and `TagService`, over a
       `findAllByNameContainingIgnoreCase` in each repository; Ingredient's and Recipe's existing
       ones move to the ignore-case query
-- [ ] `findByName` leaves `CategoryService` and `IngredientService`, `findTagByName` leaves
+- [x] `findByName` leaves `CategoryService` and `IngredientService`, `findTagByName` leaves
       `TagService`; `TagJpaRepository.findTagByName` becomes `findByName`
-- [ ] `IngredientJpaRepository.findAllByDescriptionContains` and
+- [x] `IngredientJpaRepository.findAllByDescriptionContains` and
       `RecipeService.findAllByCategoryName` with its repository query go
-- [ ] Docs: `backend/CLAUDE.md` Gotchas ("`CategoryJpaRepository.findAllByNameContains` is tested but
+- [x] Docs: `backend/CLAUDE.md` Gotchas ("`CategoryJpaRepository.findAllByNameContains` is tested but
       unreachable"); `TagController`'s class comment
 
 **Tests.** The service tests of removed methods go; new ones for Category's and Tag's partial
@@ -269,6 +269,25 @@ what is added and removed, listed in the Done notes.
 
 **Verify it yourself.** `.\mvnw clean verify`. `git grep findTagByName` finds nothing outside
 `docs/`.
+
+**Done (2026-10-11).** Deviations and findings:
+
+- Tests first: a case test in `CategoryJpaRepositoryIT` ("ER"), `IngredientJpaRepositoryIT` ("MEL")
+  and `RecipeJpaRepositoryIT` ("BRØD"), run against the old `findAllByNameContains`: all three
+  failed on H2. After the change they pass - `Ø` included - with the exact rows named, not a count
+- Tag's partial match is new at both levels: `TagJpaRepositoryIT` ("GODT" finds both "Godt til"
+  tags) and `TagServiceTest`. Category's service method is new too, in `CategoryServiceTest`
+- `RecipeJpaRepositoryIT` used `findAllByCategoryName("Kager")` to count a saved recipe's category;
+  it now asks `countByCategoryId`, which the delete checks already use
+- Removed with their tests: service `findByName` on Category (2 tests) and Ingredient (3),
+  `findTagByName` on Tag (2), `RecipeService.findAllByCategoryName` (2) and its repository query
+  (1 IT), `findAllByDescriptionContains` (1 IT). Added: 2 + 2 service tests, 4 ITs
+- `./mvnw clean verify`: 258 unit (263 - 9 + 4), 148 integration (146 - 2 + 4). Nothing reachable
+  over HTTP changed, so the stack was not rebuilt and Playwright not run
+- Found, left alone: two unused imports from before this version, `Collectors` in
+  `RecipeServiceImpl` and `Optional` in `RecipeRatingJpaRepository`
+- Docs: `backend/CLAUDE.md` Gotchas, `TagController`'s comment, and a status line on the
+  name-lookup entry in `future_enhancements.md`, which goes with Part 6
 
 ---
 

@@ -11,7 +11,8 @@ import java.util.UUID;
 @Repository
 public interface CategoryJpaRepository extends JpaRepository<Category, UUID>{
 	Optional<Category> findByName(String name);
-	
-	List<Category> findAllByNameContains(String name);
+
+	/** Partial match, ignoring case: MySQL's collation does, H2 in the tests does not unless asked. */
+	List<Category> findAllByNameContainingIgnoreCase(String name);
 
 }

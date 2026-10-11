@@ -57,6 +57,14 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
+    public List<TagDTO> findAllByNameContains(String name) {
+        return repository.findAllByNameContainingIgnoreCase(name).stream()
+                .map(TagMapper::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public TagDTO save(TagDTO dto) {
         if(Objects.isNull(dto)) {
             throw ServiceException.badRequest(ApplicationErrorCodes.TAG_DTO_IS_NULL, "TagDTO is null");
@@ -83,7 +91,7 @@ public class TagServiceImpl implements TagService {
     // As in CategoryServiceImpl: the unique index on name and the recipe_tag foreign key refuse
     // these anyway, at commit and without a reason; checking first gives one.
     private void rejectDuplicateName(String name, UUID ownId) {
-        repository.findTagByName(name)
+        repository.findByName(name)
                 .filter(existing -> !existing.getId().equals(ownId))
                 .ifPresent(existing -> {
                     throw ServiceException.builder()
@@ -126,16 +134,5 @@ public class TagServiceImpl implements TagService {
                     .httpStatus(HttpStatus.NOT_FOUND)
                     .build();
         }
-    }
-
-    @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
-    public Optional<TagDTO> findTagByName(String name) {
-        Optional<Tag> optional = repository.findTagByName(name);
-        if(optional.isPresent()) {
-            return Optional.of(TagMapper.from(optional.get()));
-        }
-
-        return Optional.empty();
     }
 }

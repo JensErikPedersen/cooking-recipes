@@ -230,7 +230,11 @@ must be reachable before the application starts.
 - `RecipeService.addRecipeRating` throws `UnsupportedOperationException`, and a recipe write
   carrying `recipeRatings` is rejected with `RECIPE_RATING_NOT_SUPPORTED` (70). Ratings are
   readable but not writable, by decision - see `docs/future_enhancements.md`.
-- `CategoryJpaRepository.findAllByNameContains` is tested but unreachable: no service exposes it.
+- Name lookup: Category, Ingredient, Tag and Recipe services expose one query,
+  `findAllByNameContains`, over the repository's `findAllByNameContainingIgnoreCase`. Without
+  `IgnoreCase` it ignored case on MySQL, by its collation, and not on H2. The exact `findByName`
+  stays in the repositories for the duplicate-name checks and nothing else. No endpoint reaches the
+  partial match yet (`docs/PLAN_V4.md` Part 5).
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

@@ -54,17 +54,18 @@ public class IngredientJpaRepositoryIT {
 	@Test
 	@DisplayName("Given existing Ingredients Flour, When fetching by Name Contains, Then three is returned")
 	public void shouldReturnThreeIngredientsByName() {
-		List<Ingredient> opIngredients = repository.findAllByNameContains("mel");
+		List<Ingredient> opIngredients = repository.findAllByNameContainingIgnoreCase("mel");
 		Assertions.assertEquals(3, opIngredients.size());
 	}
 
 	@Test
-	@DisplayName("Given Existing Ingredients 'KimAndSkaldele', When Fetching by Description Contains, Then three is returned")
-	public void shouldReturnThreeIngredientsByDescription() {
-		List<Ingredient> opIngredients = repository.findAllByDescriptionContains("skaldele og kim");
-		Assertions.assertEquals(3, opIngredients.size());
+	@DisplayName("Given the three flours, When fetching by name contains 'MEL', Then the same three - case is ignored")
+	public void shouldIgnoreCaseWhenFetchingByName() {
+		List<Ingredient> opIngredients = repository.findAllByNameContainingIgnoreCase("MEL");
+		assertThat(opIngredients).extracting(Ingredient::getName)
+				.containsExactlyInAnyOrder("Fuldkorns hvedemel", "Hvedemel", "Rugmel");
 	}
-	
+
 	@Test
 	public void givenValidIngredient_WhenSaved_ThenOk() {		
 		OffsetDateTime now = OffsetDateTime.now();

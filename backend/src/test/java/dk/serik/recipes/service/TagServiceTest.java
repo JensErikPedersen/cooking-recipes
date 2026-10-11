@@ -157,32 +157,27 @@ public class TagServiceTest {
     }
 
     @Test
-    @DisplayName("Given Tag Mexi, When fetching by name Mexi, Then Tag Mexi is returned")
-    public void shouldReturnTagMexiWhenFetchingByName() {
+    @DisplayName("Given Tag Mexi, When finding all by name contains 'mex', Then Tag Mexi is returned as a DTO")
+    public void shouldReturnTagsWhenFindAllByNameContains() {
         // Given
-        given(repository.findTagByName("Mexi")).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
+        given(repository.findAllByNameContainingIgnoreCase("mex")).willReturn(List.of(MockTagUtil.mockTagMexi()));
 
         // When
-        Optional<TagDTO> optional = service.findTagByName("Mexi");
+        List<TagDTO> tags = service.findAllByNameContains("mex");
 
         // Then
-        then(repository).should(times(1)).findTagByName("Mexi");
-        assertThat(optional.isPresent()).isTrue();
-        assertThat(optional.get().getName()).isEqualTo("Mexi");
+        then(repository).should(times(1)).findAllByNameContainingIgnoreCase("mex");
+        assertThat(tags).extracting(TagDTO::getName).containsExactly("Mexi");
     }
 
     @Test
-    @DisplayName("Given Unknown Tag Mexi, When fetching by name Mexi, Then empty is returned")
-    public void shouldReturnEmptyWhenFetchingByUnknownName() {
+    @DisplayName("Given no Tag whose name contains 'xyz', When finding all by name contains 'xyz', Then the list is empty")
+    public void shouldReturnEmptyWhenFindAllByNameContainsMatchesNone() {
         // Given
-        given(repository.findTagByName("Mexi")).willReturn(Optional.empty());
-
-        // When
-        Optional<TagDTO> optional = service.findTagByName("Mexi");
+        given(repository.findAllByNameContainingIgnoreCase("xyz")).willReturn(List.of());
 
         // Then
-        then(repository).should(times(1)).findTagByName("Mexi");
-        assertThat(optional.isPresent()).isFalse();
+        assertThat(service.findAllByNameContains("xyz")).isEmpty();
     }
 
     @Test
@@ -317,7 +312,7 @@ public class TagServiceTest {
     @Test
     @DisplayName("Given the name is taken, When saving a Tag, Then a conflict on the name field is reported and nothing is saved")
     public void shouldRejectSaveOfDuplicateName() {
-        given(repository.findTagByName("Mexi")).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
+        given(repository.findByName("Mexi")).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
 
         assertThatThrownBy(() -> service.save(MockTagUtil.mockMexiTagDTO()))
                 .isInstanceOf(ServiceException.class)
@@ -332,7 +327,7 @@ public class TagServiceTest {
     @DisplayName("Given another Tag has the name, When updating, Then a conflict on the name field is reported and nothing is saved")
     public void shouldRejectUpdateToAnotherTagsName() {
         given(repository.findById(UUID.fromString("0f569775-68aa-44c1-94b5-1c694dec8890"))).willReturn(Optional.of(MockTagUtil.mockTagMexi()));
-        given(repository.findTagByName("Meximad")).willReturn(Optional.of(MockTagUtil.mockTagSweet()));  // other id
+        given(repository.findByName("Meximad")).willReturn(Optional.of(MockTagUtil.mockTagSweet()));  // other id
 
         assertThatThrownBy(() -> service.update(MockTagUtil.mockMexiTagDTOToBeUpdated()))
                 .isInstanceOf(ServiceException.class)

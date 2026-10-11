@@ -10,11 +10,10 @@ import java.util.UUID;
 
 @Repository
 public interface IngredientJpaRepository extends JpaRepository<Ingredient, UUID> {
-	
-	List<Ingredient> findAllByNameContains(String name);
-	
-	List<Ingredient> findAllByDescriptionContains(String name);
-	
+
+	/** Partial match, ignoring case: MySQL's collation does, H2 in the tests does not unless asked. */
+	List<Ingredient> findAllByNameContainingIgnoreCase(String name);
+
 	Optional<Ingredient> findByName(String name);
 
 }
