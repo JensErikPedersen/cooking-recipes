@@ -8,8 +8,8 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 /**
- * Creates accounts, for {@code AdminBootstrap} and for registration alike, and changes passwords:
- * every password is encoded here and nowhere else.
+ * Creates accounts, for {@code AdminBootstrap} and for registration alike, changes passwords - every
+ * password is encoded here and nowhere else - and enables, disables and sets the roles of accounts.
  * <p>
  * Plain SQL, not {@link AppUserJpaRepository}: persisting {@code AppUser} through JPA fires
  * {@code BaseEntityListener}, which writes {@code created_by} from the request-scoped
@@ -29,6 +29,12 @@ public class AppUserWriter {
 	public void insert(String username, String password, String roles, String createdBy) {
 		jdbcTemplate.update("INSERT INTO app_user (id, username, password, enabled, roles, created_by) VALUES (?, ?, ?, ?, ?, ?)",
 				UUID.randomUUID().toString(), username, passwordEncoder.encode(password), true, roles, createdBy);
+	}
+
+	/** Enables or disables the account and sets its roles, comma-separated. */
+	public void updateAccess(UUID id, boolean enabled, String roles, String updatedBy) {
+		jdbcTemplate.update("UPDATE app_user SET enabled = ?, roles = ?, updated = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?",
+				enabled, roles, updatedBy, id.toString());
 	}
 
 	/** Replaces the account's password with a hash of the new one. */

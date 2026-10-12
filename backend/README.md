@@ -65,6 +65,11 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 
+| Users, for admins only - anyone else gets 403 | |
+|---|---|
+| `GET /api/v1/users` | every account: id, username, enabled, roles, audit fields; never a password |
+| `PUT /api/v1/users/{id}` | `{"enabled", "admin"}`; 204, and the account's sessions end if either changed; 400 for the admin's own account, 404 for an unknown id |
+
 Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
 `?name=` on a list answers only the rows whose name contains it, in any case, and `[]` when none
 does. Names compare as Danish: `brød` finds `Brød`, `brod` does not.

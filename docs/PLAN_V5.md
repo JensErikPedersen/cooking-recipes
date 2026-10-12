@@ -165,15 +165,15 @@ the sign-in page.
 
 Backend only.
 
-- [ ] `GET /api/v1/users`: every account - id, username, enabled, roles, created - never a hash.
+- [x] `GET /api/v1/users`: every account - id, username, enabled, roles, created - never a hash.
       Admin only, a 403 for anyone else (decision 3)
-- [ ] `PUT /api/v1/users/{id}` with `{"enabled", "admin"}`: an admin enables or disables an
+- [x] `PUT /api/v1/users/{id}` with `{"enabled", "admin"}`: an admin enables or disables an
       account and grants or withdraws the admin role (decisions 2, 4). The account's sessions end
       when either changes (decisions 1, 5). The admin's own account is a 400 (decision 5)
-- [ ] Written through `AppUserWriter`, with `updated` and `updated_by`, as every other write to
+- [x] Written through `AppUserWriter`, with `updated` and `updated_by`, as every other write to
       `app_user`
-- [ ] `ROLE_ADMIN` checked in `SecurityConfig` for `/api/v1/users/**`
-- [ ] Docs: `backend/CLAUDE.md` Authentication, `backend/README.md` endpoint table; points 1, 2 and 4
+- [x] `ROLE_ADMIN` checked in `SecurityConfig` for `/api/v1/users/**`
+- [x] Docs: `backend/CLAUDE.md` Authentication, `backend/README.md` endpoint table; points 1, 2 and 4
       of Multiple users in `future_enhancements.md`
 
 **Tests.** A `UsersIT` over the real chain: an admin lists accounts and no hash appears; a user
@@ -181,6 +181,34 @@ gets a 403 on both endpoints; disabling an account ends its session and refuses 
 with the same 401 as a wrong password; enabling it again lets it in; granting the admin role takes
 effect at the account's next sign-in, not before; an admin changing their own account is a 400 and
 nothing changes; an unknown id is a 404.
+
+**Verify it yourself.** `.\mvnw clean verify`. On the stack, signed in as the admin, in the dev
+tools console: `fetch("/api/v1/users").then(r => r.json()).then(console.table)` lists the accounts.
+Signed in as an ordinary account, the same call answers 403.
+
+**Done (2026-10-12).** Deviations and findings:
+
+- **The PUT answers 204, not the account.** The change is `AppUserWriter`'s plain SQL, and the
+  account read back in the same transaction would be the one JPA loaded before it. The password
+  change answers 204 for the same kind of reason; the users page reloads its list.
+- **A request that changes nothing writes nothing** and ends no session: no `updated` stamp for a
+  change that did not happen.
+- Error codes 604 `USER_ID_IS_NULL`, 605 `USER_NOT_FOUND`, 606 `OWN_ACCOUNT`, in the accounts' 600s.
+  The two roles became constants on `AppUser`, also used by `AdminBootstrap` and registration
+- **Tests beyond the plan's `UsersIT`**: `UserServiceTest` (8) and `UserControllerTest` (5), as
+  every entity controller and service has. `UsersIT` has 11
+- **The rule is load-bearing, proven**: with the `hasRole("ADMIN")` line taken out, exactly the two
+  tests that expect a user's 403 failed, a user answered 200
+- **On the stack**, through the frontend's `/api` with the real admin and a throwaway account: a
+  user's `GET /users` 403; the admin's list carries no password; the admin's own account 400 (606);
+  disabling the user answered 204, its session's next request 401, and its sign-in the wrong
+  password's 401 (601); enabled again as an admin, it signed in with `ROLE_ADMIN` and read the list.
+  The probe account removed afterwards
+- `./mvnw clean verify`: 275 unit (13 new), 170 integration (11 new). Playwright: 129, unchanged -
+  nothing in the frontend uses the endpoints yet
+- Docs: `backend/CLAUDE.md` (Roles and Accounts bullets, layout, error codes, tests),
+  `backend/README.md` (a users table), `future_enhancements.md` (points 1, 2 and 4 of Multiple
+  users), root `CLAUDE.md` (Limitations: roles are enforced, for account management)
 
 ---
 

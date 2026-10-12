@@ -52,26 +52,22 @@ limitation explicit at the API boundary rather than silent.
 ## Multiple users: the table exists, the features do not
 
 **Status.** Part 4 added the `app_user` table, a `UserDetailsService` backed by it, and a first-run
-`AdminBootstrap`, so the schema supports multiple users. What is missing is everything that would
-make a second user meaningful.
+`AdminBootstrap`, so the schema supports multiple users. `docs/PLAN_V5.md` Part 3 enforces the admin
+role, for an API through which an admin disables and enables accounts and grants the role.
 
 **What is missing.**
 
-1. **Accounts are created only by registering.** Open sign-up exists since `docs/PLAN_V2.md`
-   Part 5, **without** enforcing roles, by decision: every account has the rights the first one
-   has. A user administration screen - creating, disabling or deleting accounts for others - still
-   needs roles enforced first. Until then the only way to remove an account is SQL.
-2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
-   security chain authenticates every endpoint, but nothing authorises differently per role - an
-   ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
-   table is premature until a screen manages roles; enforcing `ROLE_ADMIN` on the destructive
-   endpoints is not.
+1. **Accounts are created only by registering, and never deleted.** An admin disables an account
+   instead (`docs/PLAN_V5.md` decision 4): a deleted one would orphan what it owns. Removing one
+   takes SQL.
+2. **Two roles, in a comma-separated column.** `ROLE_ADMIN` guards account management only;
+   categories, ingredients, units and tags stay open to every account by decision (`docs/PLAN_V5.md`
+   decision 3). A join table, `app_user_role`, pays only with more roles than two.
 3. **Nothing is owned by anyone.** `created_by` records a username as free text, not a foreign key
    to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
    their audit trail. Turning it into a FK requires migrating every existing row and changing
    every DTO that exposes it - do not do it as a side effect of something else.
-4. **No reset, no disable-in-the-UI.** A signed-in user can change their own password since
-   `docs/PLAN_V4.md` Part 2. The `enabled` column exists and is honoured on login; nothing sets it.
+4. **No reset.** A signed-in user can change their own password since `docs/PLAN_V4.md` Part 2.
    Reset has its own entry below.
 
 **Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and

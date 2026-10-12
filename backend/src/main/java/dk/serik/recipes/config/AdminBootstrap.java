@@ -1,5 +1,6 @@
 package dk.serik.recipes.config;
 
+import dk.serik.recipes.model.AppUser;
 import dk.serik.recipes.repository.AppUserWriter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +48,7 @@ public class AdminBootstrap implements ApplicationRunner {
 			log.info("app_user already has {} account(s) - no account bootstrapped", accounts);
 			return;
 		}
-		appUserWriter.insert(username, password, "ROLE_USER,ROLE_ADMIN", "bootstrap");
+		appUserWriter.insert(username, password, AppUser.ROLE_USER + "," + AppUser.ROLE_ADMIN, "bootstrap");
 		log.info("Bootstrapped account '{}'", username); // never the password, nor its hash
 	}
 }

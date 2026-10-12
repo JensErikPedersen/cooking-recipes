@@ -91,6 +91,7 @@ public class SecurityConfig {
 							HttpStatus.UNAUTHORIZED, ApplicationErrorCodes.AUTHENTICATION_REQUIRED, "Authentication required")))
 			.authorizeHttpRequests(authorize -> authorize
 					.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/health").permitAll()
+					.requestMatchers("/api/v1/users/**").hasRole("ADMIN")
 					.anyRequest().authenticated())
 			// JSON in this application's envelope, not a redirect to a login page.
 			.exceptionHandling(exceptions -> exceptions

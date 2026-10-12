@@ -7,6 +7,7 @@ import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
+import dk.serik.recipes.model.AppUser;
 import dk.serik.recipes.repository.AppUserJpaRepository;
 import dk.serik.recipes.repository.AppUserWriter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -104,7 +105,7 @@ public class AuthServiceImpl implements AuthService {
 		}
 
 		// A new user creates their own account, so it is recorded as created by them.
-		appUserWriter.insert(username, registerRequest.getPassword(), "ROLE_USER", username);
+		appUserWriter.insert(username, registerRequest.getPassword(), AppUser.ROLE_USER, username);
 		log.info("Registered account '{}'", username);
 		return login(LoginRequestDTO.builder().username(username).password(registerRequest.getPassword()).build(),
 				request, response);
