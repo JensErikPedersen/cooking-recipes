@@ -21,6 +21,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +42,8 @@ public class AuthServiceImpl implements AuthService {
 	private final AppUserJpaRepository appUserJpaRepository;
 
 	private final AppUserWriter appUserWriter;
+
+	private final SessionRegistry sessionRegistry;
 
 	/** bcrypt reads no further; Spring Security refuses to encode a longer password, with an exception. */
 	private static final int MAX_PASSWORD_BYTES = 72;
@@ -74,6 +78,9 @@ public class AuthServiceImpl implements AuthService {
 		context.setAuthentication(authentication);
 		SecurityContextHolder.setContext(context);
 		securityContextRepository.saveContext(context, request, response);
+		// By username, so that every session of an account can be found to end it. Spring registers a
+		// session only at a login it performs itself.
+		sessionRegistry.registerNewSession(request.getSession().getId(), authentication.getName());
 
 		return toDto(authentication);
 	}
@@ -118,7 +125,12 @@ public class AuthServiceImpl implements AuthService {
 		throwIfAny(problems);
 
 		appUserWriter.updatePassword(username, changeRequest.getNewPassword(), username);
-		// As at login. The session stays signed in; any other session of the account does too.
+		// Whoever else holds a session of the account - someone who had the old password, perhaps - is
+		// signed out at their next request. This session stays, under a new id as at login.
+		String current = request.getSession().getId();
+		sessionRegistry.getAllSessions(username, false).stream()
+				.filter(session -> !session.getSessionId().equals(current))
+				.forEach(SessionInformation::expireNow);
 		request.changeSessionId();
 		log.info("Changed the password of '{}'", username);
 	}

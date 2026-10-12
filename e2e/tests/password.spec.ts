@@ -69,6 +69,42 @@ test("the session survives the change: the next page still opens signed in", asy
   await expect(page.getByRole("banner")).toContainText(username);
 });
 
+test("a change signs the account out in every other browser, also after the first one's session got a new id", async ({
+  page,
+  browser,
+}) => {
+  const username = await openAsNewUser(page);
+  const otherContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const other = await otherContext.newPage();
+  await signIn(other, username, OLD);
+  await expect(other).toHaveURL("/");
+
+  await test.step("a change here sends the other browser to sign in at its next page", async () => {
+    await change(page, OLD, NEW);
+    await expect(page.getByRole("status")).toBeVisible();
+
+    await other.goto("/recipes");
+    await expect(other).toHaveURL("/login?next=%2Frecipes");
+    await page.goto("/recipes");
+    await expect(page.getByRole("banner")).toContainText(username);
+  });
+
+  // This page's session changed its id with the change above. The backend's record of the account's
+  // sessions must have followed it, or the next change would miss this one.
+  await test.step("a change in the other browser, signed in again, sends this one to sign in", async () => {
+    await signIn(other, username, NEW);
+    await expect(other).toHaveURL("/");
+    await other.goto("/account/password");
+    await change(other, NEW, OLD);
+    await expect(other.getByRole("status")).toBeVisible();
+
+    await page.goto("/categories");
+    await expect(page).toHaveURL("/login?next=%2Fcategories");
+  });
+
+  await otherContext.close();
+});
+
 test("a wrong current password is shown on its field, and does not end the session", async ({ page }) => {
   await openAsNewUser(page);
 

@@ -111,20 +111,53 @@ draft after this one; its limitations stay as they are until the parts deliver.
 
 Backend, with one e2e test. The machinery Part 3 and version 6 reuse.
 
-- [ ] **Prove first** that today a second session of the same account stays signed in after a
+- [x] **Prove first** that today a second session of the same account stays signed in after a
       password change, and whether a session signed in through `AuthServiceImpl.login` appears in
       a `SessionRegistry` at all - it is not the form-login filter that registers sessions
-- [ ] `SessionRegistry` and `HttpSessionEventPublisher` beans; sessions registered at login and
+- [x] `SessionRegistry` and `HttpSessionEventPublisher` beans; sessions registered at login and
       at registration, and dropped at logout and on expiry (decision 1)
-- [ ] An expired session answers 401 in the error envelope, not Spring's default text
-- [ ] `changePassword` ends every other session of the account; the one that changed it stays,
+- [x] An expired session answers 401 in the error envelope, not Spring's default text
+- [x] `changePassword` ends every other session of the account; the one that changed it stays,
       under its new id
-- [ ] Docs: `backend/CLAUDE.md` Authentication; the step 1 remainder leaves `future_enhancements.md`
+- [x] Docs: `backend/CLAUDE.md` Authentication; the step 1 remainder leaves `future_enhancements.md`
 
 **Tests.** In `PasswordChangeIT`: two sessions of one account, a change in one, and the other's
 next request is a 401 while the first's is not. A logout leaves nothing behind in the registry.
 e2e: two browser contexts signed in as one throwaway account; after a change in the first, the
 second lands on the sign-in page at its next navigation.
+
+**Verify it yourself.** `.\mvnw clean verify`. On the stack: sign in as one account in a normal
+and in a private window, change the password in one, then open any page in the other - it goes to
+the sign-in page.
+
+**Done (2026-10-12).** Deviations and findings:
+
+- **Proven first, on the stack**, with two curl sessions of a throwaway account through the
+  frontend's `/api`: after a change in the first, the second still answered `/auth/me` with 200.
+- **Spring registers no session of ours, proven twice.** Spring Security 7.1.1's own source:
+  `maximumSessions` puts the registering strategy into a `SessionManagementFilter` that acts only on
+  a request that authenticated during itself without a saved context - a login Spring performs. A
+  throwaway test with the registry wired in: after our login and a request, `getAllPrincipals()`
+  was empty. So `AuthServiceImpl.login` registers the session, by username, after the context is
+  saved; registration goes through `login` and is covered with it.
+- **Spring's default for an ended session is a 200** with a line of text
+  (`ResponseBodySessionInformationExpiredStrategy`). An `expiredSessionStrategy` answers the
+  envelope's 401 instead. `ConcurrentSessionFilter` borrows the logout configuration's handlers, so
+  an ended session also loses its `JSESSIONID` cookie, as at logout - asserted in the IT.
+- **The IT, before and after.** Without the change to `AuthServiceImpl`, of the three new tests
+  only `shouldEndTheAccountsOtherSessions` failed, 200 where 401 was expected; with it, all pass.
+- **"A logout leaves nothing behind" is not an IT**, as planned: MockMvc runs no servlet container,
+  so the registry never hears of an id change or an end there. Proven on the stack instead, with the
+  registry's debug log switched on through a throwaway Compose override: each session registered,
+  moved to its new id at a password change, and removed when it was ended or logged out - the
+  registry empty at the end. The same run proved what the IT cannot: after the first session's id
+  changed, a change from the other session still ended it. The e2e test repeats that run.
+- **The e2e test failed once, the test's fault.** Its second step navigated before the second
+  sign-in had finished; the trace shows the login `POST` aborted by the navigation. It now waits
+  for the start page, as its first step did, and passed three runs in a row.
+- `./mvnw clean verify`: 262 unit, 159 integration (3 new). Playwright: 129 (1 new).
+- Docs: `backend/CLAUDE.md` Authentication, a bullet of its own on ending sessions;
+  `backend/README.md`'s password row; the step 1 remainder has left `future_enhancements.md`
 
 ---
 

@@ -43,7 +43,15 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
   to sign in. The current one is checked with the `AuthenticationManager`, as login does, and the
   new hash written by `AppUserWriter.updatePassword` - every password is encoded in that class.
-  The session gets a new id, as at login; other sessions of the account stay signed in.
+  The session gets a new id, as at login; every other session of the account is ended.
+- **Ending a user's sessions**: Spring Security's `SessionRegistry`, in memory, keyed by username.
+  `AuthServiceImpl.login` registers each session itself - Spring does so only for a login it
+  performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session
+  changes its id or ends. `SessionInformation.expireNow()` ends one: Spring's
+  `ConcurrentSessionFilter`, switched on by `maximumSessions(-1)`, signs it out at its next request
+  with the logout handlers - the `JSESSIONID` cookie deleted - and a 401 in the envelope. MockMvc
+  runs no servlet container, so in the ITs the registry never hears of a new id or an end: what
+  depends on those is proven by e2e's `password.spec.ts`.
 
 ## Layout
 

@@ -92,9 +92,8 @@ and the application has none. `app_user` holds no email address, and the stack h
 **What it would take.** Two pieces, in this order:
 
 1. **Change password, signed in.** Done in `docs/PLAN_V4.md` Part 2: `PUT /api/v1/auth/password`
-   with the current and the new password, to registration's rules. It leaves other sessions of the
-   account signed in; ending them - what a user who suspects a stolen password wants - needs
-   Spring Security's `SessionRegistry`, which nothing here uses yet.
+   with the current and the new password, to registration's rules. Since `docs/PLAN_V5.md` Part 2
+   it also signs out every other session of the account.
 2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
    `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
    takes that token plus a new password. Store the token hashed, as a password is. Answer the
