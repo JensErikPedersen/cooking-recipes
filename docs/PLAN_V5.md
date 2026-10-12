@@ -37,9 +37,8 @@ version 6. They stay in, or go to, `future_enhancements.md`.
 
 **Numbering.** Parts restart at 1. Commits say `V5 Part 2: ...`.
 
-**Branch.** PR #3 merges `enhancements_v4` into `master`. Version 5 is built on a new branch,
-`enhancements_v5`, from the updated `master`. This draft stays uncommitted until then, so it does
-not ride along in PR #3.
+**Branch.** PR #3 merged `enhancements_v4` into `master` on 2026-10-12. Version 5 is built on a new
+branch, `enhancements_v5`, from the updated `master`.
 
 ## Decisions
 
@@ -85,11 +84,11 @@ to its two questions in decisions 3 and 7. Each part refers to them by number.
 
 ## Part 1: Baseline and scope
 
-- [ ] Branch `enhancements_v5` from `master` once PR #3 is merged
-- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V5.md` as the current plan, with the
+- [x] Branch `enhancements_v5` from `master` once PR #3 is merged
+- [x] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V5.md` as the current plan, with the
       earlier plans as the record. Ratings stay out of scope in version 5 too
 - [x] Open questions answered and recorded under Decisions (2026-10-12)
-- [ ] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite.
+- [x] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite.
       Version 4 ended at 262 unit, 156 integration, 128 Playwright tests
 
 **Verify it yourself.** Read the diff, then:
@@ -99,6 +98,12 @@ scripts\start.ps1
 cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
+
+**Done (2026-10-12).** `enhancements_v5` starts at `5915fee`, the merge of PR #3; the two plans were
+committed on it first, as `225fe01`. Baseline: 262 unit, 156 integration, 128 Playwright tests, all
+green - version 4's final numbers, Playwright against the stack as built from that code. Root
+`CLAUDE.md` says ratings stay out of scope in versions 2 to 5, and names `docs/PLAN_V6.md` as the
+draft after this one; its limitations stay as they are until the parts deliver.
 
 ---
 

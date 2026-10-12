@@ -27,5 +27,6 @@ and start again.
 
 ## More
 
-`CLAUDE.md` lists every command; `docs/PLAN_V4.md` is the current plan and its progress.
-`docs/PLAN.md` (the MVP), `docs/PLAN_V2.md` and `docs/PLAN_V3.md` are finished.
+`CLAUDE.md` lists every command; `docs/PLAN_V5.md` is the current plan and its progress, and
+`docs/PLAN_V6.md` the one after it. `docs/PLAN.md` (the MVP) and `docs/PLAN_V2.md` to
+`docs/PLAN_V4.md` are finished.

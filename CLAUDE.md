@@ -20,14 +20,14 @@ an `app_user` table. Version 2 adds sign-up, so anyone can register an account o
 enforcement of roles and no per-user ownership of data: every account sees and edits everything.
 Those are future versions.
 
-Ratings are out of scope, in the MVP and in versions 2, 3 and 4. The `Rating` and `RecipeRating` entities exist in the
+Ratings are out of scope, in the MVP and in versions 2 to 5. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
 
 For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-All commands below work today. Each part of `docs/PLAN_V4.md` confirms its commands here as it lands.
+All commands below work today. Each part of `docs/PLAN_V5.md` confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 
@@ -134,9 +134,10 @@ failed. Sign in (Part 4) made the application writable - see `backend/CLAUDE.md`
 ## Working documentation
 
 All documents for planning and executing this project are in `docs/`.
-`docs/PLAN_V4.md` is the current plan; review it before proceeding. `docs/PLAN.md` (the MVP),
-`docs/PLAN_V2.md` and `docs/PLAN_V3.md` (the first two rounds of enhancements) are finished, kept
-as the record of how and why each was built.
+`docs/PLAN_V5.md` is the current plan; review it before proceeding. `docs/PLAN_V6.md` is the
+draft that follows it. `docs/PLAN.md` (the MVP), `docs/PLAN_V2.md`, `docs/PLAN_V3.md` and
+`docs/PLAN_V4.md` (the first three rounds of enhancements) are finished, kept as the record of how
+and why each was built.
 
 There is a `CLAUDE.md` per layer: this file holds project-wide rules, `backend/CLAUDE.md` maps the
 existing backend code, and `frontend/CLAUDE.md` holds frontend conventions once that layer exists.
@@ -144,12 +145,12 @@ Keep each one to what is specific to its layer; do not duplicate this file.
 
 ## Work process
 
-When implementing the solution, start by reading `docs/PLAN_V4.md`.
+When implementing the solution, start by reading `docs/PLAN_V5.md`.
 Be critical of the plan and suggest improvements if something can be sliced better. The main goal
 is structured, well-tested, robust, minor increments.
 Never proceed from one step to the next automatically. Wait for review and acceptance first.
 Commits to git happen after every step involving code or documentation updates.
-Enrich `docs/PLAN_V4.md` as work progresses and check off each step to show progress.
+Enrich `docs/PLAN_V5.md` as work progresses and check off each step to show progress.
 ALWAYS ask questions when in doubt.
 Never make any major decision without consulting first.
 
