@@ -241,6 +241,17 @@ data flows.
 Liquibase runs during Spring startup and **does not retry a refused connection**, so the database
 must be reachable before the application starts.
 
+**Mail** goes to Mailpit, in the stack, which catches it: nothing leaves the machine. Its page and
+API are on `http://localhost:8025`; SMTP is `mailpit:1025` inside the network, and `localhost:1025`
+for a host-side run, published by `docker-compose.override.yml`. `spring.mail.*` takes `MAIL_HOST`
+and `MAIL_PORT`, no credentials, with 5 second timeouts - JavaMail waits forever by default.
+`app.base-url` (`APP_BASE_URL`) is the address the browser opens the application on, for links in
+mails: behind the Next.js server, the backend cannot know it. `/actuator/health` includes the mail
+server, through Boot's mail health indicator: with Mailpit stopped the backend answers 503 - though
+it still serves - so Compose starts it only once Mailpit is healthy. The tests have no mail sender
+at all: their `application.properties` replaces the main one and sets no `spring.mail.host`, which
+is what Boot creates a `JavaMailSender` for.
+
 ## Docker
 
 - `Dockerfile` builds with the official `maven:3.9.11-eclipse-temurin-25` image rather than

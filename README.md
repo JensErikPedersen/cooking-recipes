@@ -19,6 +19,8 @@ Open http://localhost:3000 and sign in with `APP_ADMIN_USERNAME` and `APP_ADMIN_
 
 If PowerShell refuses to run the scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
+Mail the app sends is caught, not delivered: read it on http://localhost:8025.
+
 The database accounts are created only on a fresh database volume. A database from before
 version 4 has one account where there are now two, and the backend stops with
 `Access denied for user 'recipesadmin'`: add `DB_ADMIN_USERNAME` and `DB_ADMIN_PASSWORD` to `.env`

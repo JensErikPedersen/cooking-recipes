@@ -195,15 +195,43 @@ address adds one, an address changed, a wrong current password refused on its fi
 
 Docker, backend config, docs. Like V4 Part 7, a change to the stack.
 
-- [ ] A `mailpit` service in `docker-compose.yml`, its image pinned to an exact version, its web
+- [x] A `mailpit` service in `docker-compose.yml`, its image pinned to an exact version, its web
       page on `localhost:8025` only (decision 2)
-- [ ] `spring-boot-starter-mail`; `MAIL_HOST`, `MAIL_PORT` and `APP_BASE_URL` in `.env.example`,
+- [x] `spring-boot-starter-mail`; `MAIL_HOST`, `MAIL_PORT` and `APP_BASE_URL` in `.env.example`,
       `docker-compose.yml` and `application.properties`, none a credential
-- [ ] The tests send no mail: H2 tests get a mail sender that records instead
-- [ ] Docs: root `CLAUDE.md` (four containers), `README.md` (where mail appears), `backend/CLAUDE.md`
+- [x] The tests send no mail. The recording mail sender moved to Part 5, the first part to send any
+- [x] Docs: root `CLAUDE.md` (four containers), `README.md` (where mail appears), `backend/CLAUDE.md`
 
 **Tests.** The backend starts healthy with the mail settings; on the stack, a mail sent from inside
 the backend container shows up in Mailpit's API. The whole Playwright suite is green.
+
+**Done 2026-10-13.**
+- **Mailpit.** `axllent/mailpit:v1.31.5`, the latest stable release (2026-10-11). Its page and API
+  are published on `127.0.0.1:8025` only. SMTP stays inside the network, except for
+  `127.0.0.1:1025` in `docker-compose.override.yml`, for a host-side `./mvnw` run. The image has a
+  healthcheck of its own, `/mailpit readyz`, so the backend `depends_on` it being healthy, as it
+  does MySQL.
+- **Settings.** `MAIL_HOST`, `MAIL_PORT` and `APP_BASE_URL` have defaults in `docker-compose.yml`
+  (`mailpit`, `1025`, `http://localhost:FRONTEND_PORT`), so an `.env` from before V6 still starts the
+  stack; `.env.example` documents them. JavaMail's timeouts are 5 seconds each, not its default of
+  forever. `app.base-url` is set here, and first read in Part 5.
+- **The backend's health includes mail.** Boot's mail health indicator connects to the server.
+  Proven: with Mailpit stopped, `/actuator/health` answered 503, while the sign-in page was still
+  served; started again, 200.
+- **Proven, a mail from inside the backend container.** curl over SMTP, to the `$MAIL_HOST:$MAIL_PORT`
+  of the container's own environment, `mailpit:1025`. It appeared in Mailpit's API, from and to
+  the addresses sent, and was then deleted.
+- **Proven, the tests have no mail sender.** A throwaway `@SpringBootTest` found no `MailSender`
+  bean: the tests' `application.properties` replaces the main one and sets no `spring.mail.host`,
+  without which Boot creates none. So the recording sender waits for Part 5, where
+  `PasswordResetIT` first needs one.
+- **A flaky search test, fixed.** The first full e2e run failed `search.spec.ts`'s "clearing the
+  search ... brings back the whole list": its snapshot of every category held `E2E 2daa4c3e`, made
+  by a test running alongside (`fullyParallel`), which had deleted it again before the comparison.
+  Not a Part 4 change. The test now compares the categories that are not other tests' "E2E " ones,
+  all back and in order. Two full runs after it: green.
+- **Tests.** Backend 275 unit, 194 integration, unchanged. Playwright 143, all green, and Mailpit
+  held no mail afterwards: nothing in the suite sends one.
 
 ---
 
@@ -212,6 +240,8 @@ the backend container shows up in Mailpit's API. The whole Playwright suite is g
 Backend only.
 
 - [ ] `db.changelog_1.6.xml`: `password_reset_token` (decision 3)
+- [ ] The tests' mail sender: one that records, for `PasswordResetIT` to read the mail from (moved
+      from Part 4)
 - [ ] `POST /api/v1/auth/password-reset` and `/password-reset/confirm`, both open in
       `SecurityConfig`, both CSRF-protected like login
 - [ ] The mail: plain text, the link, and how long it is valid

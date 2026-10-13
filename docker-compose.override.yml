@@ -6,6 +6,11 @@ services:
     ports:
       - "${DB_HOST_PORT}:3306"
 
+  mailpit:
+    # SMTP, for a host-side ./mvnw spring-boot:run, whose MAIL_HOST defaults to localhost.
+    ports:
+      - "127.0.0.1:1025:1025"
+
   backend:
     ports:
       - "${APPLICATION_PORT}:${APPLICATION_PORT}"

@@ -43,8 +43,9 @@ docker compose down -v            # stop AND delete the database volume; next st
 docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes'   # SQL prompt
 ```
 
-The app is at `http://localhost:3000`. The SQL prompt reads the password from the container's own
-environment, because `.env` is read by Compose, not loaded into your shell.
+The app is at `http://localhost:3000`, and every mail it sends at `http://localhost:8025`, Mailpit's
+page. The SQL prompt reads the password from the container's own environment, because `.env` is read
+by Compose, not loaded into your shell.
 
 Backend, from `backend/`. Tests run on in-memory H2 and need no database or Docker:
 
@@ -93,9 +94,10 @@ They also assume the seeds are intact: after deleting a seeded row by hand, rest
 
 - NextJS frontend. Use npm. Tailwind CSS for styling, no component library.
 - Spring Boot backend. Maven is used already and is kept for the backend.
-- Three containers: `mysql`, `backend` (Spring Boot API), `frontend` (Next.js server). The
-  Next.js server owns the browser-facing origin and proxies `/api` to the backend, so there is one
-  origin in the browser and no CORS configuration.
+- Four containers: `mysql`, `backend` (Spring Boot API), `frontend` (Next.js server), and
+  `mailpit`, which catches every mail the backend sends - nothing leaves the machine
+  (`docs/PLAN_V6.md` decision 2). The Next.js server owns the browser-facing origin and proxies
+  `/api` to the backend, so there is one origin in the browser and no CORS configuration.
   Launched together with `docker compose`, wrapped by the start/stop scripts.
 - Credentials and ports come from a gitignored `.env` at the repo root, with a committed
   `.env.example` documenting every variable. No credential is ever written into

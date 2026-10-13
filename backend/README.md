@@ -35,6 +35,8 @@ at startup with `Access denied for user 'recipesadmin'`; without `DB_PASSWORD`, 
 | `DB_ADMIN_USERNAME` | `recipesadmin` |
 | `DB_ADMIN_PASSWORD` | *none — required* |
 | `APPLICATION_PORT` | `8080` |
+| `MAIL_HOST` / `MAIL_PORT` | `localhost` / `1025` - the stack's Mailpit, published on this machine |
+| `APP_BASE_URL` | `http://localhost:3000` - the address in the links of mails |
 
 Add `-Dspring-boot.run.profiles=dev` for SQL statement and bind-value logging. Do not enable it in
 production: bind-value logging writes user data to the log.
