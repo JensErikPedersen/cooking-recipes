@@ -30,8 +30,18 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   other comes from `POST /api/v1/auth/register`: `ROLE_USER`, created by its own username, and
   signed in on the spot through `login()`. Both insert through `AppUserWriter`, with plain SQL:
   through JPA `BaseEntityListener` would stamp `created_by` from the `Session`, which holds no
-  signed-in user at startup or during an anonymous registration. Roles are stored, not enforced.
-  No user administration - by decision.
+  signed-in user at startup or during an anonymous registration.
+- **Roles**: `ROLE_USER` for everyone, `ROLE_ADMIN` as well for an admin - the comma-separated
+  `app_user.roles`, constants on `AppUser`. Enforced only where `SecurityConfig` says so:
+  `/api/v1/users/**` needs `ROLE_ADMIN`, a 403 in the envelope (602) otherwise. Everything else is
+  open to any signed-in account.
+- **Accounts, for admins**: `UserController` lists them and, with `PUT /api/v1/users/{id}`
+  `{"enabled", "admin"}`, disables or enables another account and grants or withdraws the admin
+  role - written by `AppUserWriter.updateAccess`, so the PUT answers 204, not the account JPA
+  loaded before the change. Either change ends every session of that account: a session keeps the
+  roles it signed in with. A disabled account signs in with a wrong password's 401. An admin's
+  own account is a 400 (606) - so whoever acts is an enabled admin, and there is always one. No
+  create, no delete - by decision: an account is disabled instead.
 - **Registration rules**: username 3-64 characters, letters (any alphabet), digits, `.`, `_`, `-`,
   unique regardless of case - `existsByUsernameIgnoreCase`, since H2 in the tests tells case apart
   where MySQL's collation does not; taken is a 409 (603) on `username`. Password at least 8
@@ -43,13 +53,24 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
   to sign in. The current one is checked with the `AuthenticationManager`, as login does, and the
   new hash written by `AppUserWriter.updatePassword` - every password is encoded in that class.
-  The session gets a new id, as at login; other sessions of the account stay signed in.
+  The session gets a new id, as at login; every other session of the account is ended.
+- **Ending a user's sessions**: Spring Security's `SessionRegistry`, in memory, keyed by username.
+  `AuthServiceImpl.login` registers each session itself - Spring does so only for a login it
+  performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session
+  changes its id or ends. `SessionInformation.expireNow()` ends one: Spring's
+  `ConcurrentSessionFilter`, switched on by `maximumSessions(-1)`, signs it out at its next request
+  with the logout handlers - the `JSESSIONID` cookie deleted - and lets that request carry on
+  anonymous: an ended session is no session. A protected endpoint answers the usual 401; a login
+  just works. Answering in the filter instead refused the first sign-in of a browser still holding
+  the ended session's cookie, since that login was its next request. MockMvc
+  runs no servlet container, so in the ITs the registry never hears of a new id or an end: what
+  depends on those is proven by e2e's `password.spec.ts`.
 
 ## Layout
 
 | Package | Holds |
 |---|---|
-| `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` |
+| `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
 | `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
 | `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
@@ -95,7 +116,7 @@ not `Comparable` - the comment there records why.
 
 Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`, and optionally
 `validationExceptions[]`. Codes are in `ApplicationErrorCodes`, grouped by domain in hundreds
-(recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s).
+(recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s, accounts 600s).
 
 | Exception | Result |
 |---|---|
@@ -167,10 +188,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
-| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
+| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
 and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
@@ -181,7 +202,7 @@ slice tests can pass while real serialization is broken - the same class of gap.
 **MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
 inside the context's filter with a test one that sets no cookie, for every later test there. A test
 that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
-classes: `RegistrationIT` and `PasswordChangeIT` take `AuthenticationIT`'s properties to share its
+classes: `RegistrationIT`, `PasswordChangeIT` and `UsersIT` take `AuthenticationIT`'s properties to share its
 context instead. Alone `RegistrationIT` passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run

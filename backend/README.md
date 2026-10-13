@@ -61,9 +61,14 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 |---|---|
 | `POST /api/v1/auth/login` | `{"username", "password"}`; 200 with the user, 401 on bad credentials |
 | `POST /api/v1/auth/register` | `{"username", "password", "confirmPassword"}`; 201 with the user, signed in; 400 on a rule, 409 on a taken username |
-| `PUT /api/v1/auth/password` | `{"currentPassword", "newPassword", "confirmPassword"}`; 204, the session kept under a new id; 400 on a wrong current password or a rule |
+| `PUT /api/v1/auth/password` | `{"currentPassword", "newPassword", "confirmPassword"}`; 204, the session kept under a new id and every other session of the account signed out; 400 on a wrong current password or a rule |
 | `GET /api/v1/auth/me` | the signed-in user, or 401 |
 | `POST /api/v1/auth/logout` | 204 |
+
+| Users, for admins only - anyone else gets 403 | |
+|---|---|
+| `GET /api/v1/users` | every account: id, username, enabled, roles, audit fields; never a password |
+| `PUT /api/v1/users/{id}` | `{"enabled", "admin"}`; 204, and the account's sessions end if either changed; 400 for the admin's own account, 404 for an unknown id |
 
 Every resource offers the same five operations. A recipe's ingredient lines are written with the recipe.
 `?name=` on a list answers only the rows whose name contains it, in any case, and `[]` when none

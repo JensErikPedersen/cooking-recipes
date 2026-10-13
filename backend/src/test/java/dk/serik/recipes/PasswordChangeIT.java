@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,6 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>
  * The properties are {@code AuthenticationIT}'s, so the three share one cached context - see
  * {@code RegistrationIT} for why the real {@code XSRF-TOKEN} cookie needs that.
+ * <p>
+ * MockMvc runs no servlet container, so the session registry never hears of a session's new id or of
+ * its end here. What depends on those - a second change from the other session, after the first
+ * changed this one's id - is covered by e2e's {@code password.spec.ts}, against the real stack.
  */
 @SpringBootTest(classes = RecipesApplication.class, properties = {
 		"app.admin.username=" + AuthenticationIT.USERNAME,
@@ -89,6 +94,70 @@ class PasswordChangeIT {
 		mockMvc.perform(get(ME).session(account.session()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.username").value(account.username()));
+	}
+
+	@Test
+	@DisplayName("Given a second session of the account, When the password is changed in the first, Then the second is signed out with a 401")
+	void shouldEndTheAccountsOtherSessions() throws Exception {
+		Account account = registerAccount();
+		MockHttpSession other = signIn(account.username(), OLD);
+
+		change(account, OLD, NEW, NEW).andExpect(status().isNoContent());
+
+		mockMvc.perform(get(ME).session(other))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.AUTHENTICATION_REQUIRED.getCode()))
+				// As at logout, so the frontend's proxy.ts sees a visitor without a session.
+				.andExpect(cookie().maxAge("JSESSIONID", 0));
+		assertThat(other.isInvalid()).isTrue();
+		mockMvc.perform(get(ME).session(account.session())).andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("Given a browser still holding an ended session, When it signs in, Then the sign-in succeeds at the first attempt")
+	void shouldSignInFromAnEndedSession() throws Exception {
+		Account account = registerAccount();
+		MockHttpSession ended = signIn(account.username(), OLD);
+		change(account, OLD, NEW, NEW).andExpect(status().isNoContent());
+
+		// The ended session's cookie is the first thing the browser sends again, with the login.
+		Cookie xsrf = xsrfCookie();
+		MockHttpSession again = (MockHttpSession) mockMvc.perform(post(LOGIN).session(ended)
+						.cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonMapper.writeValueAsString(LoginRequestDTO.builder()
+								.username(account.username()).password(NEW).build())))
+				.andExpect(status().isOk())
+				.andReturn().getRequest().getSession(false);
+
+		assertThat(again).isNotSameAs(ended);
+		mockMvc.perform(get(ME).session(again))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username").value(account.username()));
+	}
+
+	@Test
+	@DisplayName("Given another account signed in, When a password is changed, Then that account stays signed in")
+	void shouldLeaveOtherAccountsSignedIn() throws Exception {
+		Account account = registerAccount();
+		Account bystander = registerAccount();
+
+		change(account, OLD, NEW, NEW).andExpect(status().isNoContent());
+
+		mockMvc.perform(get(ME).session(bystander.session()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username").value(bystander.username()));
+	}
+
+	@Test
+	@DisplayName("Given a rejected change, When the account's other session asks, Then it is still signed in")
+	void shouldKeepOtherSessionsWhenRejected() throws Exception {
+		Account account = registerAccount();
+		MockHttpSession other = signIn(account.username(), OLD);
+
+		change(account, OLD + "!", NEW, NEW).andExpect(status().isBadRequest());
+
+		mockMvc.perform(get(ME).session(other)).andExpect(status().isOk());
 	}
 
 	@Test
@@ -212,6 +281,12 @@ class PasswordChangeIT {
 		return mockMvc.perform(post(LOGIN).cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(jsonMapper.writeValueAsString(LoginRequestDTO.builder().username(username).password(password).build())));
+	}
+
+	/** A second session of an existing account, signed in through the login endpoint. */
+	private MockHttpSession signIn(String username, String password) throws Exception {
+		return (MockHttpSession) login(username, password).andExpect(status().isOk())
+				.andReturn().getRequest().getSession(false);
 	}
 
 	private String storedHash(String username) {

@@ -52,30 +52,29 @@ limitation explicit at the API boundary rather than silent.
 ## Multiple users: the table exists, the features do not
 
 **Status.** Part 4 added the `app_user` table, a `UserDetailsService` backed by it, and a first-run
-`AdminBootstrap`, so the schema supports multiple users. What is missing is everything that would
-make a second user meaningful.
+`AdminBootstrap`, so the schema supports multiple users. `docs/PLAN_V5.md` Part 3 enforces the admin
+role, for an API and a users page on which an admin disables and enables accounts and grants the
+role (Parts 3-4).
 
 **What is missing.**
 
-1. **Accounts are created only by registering.** Open sign-up exists since `docs/PLAN_V2.md`
-   Part 5, **without** enforcing roles, by decision: every account has the rights the first one
-   has. A user administration screen - creating, disabling or deleting accounts for others - still
-   needs roles enforced first. Until then the only way to remove an account is SQL.
-2. **Roles are stored but barely used.** `AppUser.roles` is a comma-separated column and the
-   security chain authenticates every endpoint, but nothing authorises differently per role - an
-   ordinary user can do everything an admin can. Splitting the column into an `app_user_role` join
-   table is premature until a screen manages roles; enforcing `ROLE_ADMIN` on the destructive
-   endpoints is not.
-3. **Nothing is owned by anyone.** `created_by` records a username as free text, not a foreign key
-   to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
-   their audit trail. Turning it into a FK requires migrating every existing row and changing
-   every DTO that exposes it - do not do it as a side effect of something else.
-4. **No reset, no disable-in-the-UI.** A signed-in user can change their own password since
-   `docs/PLAN_V4.md` Part 2. The `enabled` column exists and is honoured on login; nothing sets it.
+1. **Accounts are created only by registering, and never deleted.** An admin disables an account
+   instead (`docs/PLAN_V5.md` decision 4): a deleted one would leave `created_by` and `updated_by`
+   naming an account that no longer exists. Removing one takes SQL.
+2. **Two roles, in a comma-separated column.** `ROLE_ADMIN` guards account management only;
+   categories, ingredients, units and tags stay open to every account by decision (`docs/PLAN_V5.md`
+   decision 3). A join table, `app_user_role`, pays only with more roles than two.
+3. **Nothing is owned by anyone - by decision** (`docs/PLAN_V5.md` decision 8). Every account
+   edits every recipe: in a household cookbook an owner-only rule would stop one member fixing
+   another's recipe. `created_by` and `updated_by` say who wrote and who last changed it, as free
+   text, not a foreign key to `app_user.id`. A "My recipes" list could filter on `created_by`
+   without one. Ownership becomes worth its migration only for users who should not edit each
+   other's recipes; the plan for it is V5's dropped Parts 5-6, a nullable `recipe.owner_id`.
+4. **No reset.** A signed-in user can change their own password since `docs/PLAN_V4.md` Part 2.
    Reset has its own entry below.
 
-**Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
-trusted rather than read as a string.
+**Value.** An audit trail that can be joined and trusted rather than read as a string, and
+ownership, should users ever need to be kept from editing each other's recipes.
 
 ---
 
@@ -92,9 +91,8 @@ and the application has none. `app_user` holds no email address, and the stack h
 **What it would take.** Two pieces, in this order:
 
 1. **Change password, signed in.** Done in `docs/PLAN_V4.md` Part 2: `PUT /api/v1/auth/password`
-   with the current and the new password, to registration's rules. It leaves other sessions of the
-   account signed in; ending them - what a user who suspects a stolen password wants - needs
-   Spring Security's `SessionRegistry`, which nothing here uses yet.
+   with the current and the new password, to registration's rules. Since `docs/PLAN_V5.md` Part 2
+   it also signs out every other session of the account.
 2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
    `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
    takes that token plus a new password. Store the token hashed, as a password is. Answer the

@@ -11,12 +11,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
@@ -50,9 +53,25 @@ public class SecurityConfig {
 		return new HttpSessionSecurityContextRepository();
 	}
 
+	/**
+	 * Every signed-in session, by username, so a user's sessions can be ended. In memory, as the
+	 * sessions themselves are. {@code AuthServiceImpl} registers a session at login: Spring does that
+	 * only for a login it performs itself.
+	 */
+	@Bean
+	public SessionRegistry sessionRegistry() {
+		return new SessionRegistryImpl();
+	}
+
+	/** Tells the registry when a session ends or changes its id; Boot registers it with the container. */
+	@Bean
+	public HttpSessionEventPublisher httpSessionEventPublisher() {
+		return new HttpSessionEventPublisher();
+	}
+
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository securityContextRepository,
-												   Session session) {
+												   SessionRegistry sessionRegistry, Session session) {
 		http
 			// CSRF stays on. This API authenticates with a cookie the browser attaches by itself,
 			// which is exactly what CSRF protection exists for. spa(): the token travels in a
@@ -62,8 +81,18 @@ public class SecurityConfig {
 			// fails if that ever changes.
 			.csrf(csrf -> csrf.spa())
 			.securityContext(context -> context.securityContextRepository(securityContextRepository))
+			// Any number of sessions per user; the registry is what lets one be ended. An ended session
+			// is no session: its next request is signed out by the logout handlers - its cookie deleted -
+			// and carries on anonymous, so a protected endpoint answers the usual 401 and a login just
+			// works. Answering the request here instead - Spring's default is a 200 with a line of text -
+			// refused the first sign-in of a browser that still held the ended session's cookie.
+			.sessionManagement(sessions -> sessions
+					.maximumSessions(-1)
+					.sessionRegistry(sessionRegistry)
+					.expiredSessionStrategy(event -> event.getFilterChain().doFilter(event.getRequest(), event.getResponse())))
 			.authorizeHttpRequests(authorize -> authorize
 					.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/health").permitAll()
+					.requestMatchers("/api/v1/users/**").hasRole("ADMIN")
 					.anyRequest().authenticated())
 			// JSON in this application's envelope, not a redirect to a login page.
 			.exceptionHandling(exceptions -> exceptions

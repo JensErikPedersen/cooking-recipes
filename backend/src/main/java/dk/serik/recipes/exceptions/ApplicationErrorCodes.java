@@ -41,7 +41,10 @@ public enum ApplicationErrorCodes {
     AUTHENTICATION_REQUIRED(600),
     BAD_CREDENTIALS(601),
     ACCESS_DENIED(602),
-    USERNAME_TAKEN(603);
+    USERNAME_TAKEN(603),
+    USER_ID_IS_NULL(604),
+    USER_NOT_FOUND(605),
+    OWN_ACCOUNT(606);
 
     private final int code;
 
