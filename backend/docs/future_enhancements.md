@@ -70,36 +70,38 @@ role (Parts 3-4).
    text, not a foreign key to `app_user.id`. A "My recipes" list could filter on `created_by`
    without one. Ownership becomes worth its migration only for users who should not edit each
    other's recipes; the plan for it is V5's dropped Parts 5-6, a nullable `recipe.owner_id`.
-4. **No reset.** A signed-in user can change their own password since `docs/PLAN_V4.md` Part 2.
-   Reset has its own entry below.
+4. **Passwords.** A signed-in user changes their own since `docs/PLAN_V4.md` Part 2, and a
+   forgotten one is reset by email since `docs/PLAN_V6.md` Parts 5-6 - for an account that has an
+   address. What the reset leaves out has its own entry below. An admin cannot set another
+   account's password.
 
 **Value.** An audit trail that can be joined and trusted rather than read as a string, and
 ownership, should users ever need to be kept from editing each other's recipes.
 
 ---
 
-## A forgotten password cannot be reset
+## Password resets: no rate limit, and an answer that takes longer for a real address
 
-**What is missing.** A user who forgets their password has no way back in. There is no reset. With
-one bootstrapped account this hardly mattered: the operator could delete the row and let
-`AdminBootstrap` recreate it. Once anyone can register (`docs/PLAN_V2.md` Part 5), a forgotten
-password locks that user out for good.
+**Status.** A forgotten password is reset by email since `docs/PLAN_V6.md` Parts 5-6:
+`POST /api/v1/auth/password-reset` mails a single-use link that works for 30 minutes, and
+`/password-reset/confirm` takes its token with a new password. The answer is the same 202 whether
+or not the address belongs to an enabled account. Two things were left out, by decision, for a
+local application.
 
-**Why it was left.** A real reset needs a channel the application can reach the user through,
-and the application has none. `app_user` holds no email address, and the stack has no mail server.
+**What is missing.**
 
-**What it would take.** Two pieces, in this order:
+1. **No rate limit.** Anyone can ask for any number of resets, of any address. Each request for a
+   real address sends a mail and replaces that account's token - an annoyance to its owner, not a
+   way in. Nothing limits the confirm either, but a token is 32 random bytes: there is nothing to
+   guess.
+2. **The answer takes longer for a real address.** The mail is sent before the 202, so a caller
+   who times the answers can tell an address that has an account - the body and status cannot.
+   Against Mailpit the difference is milliseconds; against a real mail server it would be more.
+   Registration tells a taken address outright anyway (409), as it must with open sign-up.
 
-1. **Change password, signed in.** Done in `docs/PLAN_V4.md` Part 2: `PUT /api/v1/auth/password`
-   with the current and the new password, to registration's rules. Since `docs/PLAN_V5.md` Part 2
-   it also signs out every other session of the account.
-2. **Reset by email.** An `email` column on `app_user`, collected at registration. Then
-   `POST /api/v1/auth/password-reset` mails a single-use token that expires, and a second endpoint
-   takes that token plus a new password. Store the token hashed, as a password is. Answer the
-   request the same way whether or not the address exists, as login does for usernames. Locally,
-   a Mailpit container in the stack catches the mail, so nothing is really sent.
+**What it would take.** A limit per address and per client, in memory, answering 429 - or a reverse
+proxy in front of the application doing the same. For the timing, sending the mail after the
+answer, from a queue or an `@Async` method; a failed send then goes to the log instead of a 500
+(`docs/PLAN_V6.md` decision 3).
 
-A reset by an administrator is the alternative to email. It needs role enforcement and an
-administration screen first; see the multiple-users entry above.
-
-**Value.** Self-registration without permanent lockout.
+**Value.** Only once the application faces the internet; until then, neither is worth its code.

@@ -54,10 +54,11 @@ date - see `CLAUDE.md`, Gotchas.
 
 ## API
 
-All endpoints are under `/api/v1` and need a signed-in session, except login and register. Sign-in
-is a session cookie, and every write - login, register and logout included - must send the
-`XSRF-TOKEN` cookie's value back as the `X-XSRF-TOKEN` header. The first account is created on
-first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authentication.
+All endpoints are under `/api/v1` and need a signed-in session, except login, register and the two
+of a password reset. Sign-in is a session cookie, and every write - login, register, reset and
+logout included - must send the `XSRF-TOKEN` cookie's value back as the `X-XSRF-TOKEN` header. The
+first account is created on first start from `APP_ADMIN_*`, the rest by registering; see
+`CLAUDE.md`, Authentication.
 
 | Auth | |
 |---|---|
@@ -65,6 +66,8 @@ first start from `APP_ADMIN_*`, the rest by registering; see `CLAUDE.md`, Authen
 | `POST /api/v1/auth/register` | `{"username", "email", "password", "confirmPassword"}`; 201 with the user, signed in; 400 on a rule, 409 on a taken username or email address |
 | `PUT /api/v1/auth/password` | `{"currentPassword", "newPassword", "confirmPassword"}`; 204, the session kept under a new id and every other session of the account signed out; 400 on a wrong current password or a rule |
 | `PUT /api/v1/auth/email` | `{"currentPassword", "email"}`; 204, every session kept; 400 on a wrong current password or a rule, 409 on an address another account has |
+| `POST /api/v1/auth/password-reset` | `{"email"}`; 202 with no body whatever the address - only an enabled account's gets a mail with a reset link, valid once for 30 minutes; 400 on a malformed address, 500 if the mail cannot be sent |
+| `POST /api/v1/auth/password-reset/confirm` | `{"token", "newPassword", "confirmPassword"}`; 204, every session of the account signed out and the caller not signed in; 400 on an unknown, expired or spent token, or a rule |
 | `GET /api/v1/auth/me` | the signed-in user - username, email address (`null` if none) and roles - or 401 |
 | `POST /api/v1/auth/logout` | 204 |
 

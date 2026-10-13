@@ -4,6 +4,8 @@ import dk.serik.recipes.dto.AuthenticatedUserDTO;
 import dk.serik.recipes.dto.ChangeEmailRequestDTO;
 import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
+import dk.serik.recipes.dto.PasswordResetConfirmDTO;
+import dk.serik.recipes.dto.PasswordResetRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Sign in, register a new account - which signs it in - change one's own password or email address,
- * and report who is signed in.
+ * reset a forgotten password by email, and report who is signed in.
  * <p>
  * There is no logout method: Spring Security's logout filter handles
  * {@code POST /api/v1/auth/logout}, invalidates the session and answers 204 - see
@@ -57,6 +59,19 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void changeEmail(@Valid @RequestBody ChangeEmailRequestDTO changeRequest) {
 		authService.changeEmail(changeRequest);
+	}
+
+	/** The same 202, with no body, whether or not the address belongs to an enabled account. */
+	@PostMapping("/password-reset")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public void requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO resetRequest) {
+		authService.requestPasswordReset(resetRequest);
+	}
+
+	@PostMapping("/password-reset/confirm")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmDTO confirmation) {
+		authService.confirmPasswordReset(confirmation);
 	}
 
 	@GetMapping("/me")

@@ -239,14 +239,14 @@ the backend container shows up in Mailpit's API. The whole Playwright suite is g
 
 Backend only.
 
-- [ ] `db.changelog_1.6.xml`: `password_reset_token` (decision 3)
-- [ ] The tests' mail sender: one that records, for `PasswordResetIT` to read the mail from (moved
+- [x] `db.changelog_1.6.xml`: `password_reset_token` (decision 3)
+- [x] The tests' mail sender: one that records, for `PasswordResetIT` to read the mail from (moved
       from Part 4)
-- [ ] `POST /api/v1/auth/password-reset` and `/password-reset/confirm`, both open in
+- [x] `POST /api/v1/auth/password-reset` and `/password-reset/confirm`, both open in
       `SecurityConfig`, both CSRF-protected like login
-- [ ] The mail: plain text, the link, and how long it is valid
-- [ ] A reset ends every session of the account (V5 Part 2) and spends the token
-- [ ] Docs: `backend/CLAUDE.md`, `backend/README.md`; the reset entry leaves
+- [x] The mail: plain text, the link, and how long it is valid
+- [x] A reset ends every session of the account (V5 Part 2) and spends the token
+- [x] Docs: `backend/CLAUDE.md`, `backend/README.md`; the reset entry leaves
       `future_enhancements.md`, and the rate limiting left out is recorded there
 
 **Tests.** A `PasswordResetIT` with the recording mail sender: an enabled account's address gets a
@@ -255,6 +255,52 @@ answer the same 202 and body; the token from the mail resets the password, after
 fails and the new one signs in; the same token again, an expired one and a made-up one are the same
 400 on `token`; a second request makes the first token useless; the stored value is not the token;
 the password rules apply as at registration; every session of the account has ended.
+
+**Done 2026-10-13.**
+- **Schema.** `db.changelog_1.6.xml`: `password_reset_token`, keyed by `app_user_id` - one row per
+  account, so a new request replaces the old token by construction - with a unique `token_hash` and
+  `expires`, and the foreign key `ON DELETE CASCADE`. No audit columns: the row is no entity, and
+  lives 30 minutes. On MySQL it took the schema's Danish collation, as `app_user.id` has.
+- **Code.**
+  - `PasswordResetTokens`, plain SQL, makes the token and hashes it, in that class only.
+  - `PasswordResetMail` writes the mail.
+  - The two endpoints are on `AuthController`, and `AuthServiceImpl` holds both flows, beside the
+    password rules and the session ending they share. Each flow is one transaction, so a failed
+    send keeps no token.
+  - The confirm spends the token only after the rules pass, with a delete whose count decides.
+  - The answer to a request is 202 with no body. A malformed address is a 400: it says nothing
+    about whether an account has it.
+- **The tests' mail sender.** `RecordingMailSender`, a `@Component` in the test sources. The
+  component scan of every `@SpringBootTest` picks it up; there was no sender at all before, and
+  `AuthServiceImpl` now needs one. It keeps every mail, and `failNextSend` stands in for a server
+  that is down.
+- **Not tested as planned: "an account without an address".** Nothing can ask for its reset: a
+  request names an address, and that account has none. An unknown address covers the same case.
+- **Proven, four mutations, each caught by its test:**
+  - Without the `isEnabled` filter, the disabled account got a mail:
+    `shouldAnswerAlikeWhetherOrNotAMailIsSent` failed.
+  - Without the transaction, a failed send kept its token: `shouldFailWhenTheMailCannotBeSent`
+    failed.
+  - Spending the token before the rules failed
+    `shouldApplyThePasswordRulesWithoutSpendingTheToken`, among others.
+  - Without ending the sessions, `shouldEndEverySessionAndSignNoOneIn` failed: 200, not 401.
+- **Proven on the stack**, through the API and Mailpit:
+  - A reset asked for the address in upper case sent one mail, "Reset your password", from
+    `no-reply@cooking-recipes.local`. Its link starts `http://localhost:3000/reset-password?token=`
+    with a 43 character token, and its text says 30 minutes.
+  - The unknown address got the same 202 and no mail.
+  - The confirm answered 204. The old password then got a 401, the new one signed in, and the token
+    a second time got the 400.
+  - The stored expiry was exactly 1800 seconds ahead of `UTC_TIMESTAMP()`: JDBC writes and compares
+    it in one zone.
+  - Deleting the probe account removed its token by the cascade. The probe account and the mails
+    were removed.
+- **Docs.**
+  - `future_enhancements.md`: the "cannot be reset" entry is replaced by what the reset leaves out.
+    That is the rate limit, and that the answer takes longer for a real address, the mail being sent
+    before it. The plan had not named the timing.
+- **Tests.** Backend 275 unit, 211 integration (17 new, all in `PasswordResetIT`). Playwright 143,
+  unchanged.
 
 ---
 

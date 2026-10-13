@@ -7,7 +7,8 @@ is in `backend/`.
 ## Authentication
 
 Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `/api` needs a
-session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is open for Compose.
+session except `POST /api/v1/auth/login`, `/register`, `/password-reset` and
+`/password-reset/confirm`; `/actuator/health` is open for Compose.
 401 and 403 come back in the error envelope (codes 600-602), never as a redirect.
 
 - **Audit stamping depends on it.** `created_by` is NOT NULL on every table but `recipe_tag`, a
@@ -67,6 +68,18 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   password, so a session cannot probe addresses. No session ends and none changes id: an address
   signs no one in. Login, registration and `/auth/me` answer with the address, read from the table
   each time - `null` while the account has none.
+- **Resetting a forgotten password**: `POST /api/v1/auth/password-reset` with `{"email"}` answers
+  202 with no body, whatever the address: only an enabled account's, in any case, gets a mail. It
+  carries `APP_BASE_URL/reset-password?token=...` and replaces any earlier token of the account.
+  `PasswordResetTokens` makes the token - 32 random bytes, base64url - and keeps only its SHA-256
+  in `password_reset_token`, one row per account, for 30 minutes; `PasswordResetMail` writes the
+  mail. Both in one transaction: a mail that cannot be sent is a 500, and no token is kept.
+  `POST /password-reset/confirm` with `{"token", "newPassword", "confirmPassword"}` takes
+  registration's rules and answers 204. An unknown, expired or spent token is one 400 on `token`,
+  reported with any password problem. The token is spent only once the rules pass - a refused
+  password leaves the link working - and by a delete whose count decides, so of two requests with
+  one token only one resets. Every session of the account ends, and the caller is not signed in.
+  The token never reaches the log; the username a mail went to does.
 - **Ending a user's sessions**: Spring Security's `SessionRegistry`, in memory, keyed by username.
   `AuthServiceImpl.login` registers each session itself - Spring does so only for a login it
   performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session
@@ -84,8 +97,8 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
 | Package | Holds |
 |---|---|
 | `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
-| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
-| `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits |
+| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` and `PasswordResetMail` |
+| `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits; `AppUserWriter` and `PasswordResetTokens` in plain SQL |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
 | `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
 | `mapper` | Static entity/DTO converters |
@@ -201,10 +214,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
-| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
+| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
 and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
@@ -215,7 +228,7 @@ slice tests can pass while real serialization is broken - the same class of gap.
 **MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
 inside the context's filter with a test one that sets no cookie, for every later test there. A test
 that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
-classes: `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT` and `UsersIT` take `AuthenticationIT`'s properties to share its
+classes: `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT` and `UsersIT` take `AuthenticationIT`'s properties to share its
 context instead. Alone `RegistrationIT` passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
@@ -248,9 +261,11 @@ and `MAIL_PORT`, no credentials, with 5 second timeouts - JavaMail waits forever
 `app.base-url` (`APP_BASE_URL`) is the address the browser opens the application on, for links in
 mails: behind the Next.js server, the backend cannot know it. `/actuator/health` includes the mail
 server, through Boot's mail health indicator: with Mailpit stopped the backend answers 503 - though
-it still serves - so Compose starts it only once Mailpit is healthy. The tests have no mail sender
-at all: their `application.properties` replaces the main one and sets no `spring.mail.host`, which
-is what Boot creates a `JavaMailSender` for.
+it still serves - so Compose starts it only once Mailpit is healthy. The tests send no mail: their
+`application.properties` replaces the main one and sets no `spring.mail.host`, so Boot creates no
+`JavaMailSender`. Their only `MailSender` is `RecordingMailSender`, a `@Component` in the test
+sources that the component scan of every `@SpringBootTest` picks up: it keeps each mail for the
+test to read, and `failNextSend` makes it fail as a server that is down would.
 
 ## Docker
 

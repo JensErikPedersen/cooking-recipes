@@ -4,6 +4,8 @@ import dk.serik.recipes.dto.AuthenticatedUserDTO;
 import dk.serik.recipes.dto.ChangeEmailRequestDTO;
 import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
+import dk.serik.recipes.dto.PasswordResetConfirmDTO;
+import dk.serik.recipes.dto.PasswordResetRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
@@ -11,6 +13,7 @@ import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.model.AppUser;
 import dk.serik.recipes.repository.AppUserJpaRepository;
 import dk.serik.recipes.repository.AppUserWriter;
+import dk.serik.recipes.repository.PasswordResetTokens;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
@@ -27,10 +30,13 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -46,6 +52,10 @@ public class AuthServiceImpl implements AuthService {
 	private final AppUserWriter appUserWriter;
 
 	private final SessionRegistry sessionRegistry;
+
+	private final PasswordResetTokens passwordResetTokens;
+
+	private final PasswordResetMail passwordResetMail;
 
 	/** bcrypt reads no further; Spring Security refuses to encode a longer password, with an exception. */
 	private static final int MAX_PASSWORD_BYTES = 72;
@@ -152,6 +162,45 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
+	@Transactional
+	public void requestPasswordReset(PasswordResetRequestDTO resetRequest) {
+		Optional<AppUser> account = appUserJpaRepository.findByEmailIgnoreCase(resetRequest.getEmail())
+				.filter(AppUser::isEnabled);
+		if (account.isEmpty()) {
+			// Neither the address nor why: the log would tell what the answer does not.
+			log.info("Password reset asked for an address of no enabled account");
+			return;
+		}
+		AppUser user = account.get();
+		String token = passwordResetTokens.create(user.getId().toString());
+		// In the transaction: if the mail cannot be sent, the token is not kept either.
+		passwordResetMail.send(user, token);
+		log.info("Password reset mailed to '{}'", user.getUsername());
+	}
+
+	@Override
+	@Transactional
+	public void confirmPasswordReset(PasswordResetConfirmDTO confirmation) {
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		Optional<String> appUserId = passwordResetTokens.appUserIdOf(confirmation.getToken());
+		if (appUserId.isEmpty()) {
+			problems.add(invalidToken());
+		}
+		checkNewPassword(confirmation.getNewPassword(), "newPassword", confirmation.getConfirmPassword(), problems);
+		throwIfAny(problems);
+		// The token is spent only now, so a password the rules refuse leaves the link working.
+		if (!passwordResetTokens.spend(confirmation.getToken())) {
+			throwIfAny(List.of(invalidToken()));
+		}
+
+		String username = appUserJpaRepository.findById(UUID.fromString(appUserId.get())).orElseThrow().getUsername();
+		appUserWriter.updatePassword(username, confirmation.getNewPassword(), username);
+		// Whoever had the old password is signed out; the caller was never signed in by this.
+		sessionRegistry.getAllSessions(username, false).forEach(SessionInformation::expireNow);
+		log.info("Reset the password of '{}'", username);
+	}
+
+	@Override
 	public AuthenticatedUserDTO currentUser() {
 		return toDto(SecurityContextHolder.getContext().getAuthentication());
 	}
@@ -163,6 +212,11 @@ public class AuthServiceImpl implements AuthService {
 		} catch (AuthenticationException ex) {
 			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
 		}
+	}
+
+	/** Unknown, expired and spent alike: which one it was helps no one fix it. */
+	private static ValidationExceptionEnvelope invalidToken() {
+		return new ValidationExceptionEnvelope("token", "This reset link is invalid or has expired");
 	}
 
 	private static ServiceException emailTaken(String email) {
