@@ -45,13 +45,15 @@ for (const { path, title, term, found } of LISTS) {
 test("clearing the search and searching again brings back the whole list", async ({ page }) => {
   await page.goto("/categories");
   await expect(names(page).first()).toBeVisible();
-  const all = await names(page).allTextContents();
+  // Tests running alongside add and remove "E2E " categories at any moment, so the list is compared
+  // without them: all the others back, in order. Compared whole, it once failed on one deleted between.
+  const all = (await names(page).allTextContents()).filter((name) => !name.startsWith("E2E "));
   await search(page, "ER");
   await expect(names(page)).toHaveText(["Dessert", "Kager"]);
 
   await search(page, "");
 
-  await expect(names(page)).toHaveText(all);
+  await expect(names(page)).toContainText(all);
 });
 
 test("Enter in the field searches, as the button does", async ({ page }) => {
