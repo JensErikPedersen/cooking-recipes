@@ -7,8 +7,8 @@ as the record; this file plans the fifth round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: draft**, split from the version 5 draft on 2026-10-12. The decisions below are
-recommendations, not yet settled. It starts when version 5 is done.
+**Status: in progress.** Split from the version 5 draft on 2026-10-12; started 2026-10-13, once
+version 5 was merged. The decisions below were settled that day.
 
 ## Shape of the work
 
@@ -18,13 +18,16 @@ reset: reset by email. It builds on version 5 Part 2, which ends an account's se
 | Part | Delivers | Layers | Entry |
 |---|---|---|---|
 | 1 | Baseline and scope | docs | - |
-| 2 | An email address on each account | Liquibase, backend, frontend, e2e | Password reset, step 2 |
-| 3 | Mail in the stack | Docker, backend config, docs | the same |
-| 4 | Reset by email, in the API | backend | the same |
-| 5 | Reset by email, on pages | frontend, e2e | the same |
+| 2 | An email address at registration | Liquibase, backend, frontend, e2e | Password reset, step 2 |
+| 3 | Changing the address, on the account page | backend, frontend, e2e | the same |
+| 4 | Mail in the stack | Docker, backend config, docs | the same |
+| 5 | Reset by email, in the API | backend | the same |
+| 6 | Reset by email, on pages | frontend, e2e | the same |
 
 **Order.** The address first: without it there is nothing to send to. The container next, proven
-on its own before anything depends on it, then the reset, API before pages.
+on its own before anything depends on it, then the reset, API before pages. The address was one
+part in the draft, split in Part 1 because it was the largest: by feature, not by layer, since an
+address the API requires before the register page sends one fails every e2e test that registers.
 
 **Out of scope.** Ratings, as in every version so far. Also: verifying an email address by mail,
 and rate limiting the reset request - each is a decision below. They stay in, or go to,
@@ -36,7 +39,8 @@ and rate limiting the reset request - each is a decision below. They stay in, or
 
 ## Decisions
 
-Open. Each is the draft's recommendation; the parts refer to them by number.
+Settled 2026-10-13, as the draft recommended, with the additions marked. The parts refer to them
+by number.
 
 1. **An email address on every new account**, at most 254 characters, unique regardless of case.
    Required at registration; optional for existing accounts, which add it on the account page -
@@ -45,12 +49,15 @@ Open. Each is the draft's recommendation; the parts refer to them by number.
    reset, which an admin cannot repair either - version 5 gives admins no password change for
    others - so the account page shows the address in use.
    `APP_ADMIN_EMAIL` is not added: the bootstrapped admin sets it on the account page like anyone
-   else. (Part 2)
+   else. The column takes the table's Danish collation, as usernames do: case is ignored, as it
+   should be, but `aase@x.dk` also equals `åse@x.dk` and `jose@x.dk` equals `josé@x.dk` - checked
+   on the stack. Only addresses with non-ASCII letters can clash, and a clash is a 409 "taken".
+   *Added in Part 1.* (Parts 2, 3)
 2. **Mail through Mailpit**, a container that catches every mail and shows it on
    `http://localhost:8025` - nothing leaves the machine. `spring-boot-starter-mail`, with
    `MAIL_HOST` and `MAIL_PORT` from `.env`; Mailpit needs no credentials. The image is pinned to an
    exact version. The link in the mail needs the browser-facing address, which the backend does not
-   know: a new `APP_BASE_URL`, `http://localhost:3000` by default. (Part 3)
+   know: a new `APP_BASE_URL`, `http://localhost:3000` by default. (Part 4)
 3. **The reset flow.**
    - `POST /api/v1/auth/password-reset` with `{"email"}` always answers 202, with the same body,
      whether or not the address belongs to an enabled account - as login does for usernames.
@@ -59,24 +66,29 @@ Open. Each is the draft's recommendation; the parts refer to them by number.
      future-enhancements entry said "hashed, as a password is", but a token must be found by its
      hash, which bcrypt's salt prevents, and 32 random bytes have no dictionary to guess from.
    - It expires after 30 minutes, works once, and a new request replaces any earlier token of the
-     account. A new table `password_reset_token`: the account, the hash, the expiry.
+     account. A new table `password_reset_token`: the account, the hash, the expiry. Its foreign
+     key to `app_user` is `ON DELETE CASCADE`: e2e removes its accounts with SQL, and a token
+     would otherwise block that. *Added in Part 1.*
+   - A mail that cannot be sent - Mailpit down - is a 500, not swallowed. That answer tells an
+     address that exists from one that does not, but only while mail is broken; a 202 would tell
+     the user to wait for a mail that never comes. *Added in Part 1.*
    - `POST /api/v1/auth/password-reset/confirm` with `{"token", "newPassword", "confirmPassword"}`:
      registration's rules, 204, every session of the account ended, and the user is **not**
      signed in - they sign in with the new password, which proves it. An unknown, expired or used
      token is a 400 on `token`, the same message for all three.
    - No rate limiting: a local application. Recorded in `future_enhancements.md`.
 
-   (Parts 4, 5)
+   (Parts 5, 6)
 
 ---
 
 ## Part 1: Baseline and scope
 
-- [ ] Branch `enhancements_v6` from `master` once version 5 is merged
-- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V6.md` as the current plan, with the
+- [x] Branch `enhancements_v6` from `master` once version 5 is merged
+- [x] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V6.md` as the current plan, with the
       earlier plans as the record. Ratings stay out of scope in version 6 too
-- [ ] Open questions answered and recorded under Decisions
-- [ ] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite, at
+- [x] Open questions answered and recorded under Decisions
+- [x] Baseline green before any change: `./mvnw clean verify` and the whole Playwright suite, at
       version 5's final numbers
 
 **Verify it yourself.** Read the diff, then:
@@ -87,27 +99,48 @@ cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
 
+**Done 2026-10-13.** `enhancements_v6` was branched from `master` at the merge of version 5
+(`67ebf14`). Baseline on a stack rebuilt from it: 275 unit, 171 integration, 136 Playwright tests,
+all green - version 5's final numbers. The decisions were settled as drafted, with three additions
+from reviewing the plan: the email column's collation (decision 1), and the token's cascade and a
+failed send as a 500 (decision 3). Part 2 was split in two, so the version has six parts and the
+later ones moved up by one. Asked as API then pages, it became registration then changing the
+address: split by layer, the API would require an address the register page does not yet send,
+and every e2e test that registers an account would fail between the two parts.
+
 ---
 
-## Part 2: An email address on each account
+## Part 2: An email address at registration
 
 Liquibase, backend, frontend, e2e.
 
 - [ ] `db.changelog_1.6.xml`: `app_user.email`, nullable, unique (decision 1)
 - [ ] Registration takes `email`, required: `@Email`, at most 254 characters; a taken one is a 409
       on `email`, regardless of case
-- [ ] `PUT /api/v1/auth/email` with `{"currentPassword", "email"}`; `/auth/me` returns the address
-- [ ] The register page asks for it. The account page shows the address in use and changes it; the
-      password form moves beside it, and `/account/password` becomes `/account`
+- [ ] The register page asks for it
 - [ ] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
 
 **Tests.** `RegistrationIT`: missing, malformed, over-long and taken addresses, each on `email`.
-An `EmailChangeIT` in the shape of `PasswordChangeIT`. e2e: registering with an address, changing it
-on the account page, a wrong current password refused on its field.
+e2e: registering with an address, and a taken one refused on its field; every test that registers
+an account gives it an address.
 
 ---
 
-## Part 3: Mail in the stack
+## Part 3: Changing the address, on the account page
+
+Backend, frontend, e2e.
+
+- [ ] `PUT /api/v1/auth/email` with `{"currentPassword", "email"}`; `/auth/me` returns the address
+- [ ] The account page shows the address in use and changes it; the password form moves beside
+      it, and `/account/password` becomes `/account`
+- [ ] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
+
+**Tests.** An `EmailChangeIT` in the shape of `PasswordChangeIT`. e2e: an account without an
+address adds one, an address changed, a wrong current password refused on its field.
+
+---
+
+## Part 4: Mail in the stack
 
 Docker, backend config, docs. Like V4 Part 7, a change to the stack.
 
@@ -123,7 +156,7 @@ the backend container shows up in Mailpit's API. The whole Playwright suite is g
 
 ---
 
-## Part 4: Reset by email, in the API
+## Part 5: Reset by email, in the API
 
 Backend only.
 
@@ -144,7 +177,7 @@ the password rules apply as at registration; every session of the account has en
 
 ---
 
-## Part 5: Reset by email, on pages
+## Part 6: Reset by email, on pages
 
 Frontend and e2e.
 
@@ -162,4 +195,4 @@ address shows the same message and no mail arrives. `phone.spec.ts` gains both p
 
 ## Version 6 as a whole
 
-To be written when Part 5 is done.
+To be written when Part 6 is done.
