@@ -64,10 +64,12 @@ role (Parts 3-4).
 2. **Two roles, in a comma-separated column.** `ROLE_ADMIN` guards account management only;
    categories, ingredients, units and tags stay open to every account by decision (`docs/PLAN_V5.md`
    decision 3). A join table, `app_user_role`, pays only with more roles than two.
-3. **Nothing is owned by anyone.** `created_by` records a username as free text, not a foreign key
-   to `app_user.id`, so recipes cannot be filtered to their author and a renamed user orphans
-   their audit trail. Turning it into a FK requires migrating every existing row and changing
-   every DTO that exposes it - do not do it as a side effect of something else.
+3. **Nothing is owned by anyone - by decision** (`docs/PLAN_V5.md` decision 8). Every account
+   edits every recipe: in a household cookbook an owner-only rule would stop one member fixing
+   another's recipe. `created_by` and `updated_by` say who wrote and who last changed it, as free
+   text, not a foreign key to `app_user.id`. A "My recipes" list could filter on `created_by`
+   without one. Ownership becomes worth its migration only for users who should not edit each
+   other's recipes; the plan for it is V5's dropped Parts 5-6, a nullable `recipe.owner_id`.
 4. **No reset.** A signed-in user can change their own password since `docs/PLAN_V4.md` Part 2.
    Reset has its own entry below.
 

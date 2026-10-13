@@ -21,8 +21,8 @@ in version 6, a reset. That comes first.
 | 2 | A password change ends the account's other sessions | backend, e2e | Password reset, step 1's remainder |
 | 3 | Roles enforced, and a users API for admins | backend | Multiple users, points 1, 2 and 4 |
 | 4 | A users page for admins | frontend, e2e | the same |
-| 5 | Recipes have an owner, who alone may change them | Liquibase, backend | Multiple users, point 3 |
-| 6 | The recipe pages follow the owner | frontend, e2e | the same |
+| 5 | ❌ Recipes have an owner, who alone may change them - dropped | Liquibase, backend | Multiple users, point 3 |
+| 6 | ❌ The recipe pages follow the owner - dropped | frontend, e2e | the same |
 
 **Order.** The sessions first, since Part 3 builds on them. Then roles before ownership, because
 "the owner or an admin" needs admins to exist.
@@ -31,9 +31,13 @@ in version 6, a reset. That comes first.
 an email address on each account, mail in the stack, the reset in the API and on pages - is
 version 6, `docs/PLAN_V6.md`, built on this one.
 
-**Out of scope.** Ratings, as in every version so far. Also: private recipes, deleting accounts, and
-moving `created_by` to a foreign key - each is a decision below - and reset by email, which is
-version 6. They stay in, or go to, `future_enhancements.md`.
+**Parts 5 and 6 dropped, 2026-10-13** (decision 8). In a household cookbook a recipe's owner would
+be the only one who could fix its spelling or add an ingredient, unless everyone were an admin.
+Version 5 ends with Part 4; Parts 5 and 6 stay below as planned and unbuilt.
+
+**Out of scope.** Ratings, as in every version so far. Also: recipe ownership, private recipes,
+deleting accounts, and moving `created_by` to a foreign key - each is a decision below - and reset
+by email, which is version 6. They stay in, or go to, `future_enhancements.md`.
 
 **Numbering.** Parts restart at 1. Commits say `V5 Part 2: ...`.
 
@@ -67,18 +71,26 @@ to its two questions in decisions 3 and 7. Each part refers to them by number.
    their admin role. That alone guarantees there is always an enabled admin: whoever acts is one.
    A changed role ends that user's sessions, so the new role holds from their next sign-in rather
    than their old session carrying the old one. (Part 3)
-6. **Ownership is a new `recipe.owner_id`, a foreign key to `app_user`, on recipes only.** The entry
+6. *Superseded by decision 8.* **Ownership is a new `recipe.owner_id`, a foreign key to `app_user`, on recipes only.** The entry
    in `future_enhancements.md` suggested turning `created_by` into the foreign key instead. That
    touches all nine tables and every DTO, and `created_by` on the seeds names `Jens` and `Majken`,
    who have no accounts. `created_by` stays what it is: an audit text. The column is nullable: the
    seeded recipes have no owner, and only an admin may change them. Categories and the other lookups
    belong to no one. (Part 5)
-7. **Everyone reads every recipe**; only its owner or an admin changes or deletes it, otherwise a
+7. *Superseded by decision 8.* **Everyone reads every recipe**; only its owner or an admin changes or deletes it, otherwise a
    403. No private recipes: that changes every list and read, and nobody has asked for it. The
    recipe's response carries its owner's username, and the frontend hides Edit and Delete by
    comparing it with `/auth/me`. The backend's 403 stays the rule; the hiding is a convenience.
    A "My recipes" filter on the list, named as the entry's value, is left out for now: it is a small
    `?owner=` later, in the shape of `?name=`, and goes to `future_enhancements.md`. (Parts 5, 6)
+8. **No recipe ownership** - settled 2026-10-13, after Part 4, replacing 6 and 7. Every signed-in
+   account reads, edits and deletes every recipe, as before. Under decision 7 only a recipe's owner
+   or an admin could change it: one member of a household could not fix the spelling of another's
+   recipe or add an ingredient. `created_by` and `updated_by` already say who wrote a recipe and who
+   changed it last, shown on the edit form. Two alternatives were set aside: anyone edits but only
+   the owner or an admin deletes - a migration for thin protection, since an edit can empty a
+   recipe and there is no history to restore it from; and ownership as planned - in practice
+   everyone an admin. The "My recipes" filter goes with it; it could filter on `created_by` later.
 
 ---
 
@@ -267,7 +279,9 @@ cannot sign in again until the account is enabled.
 
 ---
 
-## Part 5: Recipes have an owner, who alone may change them
+## Part 5: Recipes have an owner, who alone may change them - dropped
+
+**Dropped 2026-10-13** (decision 8). Not built; kept as it was planned.
 
 Liquibase and backend.
 
@@ -292,7 +306,9 @@ account of that name now that an owner is looked up.
 
 ---
 
-## Part 6: The recipe pages follow the owner
+## Part 6: The recipe pages follow the owner - dropped
+
+**Dropped 2026-10-13** (decision 8). Not built; kept as it was planned.
 
 Frontend and e2e.
 
@@ -311,4 +327,12 @@ nothing.
 
 ## Version 5 as a whole
 
-To be written when Part 6 is done.
+**Done.** A password change ends the account's other sessions (Part 2), on a session registry that
+version 6's reset will use too. The admin role is enforced: an admin lists the accounts, disables
+and enables them and grants or withdraws the role, in the API (Part 3) and on a users page (Part 4).
+A change ends that account's sessions, so a disabled account is out at once and a new role holds
+from its next sign-in. An admin's own account is refused, so there is always an enabled admin.
+Found on the way and fixed: a browser still holding an ended session's cookie had its first sign-in
+refused (Part 4). Recipe ownership, Parts 5 and 6, was dropped by decision 8: every account still
+edits every recipe. `future_enhancements.md` keeps ratings, ownership and password reset by email,
+which is version 6. `./mvnw clean verify`: 275 unit, 171 integration. Playwright: 136.

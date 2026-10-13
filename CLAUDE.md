@@ -17,8 +17,9 @@ The MVP has a single user account, created on first run from environment-supplie
 an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
 (`docs/PLAN_V2.md` Part 5), and version 4 lets a signed-in user change their own password
 (`docs/PLAN_V4.md` Parts 2-3). In version 5 an admin disables and enables accounts and grants the
-admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). There is still no password reset and no
-per-user ownership of data: every account sees and edits everything. Those are future versions.
+admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). There is still no password reset, a
+future version. By decision there is no ownership of data: every account sees and edits
+everything (`docs/PLAN_V5.md` decision 8).
 
 Ratings are out of scope, in the MVP and in versions 2 to 5. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
