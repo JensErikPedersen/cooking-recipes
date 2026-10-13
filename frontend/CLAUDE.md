@@ -42,7 +42,8 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   searched: the list asked for on arrival can come back after a quick search. A read view or edit page wraps itself in
   `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
   otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
-  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame. Not server components: they
+  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame; its content is
+  `PageNotFound`, which a signed-in page the viewer may not see renders inside the frame. Not server components: they
   would have to forward the session and CSRF cookies to the backend's internal address.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
@@ -84,8 +85,15 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
-- `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages -
-  the username, linked to `/account/password`, and the `<main>` every page renders into. Pages start at their `<h1>`.
+- `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages,
+  then "Users" for an admin - the username, linked to `/account/password`, and the `<main>` every
+  page renders into. Pages start at their `<h1>`. It shares the user it confirmed through
+  `useCurrentUser()`, so a page need not ask `/auth/me` again; `isAdmin()` in `lib/api.ts` reads
+  the roles. Both only shape what is shown: the backend decides what an account may do.
+- `/users`, for an admin: every account with its role and status, and per row Disable or Enable
+  and Make admin or Remove admin - none on the admin's own row, which the backend refuses. A change
+  answers 204, so the page lists again. Anyone else sees `PageNotFound` and never asks for the list.
+  Not `notFound()`: Next 16 documents it for server components, not for client pages like this.
 - Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
 - Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
   on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A

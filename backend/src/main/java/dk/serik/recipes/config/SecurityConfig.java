@@ -82,13 +82,14 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.spa())
 			.securityContext(context -> context.securityContextRepository(securityContextRepository))
 			// Any number of sessions per user; the registry is what lets one be ended. An ended session
-			// is signed out at its next request, which answers 401 like any other without a session -
-			// Spring's default is a 200 with a line of text.
+			// is no session: its next request is signed out by the logout handlers - its cookie deleted -
+			// and carries on anonymous, so a protected endpoint answers the usual 401 and a login just
+			// works. Answering the request here instead - Spring's default is a 200 with a line of text -
+			// refused the first sign-in of a browser that still held the ended session's cookie.
 			.sessionManagement(sessions -> sessions
 					.maximumSessions(-1)
 					.sessionRegistry(sessionRegistry)
-					.expiredSessionStrategy(event -> writeEnvelope(event.getResponse(),
-							HttpStatus.UNAUTHORIZED, ApplicationErrorCodes.AUTHENTICATION_REQUIRED, "Authentication required")))
+					.expiredSessionStrategy(event -> event.getFilterChain().doFilter(event.getRequest(), event.getResponse())))
 			.authorizeHttpRequests(authorize -> authorize
 					.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/health").permitAll()
 					.requestMatchers("/api/v1/users/**").hasRole("ADMIN")

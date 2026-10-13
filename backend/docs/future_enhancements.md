@@ -53,7 +53,8 @@ limitation explicit at the API boundary rather than silent.
 
 **Status.** Part 4 added the `app_user` table, a `UserDetailsService` backed by it, and a first-run
 `AdminBootstrap`, so the schema supports multiple users. `docs/PLAN_V5.md` Part 3 enforces the admin
-role, for an API through which an admin disables and enables accounts and grants the role.
+role, for an API and a users page on which an admin disables and enables accounts and grants the
+role (Parts 3-4).
 
 **What is missing.**
 

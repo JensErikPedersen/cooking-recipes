@@ -144,6 +144,8 @@ the sign-in page.
   (`ResponseBodySessionInformationExpiredStrategy`). An `expiredSessionStrategy` answers the
   envelope's 401 instead. `ConcurrentSessionFilter` borrows the logout configuration's handlers, so
   an ended session also loses its `JSESSIONID` cookie, as at logout - asserted in the IT.
+  *Changed in Part 4*: answering there refused the first sign-in of a browser still holding the
+  ended session's cookie. The request now carries on anonymous instead - see Part 4's Done.
 - **The IT, before and after.** Without the change to `AuthServiceImpl`, of the three new tests
   only `shouldEndTheAccountsOtherSessions` failed, 200 where 401 was expected; with it, all pass.
 - **"A logout leaves nothing behind" is not an IT**, as planned: MockMvc runs no servlet container,
@@ -216,17 +218,52 @@ Signed in as an ordinary account, the same call answers 403.
 
 Frontend and e2e.
 
-- [ ] `/users`: every account, its roles, whether it is enabled, when it was created; per row,
+- [x] `/users`: every account, its roles, whether it is enabled, when it was created; per row,
       Disable or Enable, and Make admin or Remove admin. The admin's own row has no buttons
       (decision 5)
-- [ ] "Users" in the menu for an admin only, from `/auth/me`'s roles. A user who opens `/users`
+- [x] "Users" in the menu for an admin only, from `/auth/me`'s roles. A user who opens `/users`
       sees the not-found page, not an error
-- [ ] Docs: `frontend/CLAUDE.md`
+- [x] Docs: `frontend/CLAUDE.md`
 
 **Tests.** e2e, as admin: the page lists a throwaway account; disabling it means it cannot sign in,
 enabling it means it can; making it an admin shows it "Users" in the menu after it signs in again.
 As a user: no "Users" in the menu, and `/users` is not found. The admin's own row offers nothing.
 `phone.spec.ts` gains `/users`.
+
+**Verify it yourself.** Sign in as the admin: "Users" is in the menu. Register an account in a
+private window, disable it on the users page, and that window goes to sign in at its next page and
+cannot sign in again until the account is enabled.
+
+**Done (2026-10-13).** Deviations and findings:
+
+- **A bug from Part 2, found here and fixed in the backend.** The e2e test that removes the admin
+  role and signs straight in failed: the login answered 401 to the right password. The trace showed
+  why: the browser still sent the ended session's `JSESSIONID`, and Part 2's `expiredSessionStrategy`
+  answered that request - the login - with a 401 before the controller ran; the cookies cleared, so
+  a second attempt would have worked. Anyone whose session was ended - a password change elsewhere,
+  an admin's change - and who went straight to the sign-in page met it. Part 2's e2e test always
+  opened a page first, which spent the ended session, so it never saw this. Reproduced first in
+  `PasswordChangeIT.shouldSignInFromAnEndedSession`, 401 where 200 was expected. The fix: the
+  strategy lets the request carry on, signed out and anonymous - an ended session is no session.
+  A protected endpoint still answers 401 with code 600 and the cookie deleted, so Part 2's tests
+  pass unchanged; a login now just works
+- **"Page not found" without `notFound()`.** Next 16's own docs name server components, server
+  functions and route handlers for it, not client components, so the page does not rely on it. The
+  not-found content moved into `PageNotFound`, which `app/not-found.tsx` and the users page share;
+  for a user it renders inside the signed-in frame, and the list is never asked for - the e2e test
+  watches the requests
+- **`useCurrentUser()`**: `AppShell` shares the user it already confirmed, through a context, rather
+  than each page asking `/auth/me` again. Part 6 needs it too, to compare a recipe's owner
+- **The page**: Username, Role, Status, Created - hidden narrower than `sm` to fit a phone - and the
+  two buttons, named for screen readers with the username ("Disable e2e-...")
+- **e2e locator slip of mine**: rows were first found by `hasText`, and "admin" matched every row
+  saying "Admin". They are found by their username cell, exactly
+- `./mvnw clean verify`: 275 unit, 171 integration (1 new). Playwright: 136 (6 in `users.spec.ts`,
+  `/users` in `phone.spec.ts`), and `users.spec.ts` with `password.spec.ts` and `phone.spec.ts`
+  three runs in a row
+- Docs: `frontend/CLAUDE.md` (AppShell, the users page, `PageNotFound`), `backend/CLAUDE.md` (an
+  ended session carries on anonymous), root `CLAUDE.md` Limitations, `future_enhancements.md`, and
+  a pointer from Part 2's Done note to this one
 
 ---
 

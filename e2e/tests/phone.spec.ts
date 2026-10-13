@@ -25,6 +25,7 @@ for (const path of [
   "/units/new",
   "/tags",
   "/account/password",
+  "/users",
 ]) {
   test(`${path} fits a phone screen without scrolling sideways`, async ({ page }) => {
     await page.goto(path);

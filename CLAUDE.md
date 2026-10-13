@@ -16,8 +16,8 @@ This project is building a MVP version of a Cooking Recipe App. Key features:
 The MVP has a single user account, created on first run from environment-supplied credentials, in
 an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
 (`docs/PLAN_V2.md` Part 5), and version 4 lets a signed-in user change their own password
-(`docs/PLAN_V4.md` Parts 2-3). Version 5 enforces the admin role, for account management
-(`docs/PLAN_V5.md` Part 3). There is still no user administration screen, no password reset and no
+(`docs/PLAN_V4.md` Parts 2-3). In version 5 an admin disables and enables accounts and grants the
+admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). There is still no password reset and no
 per-user ownership of data: every account sees and edits everything. Those are future versions.
 
 Ratings are out of scope, in the MVP and in versions 2 to 5. The `Rating` and `RecipeRating` entities exist in the

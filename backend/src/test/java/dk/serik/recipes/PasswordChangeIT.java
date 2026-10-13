@@ -114,6 +114,29 @@ class PasswordChangeIT {
 	}
 
 	@Test
+	@DisplayName("Given a browser still holding an ended session, When it signs in, Then the sign-in succeeds at the first attempt")
+	void shouldSignInFromAnEndedSession() throws Exception {
+		Account account = registerAccount();
+		MockHttpSession ended = signIn(account.username(), OLD);
+		change(account, OLD, NEW, NEW).andExpect(status().isNoContent());
+
+		// The ended session's cookie is the first thing the browser sends again, with the login.
+		Cookie xsrf = xsrfCookie();
+		MockHttpSession again = (MockHttpSession) mockMvc.perform(post(LOGIN).session(ended)
+						.cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(jsonMapper.writeValueAsString(LoginRequestDTO.builder()
+								.username(account.username()).password(NEW).build())))
+				.andExpect(status().isOk())
+				.andReturn().getRequest().getSession(false);
+
+		assertThat(again).isNotSameAs(ended);
+		mockMvc.perform(get(ME).session(again))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username").value(account.username()));
+	}
+
+	@Test
 	@DisplayName("Given another account signed in, When a password is changed, Then that account stays signed in")
 	void shouldLeaveOtherAccountsSignedIn() throws Exception {
 		Account account = registerAccount();

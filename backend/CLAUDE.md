@@ -59,7 +59,10 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session
   changes its id or ends. `SessionInformation.expireNow()` ends one: Spring's
   `ConcurrentSessionFilter`, switched on by `maximumSessions(-1)`, signs it out at its next request
-  with the logout handlers - the `JSESSIONID` cookie deleted - and a 401 in the envelope. MockMvc
+  with the logout handlers - the `JSESSIONID` cookie deleted - and lets that request carry on
+  anonymous: an ended session is no session. A protected endpoint answers the usual 401; a login
+  just works. Answering in the filter instead refused the first sign-in of a browser still holding
+  the ended session's cookie, since that login was its next request. MockMvc
   runs no servlet container, so in the ITs the registry never hears of a new id or an end: what
   depends on those is proven by e2e's `password.spec.ts`.
 

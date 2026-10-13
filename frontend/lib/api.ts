@@ -27,6 +27,9 @@ export interface AuthenticatedUser {
   roles: string[];
 }
 
+/** Whether the account may manage accounts. The backend decides; this only shapes what is shown. */
+export const isAdmin = (user: { roles: string[] }) => user.roles.includes("ROLE_ADMIN");
+
 function readCookie(name: string): string | undefined {
   return document.cookie
     .split("; ")
@@ -198,6 +201,25 @@ export const units = {
   create: (input: UnitInput) => request<Unit>("POST", "/units", input),
   update: (id: string, input: UnitInput) => request<Unit>("PUT", `/units/${encodeURIComponent(id)}`, input),
   remove: (id: string) => request<void>("DELETE", `/units/${encodeURIComponent(id)}`),
+};
+
+/** An account, as an admin sees it. Never a password. */
+export interface User extends Audited {
+  username: string;
+  enabled: boolean;
+  roles: string[];
+}
+
+/** What an admin may change about another account. */
+export interface UserAccess {
+  enabled: boolean;
+  admin: boolean;
+}
+
+export const users = {
+  list: () => request<User[]>("GET", "/users"),
+  /** Answers nothing: list again to see the account as it now is. */
+  update: (id: string, access: UserAccess) => request<void>("PUT", `/users/${encodeURIComponent(id)}`, access),
 };
 
 export const auth = {
