@@ -63,10 +63,14 @@ to its two questions in decisions 3 and 7. Each part refers to them by number.
    Categories, ingredients, units and tags stay open to every signed-in user, as today - deleting
    one in use is already refused with a 409, and an ordinary user should be able to fix a typo in
    an ingredient. Deleting those four does not become admin-only either. (Parts 3, 5)
+   *Since decision 8 recipes are no one's, so managing accounts is all an admin may that a user
+   may not.*
 4. **Accounts are disabled, never deleted.** A deleted account would orphan the recipes it owns and
    the audit trail naming it. Disabling uses the existing `enabled` column, which login already
    honours, and ends the account's sessions. A disabled account signs in with the same 401 as a
    wrong password, so it reveals nothing. (Parts 3, 4)
+   *Since decision 8 no recipe is owned; what a deleted account would still leave behind is
+   `created_by` and `updated_by` naming an account that no longer exists.*
 5. **An admin cannot change their own account on the users page** - neither disable it nor drop
    their admin role. That alone guarantees there is always an enabled admin: whoever acts is one.
    A changed role ends that user's sessions, so the new role holds from their next sign-in rather

@@ -59,8 +59,8 @@ role (Parts 3-4).
 **What is missing.**
 
 1. **Accounts are created only by registering, and never deleted.** An admin disables an account
-   instead (`docs/PLAN_V5.md` decision 4): a deleted one would orphan what it owns. Removing one
-   takes SQL.
+   instead (`docs/PLAN_V5.md` decision 4): a deleted one would leave `created_by` and `updated_by`
+   naming an account that no longer exists. Removing one takes SQL.
 2. **Two roles, in a comma-separated column.** `ROLE_ADMIN` guards account management only;
    categories, ingredients, units and tags stay open to every account by decision (`docs/PLAN_V5.md`
    decision 3). A join table, `app_user_role`, pays only with more roles than two.
@@ -73,8 +73,8 @@ role (Parts 3-4).
 4. **No reset.** A signed-in user can change their own password since `docs/PLAN_V4.md` Part 2.
    Reset has its own entry below.
 
-**Value.** Per-user recipe lists, private drafts, and an audit trail that can be joined and
-trusted rather than read as a string.
+**Value.** An audit trail that can be joined and trusted rather than read as a string, and
+ownership, should users ever need to be kept from editing each other's recipes.
 
 ---
 
