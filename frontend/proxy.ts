@@ -12,9 +12,9 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Everything except /api (the backend's to answer), the two pages for a visitor without an
-      // account - /login and /register - and Next's own assets.
-      source: "/((?!api|login|register|_next/static|_next/image|favicon.ico).*)",
+      // Everything except /api (the backend's to answer), the pages for a visitor who cannot sign
+      // in - /login, /register, /forgot-password and /reset-password - and Next's own assets.
+      source: "/((?!api|login|register|forgot-password|reset-password|_next/static|_next/image|favicon.ico).*)",
       missing: [{ type: "cookie", key: "JSESSIONID" }],
     },
   ],

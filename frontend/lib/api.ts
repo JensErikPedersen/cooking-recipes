@@ -238,4 +238,9 @@ export const auth = {
   /** The signed-in user's own address. A wrong current password is a 400 on its field, never a 401. */
   changeEmail: (currentPassword: string, email: string) =>
     request<void>("PUT", "/auth/email", { currentPassword, email }),
+  /** Mails a reset link if an enabled account has the address. The same 202 either way. */
+  requestPasswordReset: (email: string) => request<void>("POST", "/auth/password-reset", { email }),
+  /** A new password with the token from the mail. A bad token is a 400 on `token`. Signs no one in. */
+  confirmPasswordReset: (token: string, newPassword: string, confirmPassword: string) =>
+    request<void>("POST", "/auth/password-reset/confirm", { token, newPassword, confirmPassword }),
 };

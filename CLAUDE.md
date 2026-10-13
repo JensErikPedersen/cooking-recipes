@@ -17,9 +17,10 @@ The MVP has a single user account, created on first run from environment-supplie
 an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
 (`docs/PLAN_V2.md` Part 5), and version 4 lets a signed-in user change their own password
 (`docs/PLAN_V4.md` Parts 2-3). In version 5 an admin disables and enables accounts and grants the
-admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). There is still no password reset;
-version 6 adds one by email (`docs/PLAN_V6.md`). By decision there is no ownership of data:
-every account sees and edits everything (`docs/PLAN_V5.md` decision 8).
+admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). Version 6 gives each account an email
+address and resets a forgotten password by email, which Mailpit catches in the stack
+(`docs/PLAN_V6.md`). By decision there is no ownership of data: every account sees and edits
+everything (`docs/PLAN_V5.md` decision 8).
 
 Ratings are out of scope, in the MVP and in versions 2 to 6. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
@@ -87,7 +88,9 @@ through the login page, with the account from the repository's `.env`, and saves
 `e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out. Tests
 remove what they create, through the API in `e2e/support/api.ts`, so the stack's data stays as seeded.
 Accounts have no delete endpoint: `e2e/support/accounts.ts` removes them with SQL through
-`docker compose exec mysql`, so the registration tests need `docker` on the PATH.
+`docker compose exec mysql`, so the registration tests need `docker` on the PATH. The reset tests
+read the mail from Mailpit's API (`e2e/support/mailpit.ts`, `http://localhost:8025`, overridden by
+`MAILPIT_URL`) and delete what they read.
 They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
 
 ## Technical Decisions

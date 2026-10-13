@@ -22,8 +22,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed. `proxy.ts` (Next 16's
   name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders,
-  except to `/login` and `/register`, the two pages outside the group. `/register` signs the new
-  account in, as the backend does, and goes to the Welcome page.
+  except to the four pages outside the group: `/login`, `/register`, `/forgot-password` and
+  `/reset-password`. `/register` signs the new account in, as the backend does, and goes to the
+  Welcome page.
   And any 401 from the API - `/me` included, the login call excepted - sends the browser to
   `/login` from `request()` in `lib/api.ts`, so a session that ends while a page is open leads to
   sign in rather than an error. None of this is the security - the backend answers 401 regardless.
@@ -32,7 +33,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `afterSignIn` sends `https://...`, `//host` and `/\host` to `/`, so a crafted link cannot lead
   a user elsewhere. The login page reads `next` from `window.location` in its submit handler, not
   with `useSearchParams`, which would need a `<Suspense>` boundary to keep the page prerendered.
-  Logging out goes to the bare `/login`.
+  Logging out goes to the bare `/login`. What the login page shows from its URL, it reads with
+  `useSearchParams` in a component of its own inside `<Suspense>`: `ResetNotice`, for `?reset`.
+  Not `window.location` while rendering: after a client-side `router.push` the page renders before
+  the address bar changes, so it read the old URL and showed nothing.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
   it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
@@ -75,8 +79,8 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   same rule: the password confirmation and the address are checked by the backend, not here. It
   has `noValidate`: a `type="email"` field, there for the phone keyboard and autofill, would
   otherwise be checked by the browser, which blocks the submit with a message of its own.
-- The login and register pages are rendered on the server, so their fields exist before React
-  does. What is typed into them then, React never sees: the form would send it empty. Each wraps
+- The login, register, forgot-password and reset-password pages are rendered on the server, so
+  their fields exist before React does. What is typed into them then, React never sees: the form would send it empty. Each wraps
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
   Playwright waits for a field to be enabled, so its tests wait too. The signed-in pages do not
   need it: `AppShell` renders nothing until the session is confirmed, which is after hydration.
@@ -89,6 +93,12 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `lib/api.ts`. The page asks `/auth/me` for the address itself, as `/users` asks for its list:
   `AppShell` asks once per visit, so its user would still carry the old address after a change.
   Until V6 Part 3 the password form was `/account/password`.
+- A forgotten password: "Forgot your password?" on the sign-in page leads to `/forgot-password`,
+  which asks for the address and then says the same, whatever it was - as the backend answers.
+  The mail's link opens `/reset-password?token=...`; its token is read from `window.location` in
+  the submit handler, as `next` is on the login page. Success goes to `/login?reset`, signed out.
+  A token that no longer works is an alert, not a field error, with a link to ask for a new one.
+  Both forms have `noValidate` where they hold an email field, as the register form does.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.

@@ -7,8 +7,8 @@ as the record; this file plans the fifth round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: in progress.** Split from the version 5 draft on 2026-10-12; started 2026-10-13, once
-version 5 was merged. The decisions below were settled that day.
+**Status: done.** Split from the version 5 draft on 2026-10-12; started and finished 2026-10-13,
+once version 5 was merged. The decisions below were settled that day.
 
 ## Shape of the work
 
@@ -301,6 +301,8 @@ the password rules apply as at registration; every session of the account has en
     before it. The plan had not named the timing.
 - **Tests.** Backend 275 unit, 211 integration (17 new, all in `PasswordResetIT`). Playwright 143,
   unchanged.
+- *Fixed in Part 6:* concurrent requests deadlocked on MySQL, and two for one account could answer
+  409. See Part 6. H2 shows neither, and the stack probe above sent one request at a time.
 
 ---
 
@@ -308,18 +310,83 @@ the password rules apply as at registration; every session of the account has en
 
 Frontend and e2e.
 
-- [ ] "Forgot your password?" on the sign-in page, to `/forgot-password`: an address, and the same
+- [x] "Forgot your password?" on the sign-in page, to `/forgot-password`: an address, and the same
       message afterwards whatever it was
-- [ ] `/reset-password?token=...`: new password and confirmation, then to the sign-in page with
+- [x] `/reset-password?token=...`: new password and confirmation, then to the sign-in page with
       "Your password has been reset."; a bad token says so and links back to `/forgot-password`
-- [ ] Both pages open to a visitor without a session: `proxy.ts`'s matcher, and the fields disabled
+- [x] Both pages open to a visitor without a session: `proxy.ts`'s matcher, and the fields disabled
       until hydrated, as on the sign-in page
-- [ ] Docs: `frontend/CLAUDE.md`
+- [x] Docs: `frontend/CLAUDE.md`
 
 **Tests.** e2e, reading the mail from Mailpit's API: a throwaway account asks for a reset, follows
 the link, sets a new password and signs in with it; the link a second time is refused; an unknown
 address shows the same message and no mail arrives. `phone.spec.ts` gains both pages.
 
+**Done 2026-10-13.**
+- **Pages.**
+  - `/forgot-password` says "If an account has that address, a mail with a link to choose a new
+    password is on its way." after any accepted address. A malformed one is the server's message on
+    its field (`noValidate`).
+  - `/reset-password` reads the token from `window.location` in its submit handler, as the login
+    page reads `next`, so it stays prerendered.
+  - Success goes to `/login?reset`, which says "Your password has been reset. Sign in with the new
+    one."
+  - A bad token is an alert, "This reset link is invalid or has expired.", with "Ask for a new
+    link".
+  - Both new pages and the sign-in page stay static (`○`) in `next build`.
+- **Found by e2e, fixed in the backend: a deadlock.** Parallel tests asking for resets got 500s:
+  `CannotAcquireLockException`, "Deadlock found", on the token's `INSERT`.
+  - *Reproduced on the stack:* 16 requests at once for 16 accounts answered 500 for 8, 10 and 11 of
+    them in three runs.
+  - *Cause, from InnoDB's deadlock report:* each transaction held `X locks gap before rec` on the
+    table's primary key and waited for `insert intention` into the same gap. Its `DELETE` of a token
+    not there yet had locked the gap, at MySQL's default `REPEATABLE READ`. The reset methods'
+    `@Transactional` used that default: `AuthServiceImpl` has none at class level.
+  - *Fix:* `READ_COMMITTED`, as every service runs. After it, 16 of 16 three times, and 40 of 40.
+- **Found by probing that fix: a race for one account.** Eight requests at once for one account:
+  a 409 in two of three runs, since both found no token to delete and both inserted one. A 409
+  tells the address has an account.
+  - *Fix:* `SELECT ... FOR UPDATE` of the account's `app_user` row first, so its requests take
+    turns. After it, five runs of eight all 202, and the other probe still all 202.
+  - *Abandoned:* `INSERT ... ON DUPLICATE KEY UPDATE`. It is MySQL syntax, and the tests' H2 is not
+    in MySQL mode: `@AutoConfigureTestDatabase` replaces the datasource. Twelve ITs failed on bad
+    grammar.
+  - H2 has neither gap locks nor the race. The probe script is not kept:
+    `backend/CLAUDE.md` records the finding.
+- **Found by e2e, fixed in the frontend: the sign-in page's notice.** After the reset's
+  `router.push`, `/login?reset` showed no notice. A full load of the same URL did.
+  - *Cause:* the page read `window.location` while rendering, and after a client-side navigation it
+    renders before the address bar changes.
+  - *Fix:* `ResetNotice`, with `useSearchParams` inside `<Suspense>`, as Next 16's reference
+    recommends for a prerendered page.
+- **A test's mistake.** `getByRole("alert")` also matched Next's route announcer, an empty
+  `role="alert"`; the test now looks in `main`.
+- **Tests.** Playwright 152 (9 new): 7 in `reset.spec.ts`, and `/forgot-password` and
+  `/reset-password` in `phone.spec.ts`. The new `support/mailpit.ts` finds the mail, reads its link
+  as a path on the site under test, and deletes what the test read. Two full runs green; afterwards
+  Mailpit held no mail, and the database only `admin` and `Jens` and no token. Backend 275 unit,
+  211 integration.
+
 ## Version 6 as a whole
 
-To be written when Part 6 is done.
+**Delivered.**
+- **An email address on every account.** Asked for at registration, unique regardless of case
+  (Part 2). Shown and changed on `/account`, with the current password, beside the password form
+  that moved there from `/account/password` (Part 3).
+- **Mailpit, a fourth container**, catching every mail on `http://localhost:8025` (Part 4).
+- **A forgotten password reset by email.** The API answers alike for every address, and mails a
+  single-use link that works for 30 minutes; only the token's SHA-256 is stored (Part 5). The pages
+  lead there from the sign-in page and back (Part 6).
+
+**Fixed on the way.**
+- A MySQL deadlock under concurrent reset requests, and a race for one account that could answer
+  409. Both are invisible on H2, and were found by e2e and the probes (Part 6).
+- The sign-in page's reset notice, missing after a client-side navigation (Part 6).
+- A flaky search test that compared other tests' categories (Part 4).
+
+**Decided, and left out.** No rate limit on reset requests, and an answer that takes longer for a
+real address, since the mail is sent first. Both are in `backend/docs/future_enhancements.md`. An
+admin still cannot set another account's password.
+
+**Tests.** Backend 275 unit (as in version 5: everything new is integration), 211 integration (from
+171), Playwright 152 (from 136).
