@@ -79,7 +79,13 @@ session except `POST /api/v1/auth/login`, `/register`, `/password-reset` and
   reported with any password problem. The token is spent only once the rules pass - a refused
   password leaves the link working - and by a delete whose count decides, so of two requests with
   one token only one resets. Every session of the account ends, and the caller is not signed in.
-  The token never reaches the log; the username a mail went to does.
+  The token never reaches the log; the username a mail went to does. Both flows run
+  `READ_COMMITTED`, as every service does - `AuthServiceImpl` has no class-level `@Transactional`.
+  At MySQL's default, `REPEATABLE READ`, the token's `DELETE` of an account with no row yet locked
+  the gap where it would go, and requests for two accounts at once deadlocked: half of 16 answered
+  500, on the stack. Requests for one account take turns on a `SELECT ... FOR UPDATE` of its
+  `app_user` row; without it two at once both inserted a token, and one answered 409. H2 has
+  neither gap locks nor this race, so only the stack shows either (V6 Part 6).
 - **Ending a user's sessions**: Spring Security's `SessionRegistry`, in memory, keyed by username.
   `AuthServiceImpl.login` registers each session itself - Spring does so only for a login it
   performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session

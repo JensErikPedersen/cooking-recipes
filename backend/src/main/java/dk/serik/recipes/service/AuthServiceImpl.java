@@ -30,6 +30,8 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -161,8 +163,12 @@ public class AuthServiceImpl implements AuthService {
 		log.info("Changed the email address of '{}'", username);
 	}
 
+	// READ_COMMITTED, as every service runs. MySQL's default, REPEATABLE READ, has the token's DELETE
+	// of an account with no row yet lock the gap where it would be; two requests for different
+	// accounts then each wait for the other's gap to INSERT, and MySQL kills one as a deadlock - a
+	// 500 for half of 16 requests at once, on the stack. H2 has no gap locks, so no test here sees it.
 	@Override
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, timeout = 5)
 	public void requestPasswordReset(PasswordResetRequestDTO resetRequest) {
 		Optional<AppUser> account = appUserJpaRepository.findByEmailIgnoreCase(resetRequest.getEmail())
 				.filter(AppUser::isEnabled);
@@ -179,7 +185,7 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, timeout = 5)
 	public void confirmPasswordReset(PasswordResetConfirmDTO confirmation) {
 		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
 		Optional<String> appUserId = passwordResetTokens.appUserIdOf(confirmation.getToken());

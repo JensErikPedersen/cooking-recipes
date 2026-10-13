@@ -37,6 +37,10 @@ public class PasswordResetTokens {
 		byte[] bytes = new byte[32];
 		RANDOM.nextBytes(bytes);
 		String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+		// Requests for one account take turns, from this lock on its row to the commit. Without it, two
+		// at once both found no token to delete and both inserted one, and the second answered a 409 -
+		// telling the address has an account. Portable SQL: the tests' H2 is not in MySQL mode.
+		jdbcTemplate.queryForObject("SELECT id FROM app_user WHERE id = ? FOR UPDATE", String.class, appUserId);
 		jdbcTemplate.update("DELETE FROM password_reset_token WHERE app_user_id = ?", appUserId);
 		jdbcTemplate.update("INSERT INTO password_reset_token (app_user_id, token_hash, expires) VALUES (?, ?, ?)",
 				appUserId, hash(token), Timestamp.from(Instant.now().plus(VALID_FOR)));
