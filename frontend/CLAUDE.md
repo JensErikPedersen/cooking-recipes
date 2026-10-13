@@ -70,9 +70,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Blank lines are sent too.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
-  message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
-  its editable fields, never the audit fields. The register form follows the same rule: the
-  password confirmation is checked by the backend, not here.
+  message to its input with `aria-describedby`; it takes `type="password"` and `type="email"` too.
+  A form sends only its editable fields, never the audit fields. The register form follows the
+  same rule: the password confirmation and the address are checked by the backend, not here. It
+  has `noValidate`: a `type="email"` field, there for the phone keyboard and autofill, would
+  otherwise be checked by the browser, which blocks the submit with a message of its own.
 - The login and register pages are rendered on the server, so their fields exist before React
   does. What is typed into them then, React never sees: the form would send it empty. Each wraps
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.

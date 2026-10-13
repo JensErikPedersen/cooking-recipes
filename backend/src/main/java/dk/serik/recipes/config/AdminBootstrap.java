@@ -48,7 +48,8 @@ public class AdminBootstrap implements ApplicationRunner {
 			log.info("app_user already has {} account(s) - no account bootstrapped", accounts);
 			return;
 		}
-		appUserWriter.insert(username, password, AppUser.ROLE_USER + "," + AppUser.ROLE_ADMIN, "bootstrap");
+		// No address: the admin adds one on the account page, like anyone else (docs/PLAN_V6.md decision 1).
+		appUserWriter.insert(username, null, password, AppUser.ROLE_USER + "," + AppUser.ROLE_ADMIN, "bootstrap");
 		log.info("Bootstrapped account '{}'", username); // never the password, nor its hash
 	}
 }

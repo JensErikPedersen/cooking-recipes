@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { deleteAccount, uniqueUsername } from "../support/accounts";
+import { deleteAccount, emailOf, uniqueUsername } from "../support/accounts";
 import { signIn } from "../support/auth";
 
 // Each test changes the password of an account of its own, registered here - never the admin's,
@@ -22,6 +22,7 @@ async function openAsNewUser(page: Page) {
   accounts.push(username);
   await page.goto("/register");
   await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Email address").fill(emailOf(username));
   await page.getByLabel("Password", { exact: true }).fill(OLD);
   await page.getByLabel("Confirm password").fill(OLD);
   await page.getByRole("button", { name: "Register" }).click();

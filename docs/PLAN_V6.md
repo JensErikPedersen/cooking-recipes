@@ -114,15 +114,39 @@ and every e2e test that registers an account would fail between the two parts.
 
 Liquibase, backend, frontend, e2e.
 
-- [ ] `db.changelog_1.6.xml`: `app_user.email`, nullable, unique (decision 1)
-- [ ] Registration takes `email`, required: `@Email`, at most 254 characters; a taken one is a 409
+- [x] `db.changelog_1.5.xml`: `app_user.email`, nullable, unique (decision 1)
+- [x] Registration takes `email`, required: `@Email`, at most 254 characters; a taken one is a 409
       on `email`, regardless of case
-- [ ] The register page asks for it
-- [ ] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
+- [x] The register page asks for it
+- [x] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
 
 **Tests.** `RegistrationIT`: missing, malformed, over-long and taken addresses, each on `email`.
 e2e: registering with an address, and a taken one refused on its field; every test that registers
 an account gives it an address.
+
+**Done 2026-10-13.**
+- **Schema.** `db.changelog_1.5.xml`, not 1.6 as drafted: 1.4 was the last. `email VARCHAR(254)`,
+  nullable, unique as `uk_app_user_email`, after `username`. On the stack's existing volume it
+  migrated on start: the column took the table's Danish collation, and `admin` and `Jens` have no
+  address.
+- **Backend.** `RegisterRequestDTO.email` is `@NotBlank`, not `@NotNull`: `@Email` passes an empty
+  string. A taken address is a 409, `EMAIL_TAKEN(607)`, on `email`, checked after the username by
+  `existsByEmailIgnoreCase`. `AppUserWriter.insert` takes the address, `null` for the bootstrapped
+  admin.
+- **Register page.** An "Email address" field, `type="email"` for the phone keyboard and autofill.
+  The form has `noValidate`, so the server's message shows, not the browser's. Proven: without it,
+  the malformed-address e2e test failed, the field had no message.
+- **Proven, the service check.** With the check removed, `RegistrationIT` failed twice. A duplicate
+  fell to the database backstop, code 40, not 607. The same address in upper case was a 201, since
+  H2 tells case apart.
+- **Proven on the stack, decision 1's collation.** Through the API: `aase` is taken by `åse`,
+  `jose` by `josé`, and `ÅSE` by `åse`, each as the service's own 607. `ASE` and `åse` stay
+  distinct. The probe accounts were removed.
+- **Tests.** Backend 275 unit, 180 integration (9 new): 8 in `RegistrationIT`, and one in
+  `DataIntegrityIT` for the unique column. `PasswordChangeIT` and `UsersIT` register with an address.
+  Playwright 138 (2 new): a taken address in another case, and a malformed then a missing one.
+  `password.spec.ts` and `users.spec.ts` fill the address in, with `emailOf()` from
+  `support/accounts.ts`.
 
 ---
 
@@ -160,7 +184,7 @@ the backend container shows up in Mailpit's API. The whole Playwright suite is g
 
 Backend only.
 
-- [ ] `db.changelog_1.7.xml`: `password_reset_token` (decision 3)
+- [ ] `db.changelog_1.6.xml`: `password_reset_token` (decision 3)
 - [ ] `POST /api/v1/auth/password-reset` and `/password-reset/confirm`, both open in
       `SecurityConfig`, both CSRF-protected like login
 - [ ] The mail: plain text, the link, and how long it is valid

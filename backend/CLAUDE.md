@@ -26,7 +26,8 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
 - **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller
   method. It also deletes the `JSESSIONID` cookie, which the frontend's `proxy.ts` checks for.
 - **Accounts**: the first is created by `AdminBootstrap` from `app.admin.username` /
-  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN`. Any
+  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN` and
+  no email address - `app_user.email` is nullable for it and for accounts from before V6. Any
   other comes from `POST /api/v1/auth/register`: `ROLE_USER`, created by its own username, and
   signed in on the spot through `login()`. Both insert through `AppUserWriter`, with plain SQL:
   through JPA `BaseEntityListener` would stamp `created_by` from the `Session`, which holds no
@@ -47,7 +48,11 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   where MySQL's collation does not; taken is a 409 (603) on `username`. Password at least 8
   characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
   than encode a longer one, so the service checks before encoding - `æ` counts two. The
-  confirmation is compared there too, a 400 on `confirmPassword`.
+  confirmation is compared there too, a 400 on `confirmPassword`. An email address is required,
+  `@NotBlank` - `@Email` passes an empty one - and at most 254 characters; unique regardless of
+  case, `existsByEmailIgnoreCase` for the same reason, taken is a 409 (607) on `email`. A taken
+  username is reported first. Telling a visitor an address is taken tells them it exists: open
+  sign-up cannot avoid that, as for usernames.
 - **Changing a password**: `PUT /api/v1/auth/password`, signed in. The new password takes
   registration's rules, from the same `checkNewPassword`. A wrong current password is a 400 on
   `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
@@ -264,8 +269,9 @@ must be reachable before the application starts.
 - The schema's collation is Danish, `utf8mb4_da_0900_ai_ci` (`db.changelog_1.4.xml`, MySQL only):
   `æ`, `ø` and `å` are letters of their own, so `Brod` and `Brød` - or `soren` and `Søren` - are
   different names, and case is still ignored. For `=`, Danish also takes `aa` for `å`: `Aalborg` is
-  taken by `Ålborg`; `LIKE` does not. H2 has no such collation, so no test sees any of this - prove a
-  change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
+  taken by `Ålborg`; `LIKE` does not. Email addresses follow it too, as decided (`docs/PLAN_V6.md`
+  decision 1): `aase@x.dk` is taken by `åse@x.dk`, `jose@x.dk` by `josé@x.dk`. H2 has no such
+  collation, so no test sees any of this - prove a change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

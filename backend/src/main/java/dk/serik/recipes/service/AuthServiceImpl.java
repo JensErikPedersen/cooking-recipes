@@ -93,8 +93,8 @@ public class AuthServiceImpl implements AuthService {
 		throwIfAny(problems);
 
 		String username = registerRequest.getUsername();
-		// Telling a caller that a username is taken tells them it exists. With open sign-up that is
-		// unavoidable; login still answers a wrong password and an unknown user alike.
+		// Telling a caller that a username or an address is taken tells them it exists. With open
+		// sign-up that is unavoidable; login still answers a wrong password and an unknown user alike.
 		if (appUserJpaRepository.existsByUsernameIgnoreCase(username)) {
 			throw ServiceException.builder()
 					.message(String.format("The username '%s' is taken", username))
@@ -103,9 +103,18 @@ public class AuthServiceImpl implements AuthService {
 					.field("username")
 					.build();
 		}
+		String email = registerRequest.getEmail();
+		if (appUserJpaRepository.existsByEmailIgnoreCase(email)) {
+			throw ServiceException.builder()
+					.message(String.format("The email address '%s' is taken", email))
+					.code(ApplicationErrorCodes.EMAIL_TAKEN.getCode())
+					.httpStatus(HttpStatus.CONFLICT)
+					.field("email")
+					.build();
+		}
 
 		// A new user creates their own account, so it is recorded as created by them.
-		appUserWriter.insert(username, registerRequest.getPassword(), AppUser.ROLE_USER, username);
+		appUserWriter.insert(username, email, registerRequest.getPassword(), AppUser.ROLE_USER, username);
 		log.info("Registered account '{}'", username);
 		return login(LoginRequestDTO.builder().username(username).password(registerRequest.getPassword()).build(),
 				request, response);

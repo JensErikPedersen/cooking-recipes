@@ -246,7 +246,7 @@ class UsersIT {
 		MockHttpSession session = (MockHttpSession) mockMvc.perform(post(REGISTER).cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(jsonMapper.writeValueAsString(RegisterRequestDTO.builder()
-								.username(username).password(PASSWORD).confirmPassword(PASSWORD).build())))
+								.username(username).email(username + "@example.com").password(PASSWORD).confirmPassword(PASSWORD).build())))
 				.andExpect(status().isCreated())
 				.andReturn().getRequest().getSession(false);
 		return new SignedIn(username, session, xsrf);

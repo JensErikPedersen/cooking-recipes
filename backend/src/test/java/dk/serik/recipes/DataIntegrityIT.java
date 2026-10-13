@@ -79,9 +79,20 @@ class DataIntegrityIT {
 	@DisplayName("Given a username taken through AppUserWriter's plain SQL, When inserted again, Then the handler answers 409")
 	void shouldAnswerConflictForDuplicateKeyFromJdbc() {
 		String username = "it-" + UUID.randomUUID().toString().substring(0, 8);
-		appUserWriter.insert(username, "long enough", "ROLE_USER", username);
+		appUserWriter.insert(username, null, "long enough", "ROLE_USER", username);
 
-		assertThatThrownBy(() -> appUserWriter.insert(username, "long enough", "ROLE_USER", username))
+		assertThatThrownBy(() -> appUserWriter.insert(username, null, "long enough", "ROLE_USER", username))
+				.isInstanceOfSatisfying(DataIntegrityViolationException.class, ex ->
+						assertThat(handler.handleDataIntegrityViolation(ex).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+	}
+
+	@Test
+	@DisplayName("Given an email address taken, When another account is inserted with it, Then the handler answers 409 - the column is unique")
+	void shouldAnswerConflictForDuplicateEmail() {
+		String email = "it-" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+		appUserWriter.insert("it-" + UUID.randomUUID().toString().substring(0, 8), email, "long enough", "ROLE_USER", "it");
+
+		assertThatThrownBy(() -> appUserWriter.insert("it-" + UUID.randomUUID().toString().substring(0, 8), email, "long enough", "ROLE_USER", "it"))
 				.isInstanceOfSatisfying(DataIntegrityViolationException.class, ex ->
 						assertThat(handler.handleDataIntegrityViolation(ex).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
 	}

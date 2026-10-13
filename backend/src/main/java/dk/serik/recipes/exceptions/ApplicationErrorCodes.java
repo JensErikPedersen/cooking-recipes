@@ -44,7 +44,8 @@ public enum ApplicationErrorCodes {
     USERNAME_TAKEN(603),
     USER_ID_IS_NULL(604),
     USER_NOT_FOUND(605),
-    OWN_ACCOUNT(606);
+    OWN_ACCOUNT(606),
+    EMAIL_TAKEN(607);
 
     private final int code;
 

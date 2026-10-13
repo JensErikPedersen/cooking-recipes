@@ -16,7 +16,7 @@ export function TextField({
   onChange: (value: string) => void;
   error?: string;
   multiline?: boolean;
-  type?: "text" | "password";
+  type?: "text" | "password" | "email";
   autoComplete?: string;
 }) {
   const errorId = `${name}-error`;

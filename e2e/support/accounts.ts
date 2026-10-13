@@ -8,6 +8,9 @@ import path from "node:path";
 /** A username no seed and no other test uses, and safe to put in the SQL below. */
 export const uniqueUsername = () => `e2e-${randomUUID().slice(0, 8)}`;
 
+/** The address a test account registers with, unique as its username is. */
+export const emailOf = (username: string) => `${username}@example.com`;
+
 /** Deletes the account, if it exists. Only names from uniqueUsername(), since they go into SQL. */
 export function deleteAccount(username: string) {
   if (!/^e2e-[0-9a-f]{8}$/.test(username)) {

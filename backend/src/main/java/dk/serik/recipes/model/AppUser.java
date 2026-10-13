@@ -25,6 +25,10 @@ public class AppUser extends BaseIdentifierEntity {
 	@Column(nullable = false, unique = true, length = 64)
 	private String username;
 
+	/** Unique; {@code null} on an account from before addresses were asked for, until it adds one. */
+	@Column(unique = true, length = 254)
+	private String email;
+
 	/** A hash carrying its algorithm id, e.g. {@code {bcrypt}...}. Never a plaintext password. */
 	@Column(nullable = false)
 	private String password;

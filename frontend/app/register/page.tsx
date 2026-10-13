@@ -9,11 +9,14 @@ import { TextField } from "@/components/text-field";
 import { primaryButton } from "@/components/styles";
 import { useHydrated } from "@/lib/use-hydrated";
 
-// A new account, for a visitor who has none. The backend checks every rule - the confirmation
-// included - and signs the new account in, so success goes straight to the Welcome page.
+// A new account, for a visitor who has none. The backend checks every rule - the confirmation and
+// the address included, so the form has noValidate: the browser's own check of an email field would
+// answer first, in words of its own - and signs the new account in, so success goes straight to the
+// Welcome page.
 export default function RegisterPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<unknown>();
@@ -25,7 +28,7 @@ export default function RegisterPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      await auth.register(username, password, confirmPassword);
+      await auth.register(username, email, password, confirmPassword);
       router.push("/");
     } catch (caught) {
       setError(caught);
@@ -36,7 +39,7 @@ export default function RegisterPage() {
   return (
     <main className="mx-auto mt-24 w-full max-w-sm px-8">
       <h1 className="text-2xl font-bold">Create an account</h1>
-      <form onSubmit={onSubmit} className="mt-6">
+      <form onSubmit={onSubmit} noValidate className="mt-6">
         <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
           <TextField
             label="Username"
@@ -45,6 +48,15 @@ export default function RegisterPage() {
             onChange={setUsername}
             error={errors.username}
             autoComplete="username"
+          />
+          <TextField
+            label="Email address"
+            name="email"
+            value={email}
+            onChange={setEmail}
+            error={errors.email}
+            type="email"
+            autoComplete="email"
           />
           <TextField
             label="Password"

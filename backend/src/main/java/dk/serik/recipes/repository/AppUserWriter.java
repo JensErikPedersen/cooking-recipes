@@ -25,10 +25,13 @@ public class AppUserWriter {
 
 	private final PasswordEncoder passwordEncoder;
 
-	/** Stores the password as a hash only; the plaintext goes no further than this method. */
-	public void insert(String username, String password, String roles, String createdBy) {
-		jdbcTemplate.update("INSERT INTO app_user (id, username, password, enabled, roles, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-				UUID.randomUUID().toString(), username, passwordEncoder.encode(password), true, roles, createdBy);
+	/**
+	 * Stores the password as a hash only; the plaintext goes no further than this method. The email
+	 * may be {@code null}: the bootstrapped admin has none.
+	 */
+	public void insert(String username, String email, String password, String roles, String createdBy) {
+		jdbcTemplate.update("INSERT INTO app_user (id, username, email, password, enabled, roles, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				UUID.randomUUID().toString(), username, email, passwordEncoder.encode(password), true, roles, createdBy);
 	}
 
 	/** Enables or disables the account and sets its roles, comma-separated. */
