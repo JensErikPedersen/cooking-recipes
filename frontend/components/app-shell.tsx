@@ -24,10 +24,9 @@ export function useCurrentUser(): AuthenticatedUser {
   return use(CurrentUser)!;
 }
 
-// The frame of every signed-in page: the header with the menu, the user - a link to their password
-// page - and the logout button, and
-// the page area below it. It renders nothing until the backend confirms the session, so an expired
-// session never shows a page.
+// The frame of every signed-in page: the header with the menu, the user - a link to their account
+// page - and the logout button, and the page area below it. It renders nothing until the backend
+// confirms the session, so an expired session never shows a page.
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -80,8 +79,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               })}
             </ul>
           </nav>
-          {/* The account's own page: changing its password. */}
-          <Link href="/account/password" className="ml-auto text-sm underline hover:no-underline">
+          {/* The account's own page: its email address and password. */}
+          <Link href="/account" className="ml-auto text-sm underline hover:no-underline">
             {user.username}
           </Link>
           <button type="button" onClick={logout} className="rounded border px-3 py-1 text-sm hover:bg-gray-100">

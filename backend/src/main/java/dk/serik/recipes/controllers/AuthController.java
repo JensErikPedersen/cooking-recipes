@@ -1,6 +1,7 @@
 package dk.serik.recipes.controllers;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
+import dk.serik.recipes.dto.ChangeEmailRequestDTO;
 import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
@@ -19,8 +20,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Sign in, register a new account - which signs it in - change one's own password, and report who
- * is signed in.
+ * Sign in, register a new account - which signs it in - change one's own password or email address,
+ * and report who is signed in.
  * <p>
  * There is no logout method: Spring Security's logout filter handles
  * {@code POST /api/v1/auth/logout}, invalidates the session and answers 204 - see
@@ -50,6 +51,12 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void changePassword(@Valid @RequestBody ChangePasswordRequestDTO changeRequest, HttpServletRequest request) {
 		authService.changePassword(changeRequest, request);
+	}
+
+	@PutMapping("/email")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void changeEmail(@Valid @RequestBody ChangeEmailRequestDTO changeRequest) {
+		authService.changeEmail(changeRequest);
 	}
 
 	@GetMapping("/me")

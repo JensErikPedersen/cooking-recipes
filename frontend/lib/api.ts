@@ -24,6 +24,8 @@ export class ApiError extends Error {
 
 export interface AuthenticatedUser {
   username: string;
+  /** null until the account adds one: the bootstrapped admin, and accounts from before V6. */
+  email: string | null;
   roles: string[];
 }
 
@@ -233,4 +235,7 @@ export const auth = {
   /** The signed-in user's own password. A wrong current one is a 400 on its field, never a 401. */
   changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
     request<void>("PUT", "/auth/password", { currentPassword, newPassword, confirmPassword }),
+  /** The signed-in user's own address. A wrong current password is a 400 on its field, never a 401. */
+  changeEmail: (currentPassword: string, email: string) =>
+    request<void>("PUT", "/auth/email", { currentPassword, email }),
 };

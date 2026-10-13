@@ -25,9 +25,9 @@ public class RegisterRequestDTO {
 	private String username;
 
 	// @NotBlank, not @NotNull: @Email takes an empty string as valid.
-	@NotBlank(message = "{dk.serik.models.register.email.notblank.message}")
-	@Email(message = "{dk.serik.models.register.email.email.message}")
-	@Size(max = 254, message = "{dk.serik.models.register.email.size.message}")
+	@NotBlank(message = "{dk.serik.models.email.notblank.message}")
+	@Email(message = "{dk.serik.models.email.email.message}")
+	@Size(max = 254, message = "{dk.serik.models.email.size.message}")
 	private String email;
 
 	@NotNull(message = "{dk.serik.models.register.password.notnull.message}")

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { deleteAccount, emailOf, uniqueUsername } from "../support/accounts";
+import { deleteAccount, registerThroughPage, uniqueUsername } from "../support/accounts";
 import { signIn } from "../support/auth";
 
 // Each test changes the password of an account of its own, registered here - never the admin's,
@@ -16,29 +16,27 @@ test.afterEach(() => {
   }
 });
 
-/** Registers a new account, signed in as it, and opens the password page from the header. */
+/** Registers a new account, signed in as it, and opens the account page from the header. */
 async function openAsNewUser(page: Page) {
   const username = uniqueUsername();
   accounts.push(username);
-  await page.goto("/register");
-  await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Email address").fill(emailOf(username));
-  await page.getByLabel("Password", { exact: true }).fill(OLD);
-  await page.getByLabel("Confirm password").fill(OLD);
-  await page.getByRole("button", { name: "Register" }).click();
-  await expect(page).toHaveURL("/");
+  await registerThroughPage(page, username, OLD);
 
   await page.getByRole("banner").getByRole("link", { name: username }).click();
-  await expect(page).toHaveURL("/account/password");
-  await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
+  await expect(page).toHaveURL("/account");
+  await expect(passwordSection(page).getByRole("heading", { name: "Password" })).toBeVisible();
   return username;
 }
 
+/** The account page's password half: the address half has a "Current password" field too. */
+const passwordSection = (page: Page) => page.getByRole("region", { name: "Password" });
+
 async function change(page: Page, current: string, newPassword: string, confirm = newPassword) {
-  await page.getByLabel("Current password").fill(current);
-  await page.getByLabel("New password", { exact: true }).fill(newPassword);
-  await page.getByLabel("Confirm new password").fill(confirm);
-  await page.getByRole("button", { name: "Change password" }).click();
+  const section = passwordSection(page);
+  await section.getByLabel("Current password").fill(current);
+  await section.getByLabel("New password", { exact: true }).fill(newPassword);
+  await section.getByLabel("Confirm new password").fill(confirm);
+  await section.getByRole("button", { name: "Change password" }).click();
 }
 
 test("a changed password is the one that signs in afterwards, and the old one no longer does", async ({ page }) => {
@@ -47,9 +45,9 @@ test("a changed password is the one that signs in afterwards, and the old one no
   await change(page, OLD, NEW);
 
   await expect(page.getByRole("status")).toHaveText("Your password has been changed.");
-  await expect(page.getByLabel("Current password")).toHaveValue("");
-  await expect(page.getByLabel("New password", { exact: true })).toHaveValue("");
-  await expect(page.getByLabel("Confirm new password")).toHaveValue("");
+  await expect(passwordSection(page).getByLabel("Current password")).toHaveValue("");
+  await expect(passwordSection(page).getByLabel("New password", { exact: true })).toHaveValue("");
+  await expect(passwordSection(page).getByLabel("Confirm new password")).toHaveValue("");
 
   await page.getByRole("button", { name: "Log out" }).click();
   await signIn(page, username, OLD);
@@ -95,7 +93,7 @@ test("a change signs the account out in every other browser, also after the firs
   await test.step("a change in the other browser, signed in again, sends this one to sign in", async () => {
     await signIn(other, username, NEW);
     await expect(other).toHaveURL("/");
-    await other.goto("/account/password");
+    await other.goto("/account");
     await change(other, NEW, OLD);
     await expect(other.getByRole("status")).toBeVisible();
 
@@ -111,8 +109,10 @@ test("a wrong current password is shown on its field, and does not end the sessi
 
   await change(page, "not the password", NEW);
 
-  await expect(page.getByLabel("Current password")).toHaveAccessibleDescription("The current password is wrong");
-  await expect(page).toHaveURL("/account/password");
+  await expect(passwordSection(page).getByLabel("Current password")).toHaveAccessibleDescription(
+    "The current password is wrong",
+  );
+  await expect(page).toHaveURL("/account");
   await expect(page.getByRole("status")).toHaveCount(0);
 });
 
@@ -121,7 +121,9 @@ test("a confirmation that differs is shown on the confirm field, from the server
 
   await change(page, OLD, NEW, NEW + "!");
 
-  await expect(page.getByLabel("Confirm new password")).toHaveAccessibleDescription("The passwords do not match");
+  await expect(passwordSection(page).getByLabel("Confirm new password")).toHaveAccessibleDescription(
+    "The passwords do not match",
+  );
 });
 
 test("a new password that is too short is shown on the new password field", async ({ page }) => {
@@ -129,7 +131,7 @@ test("a new password that is too short is shown on the new password field", asyn
 
   await change(page, OLD, "short");
 
-  await expect(page.getByLabel("New password", { exact: true })).toHaveAccessibleDescription(
+  await expect(passwordSection(page).getByLabel("New password", { exact: true })).toHaveAccessibleDescription(
     "Password must be at least 8 characters",
   );
 });

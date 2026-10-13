@@ -154,13 +154,40 @@ an account gives it an address.
 
 Backend, frontend, e2e.
 
-- [ ] `PUT /api/v1/auth/email` with `{"currentPassword", "email"}`; `/auth/me` returns the address
-- [ ] The account page shows the address in use and changes it; the password form moves beside
+- [x] `PUT /api/v1/auth/email` with `{"currentPassword", "email"}`; `/auth/me` returns the address
+- [x] The account page shows the address in use and changes it; the password form moves beside
       it, and `/account/password` becomes `/account`
-- [ ] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
+- [x] Docs: `backend/CLAUDE.md`, `backend/README.md`, `frontend/CLAUDE.md`
 
 **Tests.** An `EmailChangeIT` in the shape of `PasswordChangeIT`. e2e: an account without an
 address adds one, an address changed, a wrong current password refused on its field.
+
+**Done 2026-10-13.**
+- **API.** `PUT /api/v1/auth/email` answers 204. A wrong current password is a 400 on its field,
+  checked as for a password change by a shared `checkCurrentPassword`. An address another account
+  has, in any case, is the 409 (607). The account's own address in another case is not taken:
+  `existsByEmailIgnoreCaseAndUsernameNot`. The taken check comes only after the password, so a
+  session cannot probe addresses with it. No session ends or changes id.
+- **The address in every user answer.** Login, registration and `/auth/me` all answer with
+  `AuthenticatedUserDTO`, so all three carry `email`, read from the table, `null` while there is
+  none. Only `/auth/me` was planned; the other two would otherwise have said `null` for an account
+  that has one.
+- **One set of address messages.** The keys moved from `register.email.*` to `email.*`, shared by
+  registration and the change.
+- **Account page.** `/account` replaces `/account/password`, which is gone: no redirect. It has two
+  sections, "Email address" and "Password", each with its own form. Both forms have a "Current
+  password" field, so the e2e tests reach each through its section. The page asks `/auth/me` for the
+  address itself, as `/users` asks for its list, because `AppShell`'s user is fetched once per visit.
+- **A stale comment fixed.** `AuthService.changePassword`'s Javadoc still said other sessions stay
+  signed in, though V5 Part 2 ended them.
+- **Proven.** Checking the address against every account, the account's own included, failed
+  `shouldAcceptOwnAddressInAnotherCase` (409, not 204). Checking whether it is taken before the
+  password failed `shouldNotTellATakenAddressWithoutThePassword` (409, not 400).
+- **Tests.** Backend 275 unit, 194 integration (14 new): `EmailChangeIT` has 13 methods, one of
+  them parameterised twice. `AuthenticationIT` checks that the bootstrapped admin has no address,
+  and `RegistrationIT` that a new account's address is in its answers. Playwright 143 (5 new, in
+  `email.spec.ts`). `password.spec.ts` works in the page's Password section. `registerThroughPage`
+  and `removeEmail` in `support/accounts.ts` replace the copies of the register steps.
 
 ---
 

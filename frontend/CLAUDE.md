@@ -80,15 +80,20 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
   Playwright waits for a field to be enabled, so its tests wait too. The signed-in pages do not
   need it: `AppShell` renders nothing until the session is confirmed, which is after hydration.
-- `/account/password`, reached from the username in the header, changes the signed-in user's own
-  password. Not an `EntityForm`: there is no entity and no read view, so after a change it stays,
-  empties its fields and says so in a `role="status"` line. A wrong current password comes back as
-  a 400 on its field - a 401 would send the browser to sign in from `lib/api.ts`.
+- `/account`, reached from the username in the header, is the signed-in user's own account: the
+  email address in use - or that there is none, and what that costs - with a form to change it,
+  and a form to change the password. Each is a `<section>` named by its heading, since both have a
+  "Current password" field. Not `EntityForm`s: there is no entity and no read view, so after a
+  change a form stays, empties its fields and says so in a `role="status"` line. A wrong current
+  password comes back as a 400 on its field - a 401 would send the browser to sign in from
+  `lib/api.ts`. The page asks `/auth/me` for the address itself, as `/users` asks for its list:
+  `AppShell` asks once per visit, so its user would still carry the old address after a change.
+  Until V6 Part 3 the password form was `/account/password`.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages,
-  then "Users" for an admin - the username, linked to `/account/password`, and the `<main>` every
+  then "Users" for an admin - the username, linked to `/account`, and the `<main>` every
   page renders into. Pages start at their `<h1>`. It shares the user it confirmed through
   `useCurrentUser()`, so a page need not ask `/auth/me` again; `isAdmin()` in `lib/api.ts` reads
   the roles. Both only shape what is shown: the backend decides what an account may do.

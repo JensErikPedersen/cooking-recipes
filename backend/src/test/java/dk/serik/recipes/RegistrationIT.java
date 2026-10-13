@@ -67,18 +67,21 @@ class RegistrationIT {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
-	@DisplayName("Given a new username, When registering, Then 201, signed in as the new user with ROLE_USER only")
+	@DisplayName("Given a new username, When registering, Then 201, signed in as the new user with its address and ROLE_USER only")
 	void shouldRegisterAndSignIn() throws Exception {
 		String username = uniqueUsername();
-		MvcResult result = register(username, PASSWORD, PASSWORD)
+		String email = uniqueEmail();
+		MvcResult result = register(username, email, PASSWORD, PASSWORD)
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.username").value(username))
+				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.roles", contains("ROLE_USER")))
 				.andReturn();
 
 		mockMvc.perform(get(ME).session((MockHttpSession) result.getRequest().getSession(false)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.username").value(username));
+				.andExpect(jsonPath("$.username").value(username))
+				.andExpect(jsonPath("$.email").value(email));
 	}
 
 	@Test

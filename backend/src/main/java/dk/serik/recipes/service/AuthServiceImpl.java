@@ -1,6 +1,7 @@
 package dk.serik.recipes.service;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
+import dk.serik.recipes.dto.ChangeEmailRequestDTO;
 import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
@@ -105,12 +106,7 @@ public class AuthServiceImpl implements AuthService {
 		}
 		String email = registerRequest.getEmail();
 		if (appUserJpaRepository.existsByEmailIgnoreCase(email)) {
-			throw ServiceException.builder()
-					.message(String.format("The email address '%s' is taken", email))
-					.code(ApplicationErrorCodes.EMAIL_TAKEN.getCode())
-					.httpStatus(HttpStatus.CONFLICT)
-					.field("email")
-					.build();
+			throw emailTaken(email);
 		}
 
 		// A new user creates their own account, so it is recorded as created by them.
@@ -124,13 +120,7 @@ public class AuthServiceImpl implements AuthService {
 	public void changePassword(ChangePasswordRequestDTO changeRequest, HttpServletRequest request) {
 		String username = SecurityContextHolder.getContext().getAuthentication().getName();
 		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
-		// A 400 on the field, not login's 401: to the frontend a 401 means the session has ended.
-		try {
-			authenticationManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(
-					username, changeRequest.getCurrentPassword()));
-		} catch (AuthenticationException ex) {
-			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
-		}
+		checkCurrentPassword(username, changeRequest.getCurrentPassword(), problems);
 		checkNewPassword(changeRequest.getNewPassword(), "newPassword", changeRequest.getConfirmPassword(), problems);
 		throwIfAny(problems);
 
@@ -146,8 +136,42 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
+	public void changeEmail(ChangeEmailRequestDTO changeRequest) {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		checkCurrentPassword(username, changeRequest.getCurrentPassword(), problems);
+		throwIfAny(problems);
+
+		// Only after the password: whether an address is taken is not for anyone with a session to probe.
+		String email = changeRequest.getEmail();
+		if (appUserJpaRepository.existsByEmailIgnoreCaseAndUsernameNot(email, username)) {
+			throw emailTaken(email);
+		}
+		appUserWriter.updateEmail(username, email, username);
+		log.info("Changed the email address of '{}'", username);
+	}
+
+	@Override
 	public AuthenticatedUserDTO currentUser() {
 		return toDto(SecurityContextHolder.getContext().getAuthentication());
+	}
+
+	/** A 400 on the field, not login's 401: to the frontend a 401 means the session has ended. */
+	private void checkCurrentPassword(String username, String password, List<ValidationExceptionEnvelope> problems) {
+		try {
+			authenticationManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, password));
+		} catch (AuthenticationException ex) {
+			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
+		}
+	}
+
+	private static ServiceException emailTaken(String email) {
+		return ServiceException.builder()
+				.message(String.format("The email address '%s' is taken", email))
+				.code(ApplicationErrorCodes.EMAIL_TAKEN.getCode())
+				.httpStatus(HttpStatus.CONFLICT)
+				.field("email")
+				.build();
 	}
 
 	/** The rules for a new password that Bean Validation cannot check, for registration and change alike. */
@@ -177,6 +201,8 @@ public class AuthServiceImpl implements AuthService {
 		// which describe how the caller signed in and are not application roles.
 		return AuthenticatedUserDTO.builder()
 				.username(authentication.getName())
+				// From the table, not the session: the address can change while the session lasts.
+				.email(appUserJpaRepository.findByUsername(authentication.getName()).orElseThrow().getEmail())
 				.roles(authentication.getAuthorities().stream()
 						.map(GrantedAuthority::getAuthority)
 						.filter(authority -> authority.startsWith("ROLE_"))

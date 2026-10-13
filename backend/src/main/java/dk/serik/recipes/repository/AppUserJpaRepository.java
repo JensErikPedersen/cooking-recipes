@@ -17,4 +17,7 @@ public interface AppUserJpaRepository extends JpaRepository<AppUser, UUID> {
 
 	/** Regardless of case, as {@link #existsByUsernameIgnoreCase}. */
 	boolean existsByEmailIgnoreCase(String email);
+
+	/** Taken by another account than this one, regardless of case: an account may keep its own. */
+	boolean existsByEmailIgnoreCaseAndUsernameNot(String email, String username);
 }
