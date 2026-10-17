@@ -1,8 +1,11 @@
 package dk.serik.recipes.service;
 
 import dk.serik.recipes.dto.AuthenticatedUserDTO;
+import dk.serik.recipes.dto.ChangeEmailRequestDTO;
 import dk.serik.recipes.dto.ChangePasswordRequestDTO;
 import dk.serik.recipes.dto.LoginRequestDTO;
+import dk.serik.recipes.dto.PasswordResetConfirmDTO;
+import dk.serik.recipes.dto.PasswordResetRequestDTO;
 import dk.serik.recipes.dto.RegisterRequestDTO;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.exceptions.ServiceException;
@@ -10,6 +13,7 @@ import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.model.AppUser;
 import dk.serik.recipes.repository.AppUserJpaRepository;
 import dk.serik.recipes.repository.AppUserWriter;
+import dk.serik.recipes.repository.PasswordResetTokens;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
@@ -26,10 +30,15 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -45,6 +54,10 @@ public class AuthServiceImpl implements AuthService {
 	private final AppUserWriter appUserWriter;
 
 	private final SessionRegistry sessionRegistry;
+
+	private final PasswordResetTokens passwordResetTokens;
+
+	private final PasswordResetMail passwordResetMail;
 
 	/** bcrypt reads no further; Spring Security refuses to encode a longer password, with an exception. */
 	private static final int MAX_PASSWORD_BYTES = 72;
@@ -93,8 +106,8 @@ public class AuthServiceImpl implements AuthService {
 		throwIfAny(problems);
 
 		String username = registerRequest.getUsername();
-		// Telling a caller that a username is taken tells them it exists. With open sign-up that is
-		// unavoidable; login still answers a wrong password and an unknown user alike.
+		// Telling a caller that a username or an address is taken tells them it exists. With open
+		// sign-up that is unavoidable; login still answers a wrong password and an unknown user alike.
 		if (appUserJpaRepository.existsByUsernameIgnoreCase(username)) {
 			throw ServiceException.builder()
 					.message(String.format("The username '%s' is taken", username))
@@ -103,9 +116,13 @@ public class AuthServiceImpl implements AuthService {
 					.field("username")
 					.build();
 		}
+		String email = registerRequest.getEmail();
+		if (appUserJpaRepository.existsByEmailIgnoreCase(email)) {
+			throw emailTaken(email);
+		}
 
 		// A new user creates their own account, so it is recorded as created by them.
-		appUserWriter.insert(username, registerRequest.getPassword(), AppUser.ROLE_USER, username);
+		appUserWriter.insert(username, email, registerRequest.getPassword(), AppUser.ROLE_USER, username);
 		log.info("Registered account '{}'", username);
 		return login(LoginRequestDTO.builder().username(username).password(registerRequest.getPassword()).build(),
 				request, response);
@@ -115,13 +132,7 @@ public class AuthServiceImpl implements AuthService {
 	public void changePassword(ChangePasswordRequestDTO changeRequest, HttpServletRequest request) {
 		String username = SecurityContextHolder.getContext().getAuthentication().getName();
 		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
-		// A 400 on the field, not login's 401: to the frontend a 401 means the session has ended.
-		try {
-			authenticationManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(
-					username, changeRequest.getCurrentPassword()));
-		} catch (AuthenticationException ex) {
-			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
-		}
+		checkCurrentPassword(username, changeRequest.getCurrentPassword(), problems);
 		checkNewPassword(changeRequest.getNewPassword(), "newPassword", changeRequest.getConfirmPassword(), problems);
 		throwIfAny(problems);
 
@@ -137,8 +148,90 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
+	public void changeEmail(ChangeEmailRequestDTO changeRequest) {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		checkCurrentPassword(username, changeRequest.getCurrentPassword(), problems);
+		throwIfAny(problems);
+
+		// Only after the password: whether an address is taken is not for anyone with a session to probe.
+		String email = changeRequest.getEmail();
+		if (appUserJpaRepository.existsByEmailIgnoreCaseAndUsernameNot(email, username)) {
+			throw emailTaken(email);
+		}
+		appUserWriter.updateEmail(username, email, username);
+		log.info("Changed the email address of '{}'", username);
+	}
+
+	// READ_COMMITTED, as every service runs. MySQL's default, REPEATABLE READ, has the token's DELETE
+	// of an account with no row yet lock the gap where it would be; two requests for different
+	// accounts then each wait for the other's gap to INSERT, and MySQL kills one as a deadlock - a
+	// 500 for half of 16 requests at once, on the stack. H2 has no gap locks, so no test here sees it.
+	@Override
+	@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, timeout = 5)
+	public void requestPasswordReset(PasswordResetRequestDTO resetRequest) {
+		Optional<AppUser> account = appUserJpaRepository.findByEmailIgnoreCase(resetRequest.getEmail())
+				.filter(AppUser::isEnabled);
+		if (account.isEmpty()) {
+			// Neither the address nor why: the log would tell what the answer does not.
+			log.info("Password reset asked for an address of no enabled account");
+			return;
+		}
+		AppUser user = account.get();
+		String token = passwordResetTokens.create(user.getId().toString());
+		// In the transaction: if the mail cannot be sent, the token is not kept either.
+		passwordResetMail.send(user, token);
+		log.info("Password reset mailed to '{}'", user.getUsername());
+	}
+
+	@Override
+	@Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, timeout = 5)
+	public void confirmPasswordReset(PasswordResetConfirmDTO confirmation) {
+		List<ValidationExceptionEnvelope> problems = new ArrayList<>();
+		Optional<String> appUserId = passwordResetTokens.appUserIdOf(confirmation.getToken());
+		if (appUserId.isEmpty()) {
+			problems.add(invalidToken());
+		}
+		checkNewPassword(confirmation.getNewPassword(), "newPassword", confirmation.getConfirmPassword(), problems);
+		throwIfAny(problems);
+		// The token is spent only now, so a password the rules refuse leaves the link working.
+		if (!passwordResetTokens.spend(confirmation.getToken())) {
+			throwIfAny(List.of(invalidToken()));
+		}
+
+		String username = appUserJpaRepository.findById(UUID.fromString(appUserId.get())).orElseThrow().getUsername();
+		appUserWriter.updatePassword(username, confirmation.getNewPassword(), username);
+		// Whoever had the old password is signed out; the caller was never signed in by this.
+		sessionRegistry.getAllSessions(username, false).forEach(SessionInformation::expireNow);
+		log.info("Reset the password of '{}'", username);
+	}
+
+	@Override
 	public AuthenticatedUserDTO currentUser() {
 		return toDto(SecurityContextHolder.getContext().getAuthentication());
+	}
+
+	/** A 400 on the field, not login's 401: to the frontend a 401 means the session has ended. */
+	private void checkCurrentPassword(String username, String password, List<ValidationExceptionEnvelope> problems) {
+		try {
+			authenticationManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, password));
+		} catch (AuthenticationException ex) {
+			problems.add(new ValidationExceptionEnvelope("currentPassword", "The current password is wrong"));
+		}
+	}
+
+	/** Unknown, expired and spent alike: which one it was helps no one fix it. */
+	private static ValidationExceptionEnvelope invalidToken() {
+		return new ValidationExceptionEnvelope("token", "This reset link is invalid or has expired");
+	}
+
+	private static ServiceException emailTaken(String email) {
+		return ServiceException.builder()
+				.message(String.format("The email address '%s' is taken", email))
+				.code(ApplicationErrorCodes.EMAIL_TAKEN.getCode())
+				.httpStatus(HttpStatus.CONFLICT)
+				.field("email")
+				.build();
 	}
 
 	/** The rules for a new password that Bean Validation cannot check, for registration and change alike. */
@@ -168,6 +261,8 @@ public class AuthServiceImpl implements AuthService {
 		// which describe how the caller signed in and are not application roles.
 		return AuthenticatedUserDTO.builder()
 				.username(authentication.getName())
+				// From the table, not the session: the address can change while the session lasts.
+				.email(appUserJpaRepository.findByUsername(authentication.getName()).orElseThrow().getEmail())
 				.roles(authentication.getAuthorities().stream()
 						.map(GrantedAuthority::getAuthority)
 						.filter(authority -> authority.startsWith("ROLE_"))

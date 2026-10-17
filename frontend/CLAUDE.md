@@ -22,8 +22,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed. `proxy.ts` (Next 16's
   name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders,
-  except to `/login` and `/register`, the two pages outside the group. `/register` signs the new
-  account in, as the backend does, and goes to the Welcome page.
+  except to the four pages outside the group: `/login`, `/register`, `/forgot-password` and
+  `/reset-password`. `/register` signs the new account in, as the backend does, and goes to the
+  Welcome page.
   And any 401 from the API - `/me` included, the login call excepted - sends the browser to
   `/login` from `request()` in `lib/api.ts`, so a session that ends while a page is open leads to
   sign in rather than an error. None of this is the security - the backend answers 401 regardless.
@@ -32,7 +33,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `afterSignIn` sends `https://...`, `//host` and `/\host` to `/`, so a crafted link cannot lead
   a user elsewhere. The login page reads `next` from `window.location` in its submit handler, not
   with `useSearchParams`, which would need a `<Suspense>` boundary to keep the page prerendered.
-  Logging out goes to the bare `/login`.
+  Logging out goes to the bare `/login`. What the login page shows from its URL, it reads with
+  `useSearchParams` in a component of its own inside `<Suspense>`: `ResetNotice`, for `?reset`.
+  Not `window.location` while rendering: after a client-side `router.push` the page renders before
+  the address bar changes, so it read the old URL and showed nothing.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
   it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
@@ -70,23 +74,36 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Blank lines are sent too.
 - No validation in the browser: the server's messages are the only ones. `fieldErrors()` maps the
   envelope's `validationExceptions` to fields, for a 400 and a 409 alike; `TextField` ties the
-  message to its input with `aria-describedby`; it takes `type="password"` too. A form sends only
-  its editable fields, never the audit fields. The register form follows the same rule: the
-  password confirmation is checked by the backend, not here.
-- The login and register pages are rendered on the server, so their fields exist before React
-  does. What is typed into them then, React never sees: the form would send it empty. Each wraps
+  message to its input with `aria-describedby`; it takes `type="password"` and `type="email"` too.
+  A form sends only its editable fields, never the audit fields. The register form follows the
+  same rule: the password confirmation and the address are checked by the backend, not here. It
+  has `noValidate`: a `type="email"` field, there for the phone keyboard and autofill, would
+  otherwise be checked by the browser, which blocks the submit with a message of its own.
+- The login, register, forgot-password and reset-password pages are rendered on the server, so
+  their fields exist before React does. What is typed into them then, React never sees: the form would send it empty. Each wraps
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
   Playwright waits for a field to be enabled, so its tests wait too. The signed-in pages do not
   need it: `AppShell` renders nothing until the session is confirmed, which is after hydration.
-- `/account/password`, reached from the username in the header, changes the signed-in user's own
-  password. Not an `EntityForm`: there is no entity and no read view, so after a change it stays,
-  empties its fields and says so in a `role="status"` line. A wrong current password comes back as
-  a 400 on its field - a 401 would send the browser to sign in from `lib/api.ts`.
+- `/account`, reached from the username in the header, is the signed-in user's own account: the
+  email address in use - or that there is none, and what that costs - with a form to change it,
+  and a form to change the password. Each is a `<section>` named by its heading, since both have a
+  "Current password" field. Not `EntityForm`s: there is no entity and no read view, so after a
+  change a form stays, empties its fields and says so in a `role="status"` line. A wrong current
+  password comes back as a 400 on its field - a 401 would send the browser to sign in from
+  `lib/api.ts`. The page asks `/auth/me` for the address itself, as `/users` asks for its list:
+  `AppShell` asks once per visit, so its user would still carry the old address after a change.
+  Until V6 Part 3 the password form was `/account/password`.
+- A forgotten password: "Forgot your password?" on the sign-in page leads to `/forgot-password`,
+  which asks for the address and then says the same, whatever it was - as the backend answers.
+  The mail's link opens `/reset-password?token=...`; its token is read from `window.location` in
+  the submit handler, as `next` is on the login page. Success goes to `/login?reset`, signed out.
+  A token that no longer works is an alert, not a field error, with a link to ask for a new one.
+  Both forms have `noValidate` where they hold an email field, as the register form does.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages,
-  then "Users" for an admin - the username, linked to `/account/password`, and the `<main>` every
+  then "Users" for an admin - the username, linked to `/account`, and the `<main>` every
   page renders into. Pages start at their `<h1>`. It shares the user it confirmed through
   `useCurrentUser()`, so a page need not ask `/auth/me` again; `isAdmin()` in `lib/api.ts` reads
   the roles. Both only shape what is shown: the backend decides what an account may do.

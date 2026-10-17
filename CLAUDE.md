@@ -17,18 +17,19 @@ The MVP has a single user account, created on first run from environment-supplie
 an `app_user` table. Version 2 adds sign-up, so anyone can register an account of their own
 (`docs/PLAN_V2.md` Part 5), and version 4 lets a signed-in user change their own password
 (`docs/PLAN_V4.md` Parts 2-3). In version 5 an admin disables and enables accounts and grants the
-admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). There is still no password reset, a
-future version. By decision there is no ownership of data: every account sees and edits
+admin role, on a users page (`docs/PLAN_V5.md` Parts 3-4). Version 6 gives each account an email
+address and resets a forgotten password by email, which Mailpit catches in the stack
+(`docs/PLAN_V6.md`). By decision there is no ownership of data: every account sees and edits
 everything (`docs/PLAN_V5.md` decision 8).
 
-Ratings are out of scope, in the MVP and in versions 2 to 5. The `Rating` and `RecipeRating` entities exist in the
+Ratings are out of scope, in the MVP and in versions 2 to 6. The `Rating` and `RecipeRating` entities exist in the
 backend but have no controller, and none will be added here.
 
 For the MVP, this runs locally in Docker containers.
 
 ## Commands
 
-All commands below work today. Each part of `docs/PLAN_V5.md` confirms its commands here as it lands.
+All commands below work today. Each part of `docs/PLAN_V6.md` confirms its commands here as it lands.
 
 Full stack, from the repo root. Needs `.env`, copied from `.env.example`:
 
@@ -43,8 +44,9 @@ docker compose down -v            # stop AND delete the database volume; next st
 docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" recipes'   # SQL prompt
 ```
 
-The app is at `http://localhost:3000`. The SQL prompt reads the password from the container's own
-environment, because `.env` is read by Compose, not loaded into your shell.
+The app is at `http://localhost:3000`, and every mail it sends at `http://localhost:8025`, Mailpit's
+page. The SQL prompt reads the password from the container's own environment, because `.env` is read
+by Compose, not loaded into your shell.
 
 Backend, from `backend/`. Tests run on in-memory H2 and need no database or Docker:
 
@@ -86,16 +88,19 @@ through the login page, with the account from the repository's `.env`, and saves
 `e2e/.auth/` (gitignored) for every other test; tests that must start signed out opt out. Tests
 remove what they create, through the API in `e2e/support/api.ts`, so the stack's data stays as seeded.
 Accounts have no delete endpoint: `e2e/support/accounts.ts` removes them with SQL through
-`docker compose exec mysql`, so the registration tests need `docker` on the PATH.
+`docker compose exec mysql`, so the registration tests need `docker` on the PATH. The reset tests
+read the mail from Mailpit's API (`e2e/support/mailpit.ts`, `http://localhost:8025`, overridden by
+`MAILPIT_URL`) and delete what they read.
 They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
 
 ## Technical Decisions
 
 - NextJS frontend. Use npm. Tailwind CSS for styling, no component library.
 - Spring Boot backend. Maven is used already and is kept for the backend.
-- Three containers: `mysql`, `backend` (Spring Boot API), `frontend` (Next.js server). The
-  Next.js server owns the browser-facing origin and proxies `/api` to the backend, so there is one
-  origin in the browser and no CORS configuration.
+- Four containers: `mysql`, `backend` (Spring Boot API), `frontend` (Next.js server), and
+  `mailpit`, which catches every mail the backend sends - nothing leaves the machine
+  (`docs/PLAN_V6.md` decision 2). The Next.js server owns the browser-facing origin and proxies
+  `/api` to the backend, so there is one origin in the browser and no CORS configuration.
   Launched together with `docker compose`, wrapped by the start/stop scripts.
 - Credentials and ports come from a gitignored `.env` at the repo root, with a committed
   `.env.example` documenting every variable. No credential is ever written into
@@ -135,10 +140,9 @@ failed. Sign in (Part 4) made the application writable - see `backend/CLAUDE.md`
 ## Working documentation
 
 All documents for planning and executing this project are in `docs/`.
-`docs/PLAN_V5.md` is the current plan; review it before proceeding. `docs/PLAN_V6.md` is the
-draft that follows it. `docs/PLAN.md` (the MVP), `docs/PLAN_V2.md`, `docs/PLAN_V3.md` and
-`docs/PLAN_V4.md` (the first three rounds of enhancements) are finished, kept as the record of how
-and why each was built.
+`docs/PLAN_V6.md` is the current plan; review it before proceeding. `docs/PLAN.md` (the MVP) and
+`docs/PLAN_V2.md` to `docs/PLAN_V5.md` (the first four rounds of enhancements) are finished, kept
+as the record of how and why each was built.
 
 There is a `CLAUDE.md` per layer: this file holds project-wide rules, `backend/CLAUDE.md` maps the
 existing backend code, and `frontend/CLAUDE.md` holds frontend conventions once that layer exists.
@@ -146,12 +150,12 @@ Keep each one to what is specific to its layer; do not duplicate this file.
 
 ## Work process
 
-When implementing the solution, start by reading `docs/PLAN_V5.md`.
+When implementing the solution, start by reading `docs/PLAN_V6.md`.
 Be critical of the plan and suggest improvements if something can be sliced better. The main goal
 is structured, well-tested, robust, minor increments.
 Never proceed from one step to the next automatically. Wait for review and acceptance first.
 Commits to git happen after every step involving code or documentation updates.
-Enrich `docs/PLAN_V5.md` as work progresses and check off each step to show progress.
+Enrich `docs/PLAN_V6.md` as work progresses and check off each step to show progress.
 ALWAYS ask questions when in doubt.
 Never make any major decision without consulting first.
 

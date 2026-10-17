@@ -1,0 +1,36 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!--
+      The token of a password reset by email (docs/PLAN_V6.md decision 3). At most one per account,
+      so the account is the key: a new request replaces the earlier token.
+
+      token_hash is the SHA-256 of the token, in hex - never the token itself, which only the mail
+      carries. Not bcrypt: a token must be found by its hash, which a salt prevents, and 32 random
+      bytes have no dictionary to guess from.
+
+      ON DELETE CASCADE: no endpoint deletes an account, but e2e removes its test accounts with SQL,
+      which a token would otherwise block.
+
+      No created/created_by: the row is not an entity, is written with plain SQL, and lives at most
+      30 minutes. app_user's updated_by records the reset itself.
+    -->
+    <changeSet author="jense" id="20261013-password-reset-token">
+        <createTable tableName="password_reset_token">
+            <column name="app_user_id" type="VARCHAR(36)">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="token_hash" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_password_reset_token_hash"/>
+            </column>
+            <column name="expires" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="password_reset_token" baseColumnNames="app_user_id"
+                                 constraintName="fk_password_reset_token_app_user"
+                                 referencedTableName="app_user" referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+    </changeSet>
+</databaseChangeLog>

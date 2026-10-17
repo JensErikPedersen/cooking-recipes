@@ -1,0 +1,21 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!--
+      An email address on each account, the way to reset a forgotten password (docs/PLAN_V6.md
+      decision 1). Required at registration, but nullable: accounts from before have none, the
+      bootstrapped admin included, until they add one.
+
+      254 characters, the longest address SMTP carries. Unique, and on MySQL regardless of case by
+      the table's Danish collation - which also takes aa for å and é for e, so the rare address
+      with such letters can clash. Several NULLs do not clash, on MySQL or H2.
+    -->
+    <changeSet author="jense" id="20261013-app-user-email">
+        <addColumn tableName="app_user">
+            <column name="email" type="VARCHAR(254)" afterColumn="username">
+                <constraints nullable="true" unique="true" uniqueConstraintName="uk_app_user_email"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

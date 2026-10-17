@@ -14,4 +14,13 @@ public interface AppUserJpaRepository extends JpaRepository<AppUser, UUID> {
 
 	/** Regardless of case, whatever the database's collation: H2 in the tests tells case apart. */
 	boolean existsByUsernameIgnoreCase(String username);
+
+	/** Regardless of case, as {@link #existsByUsernameIgnoreCase}. */
+	boolean existsByEmailIgnoreCase(String email);
+
+	/** The account with this address, regardless of case, as {@link #existsByUsernameIgnoreCase}. */
+	Optional<AppUser> findByEmailIgnoreCase(String email);
+
+	/** Taken by another account than this one, regardless of case: an account may keep its own. */
+	boolean existsByEmailIgnoreCaseAndUsernameNot(String email, String username);
 }

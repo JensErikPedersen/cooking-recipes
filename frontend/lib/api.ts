@@ -24,6 +24,8 @@ export class ApiError extends Error {
 
 export interface AuthenticatedUser {
   username: string;
+  /** null until the account adds one: the bootstrapped admin, and accounts from before V6. */
+  email: string | null;
   roles: string[];
 }
 
@@ -228,9 +230,17 @@ export const auth = {
     request<AuthenticatedUser>("POST", "/auth/login", { username, password }),
   logout: () => request<void>("POST", "/auth/logout"),
   /** Creates the account and signs it in. The backend checks every rule, the confirmation too. */
-  register: (username: string, password: string, confirmPassword: string) =>
-    request<AuthenticatedUser>("POST", "/auth/register", { username, password, confirmPassword }),
+  register: (username: string, email: string, password: string, confirmPassword: string) =>
+    request<AuthenticatedUser>("POST", "/auth/register", { username, email, password, confirmPassword }),
   /** The signed-in user's own password. A wrong current one is a 400 on its field, never a 401. */
   changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
     request<void>("PUT", "/auth/password", { currentPassword, newPassword, confirmPassword }),
+  /** The signed-in user's own address. A wrong current password is a 400 on its field, never a 401. */
+  changeEmail: (currentPassword: string, email: string) =>
+    request<void>("PUT", "/auth/email", { currentPassword, email }),
+  /** Mails a reset link if an enabled account has the address. The same 202 either way. */
+  requestPasswordReset: (email: string) => request<void>("POST", "/auth/password-reset", { email }),
+  /** A new password with the token from the mail. A bad token is a 400 on `token`. Signs no one in. */
+  confirmPasswordReset: (token: string, newPassword: string, confirmPassword: string) =>
+    request<void>("POST", "/auth/password-reset/confirm", { token, newPassword, confirmPassword }),
 };

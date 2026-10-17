@@ -7,7 +7,8 @@ is in `backend/`.
 ## Authentication
 
 Session-cookie sign-in with CSRF, in `config/SecurityConfig`. Everything under `/api` needs a
-session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is open for Compose.
+session except `POST /api/v1/auth/login`, `/register`, `/password-reset` and
+`/password-reset/confirm`; `/actuator/health` is open for Compose.
 401 and 403 come back in the error envelope (codes 600-602), never as a redirect.
 
 - **Audit stamping depends on it.** `created_by` is NOT NULL on every table but `recipe_tag`, a
@@ -26,7 +27,8 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
 - **Logout** is Spring Security's filter on `POST /api/v1/auth/logout` (204), not a controller
   method. It also deletes the `JSESSIONID` cookie, which the frontend's `proxy.ts` checks for.
 - **Accounts**: the first is created by `AdminBootstrap` from `app.admin.username` /
-  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN`. Any
+  `app.admin.password` (env `APP_ADMIN_*`), only while `app_user` is empty, with `ROLE_ADMIN` and
+  no email address - `app_user.email` is nullable for it and for accounts from before V6. Any
   other comes from `POST /api/v1/auth/register`: `ROLE_USER`, created by its own username, and
   signed in on the spot through `login()`. Both insert through `AppUserWriter`, with plain SQL:
   through JPA `BaseEntityListener` would stamp `created_by` from the `Session`, which holds no
@@ -47,13 +49,43 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
   where MySQL's collation does not; taken is a 409 (603) on `username`. Password at least 8
   characters and at most 72 **bytes**: bcrypt reads no further, and Spring Security throws rather
   than encode a longer one, so the service checks before encoding - `æ` counts two. The
-  confirmation is compared there too, a 400 on `confirmPassword`.
+  confirmation is compared there too, a 400 on `confirmPassword`. An email address is required,
+  `@NotBlank` - `@Email` passes an empty one - and at most 254 characters; unique regardless of
+  case, `existsByEmailIgnoreCase` for the same reason, taken is a 409 (607) on `email`. A taken
+  username is reported first. Telling a visitor an address is taken tells them it exists: open
+  sign-up cannot avoid that, as for usernames.
 - **Changing a password**: `PUT /api/v1/auth/password`, signed in. The new password takes
   registration's rules, from the same `checkNewPassword`. A wrong current password is a 400 on
   `currentPassword`, never a 401: the frontend reads any 401 as a session that has ended and goes
   to sign in. The current one is checked with the `AuthenticationManager`, as login does, and the
   new hash written by `AppUserWriter.updatePassword` - every password is encoded in that class.
   The session gets a new id, as at login; every other session of the account is ended.
+- **Changing an email address**: `PUT /api/v1/auth/email` with `{"currentPassword", "email"}`,
+  signed in: the address is the way back into the account, so the current password is asked for,
+  checked as for a password change - a 400 on `currentPassword`. The address takes registration's
+  rules; taken by another account, in any case, is the 409 (607) - its own address in another case
+  is not, `existsByEmailIgnoreCaseAndUsernameNot`. Whether it is taken is checked only after the
+  password, so a session cannot probe addresses. No session ends and none changes id: an address
+  signs no one in. Login, registration and `/auth/me` answer with the address, read from the table
+  each time - `null` while the account has none.
+- **Resetting a forgotten password**: `POST /api/v1/auth/password-reset` with `{"email"}` answers
+  202 with no body, whatever the address: only an enabled account's, in any case, gets a mail. It
+  carries `APP_BASE_URL/reset-password?token=...` and replaces any earlier token of the account.
+  `PasswordResetTokens` makes the token - 32 random bytes, base64url - and keeps only its SHA-256
+  in `password_reset_token`, one row per account, for 30 minutes; `PasswordResetMail` writes the
+  mail. Both in one transaction: a mail that cannot be sent is a 500, and no token is kept.
+  `POST /password-reset/confirm` with `{"token", "newPassword", "confirmPassword"}` takes
+  registration's rules and answers 204. An unknown, expired or spent token is one 400 on `token`,
+  reported with any password problem. The token is spent only once the rules pass - a refused
+  password leaves the link working - and by a delete whose count decides, so of two requests with
+  one token only one resets. Every session of the account ends, and the caller is not signed in.
+  The token never reaches the log; the username a mail went to does. Both flows run
+  `READ_COMMITTED`, as every service does - `AuthServiceImpl` has no class-level `@Transactional`.
+  At MySQL's default, `REPEATABLE READ`, the token's `DELETE` of an account with no row yet locked
+  the gap where it would go, and requests for two accounts at once deadlocked: half of 16 answered
+  500, on the stack. Requests for one account take turns on a `SELECT ... FOR UPDATE` of its
+  `app_user` row; without it two at once both inserted a token, and one answered 409. H2 has
+  neither gap locks nor this race, so only the stack shows either (V6 Part 6).
 - **Ending a user's sessions**: Spring Security's `SessionRegistry`, in memory, keyed by username.
   `AuthServiceImpl.login` registers each session itself - Spring does so only for a login it
   performs, which this is not. `HttpSessionEventPublisher` tells the registry when a session
@@ -71,8 +103,8 @@ session except `POST /api/v1/auth/login` and `/register`; `/actuator/health` is 
 | Package | Holds |
 |---|---|
 | `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
-| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` |
-| `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits |
+| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` and `PasswordResetMail` |
+| `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits; `AppUserWriter` and `PasswordResetTokens` in plain SQL |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
 | `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
 | `mapper` | Static entity/DTO converters |
@@ -188,10 +220,10 @@ Test layers, and what each one mocks:
 | `*JpaRepositoryIT` | `@DataJpaTest` | nothing below it, but no controller or service |
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
-| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
+| `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
 | `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 
-**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
+**`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET
 and on the join tables. None of them runs in a test transaction: it would postpone the
 commit, and with it any constraint violation, past the asserted response. Everything else is verified against a mock of the layer beneath it - which is how
@@ -202,7 +234,7 @@ slice tests can pass while real serialization is broken - the same class of gap.
 **MockMvc's `csrf()` changes the cached context it runs in.** It replaces the CSRF token repository
 inside the context's filter with a test one that sets no cookie, for every later test there. A test
 that reads the real `XSRF-TOKEN` cookie therefore cannot share a context with the `<Entity>IT`
-classes: `RegistrationIT`, `PasswordChangeIT` and `UsersIT` take `AuthenticationIT`'s properties to share its
+classes: `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT` and `UsersIT` take `AuthenticationIT`'s properties to share its
 context instead. Alone `RegistrationIT` passed; after `CategoryIT` every test found no cookie.
 
 ## Build and run
@@ -227,6 +259,19 @@ data flows.
 
 Liquibase runs during Spring startup and **does not retry a refused connection**, so the database
 must be reachable before the application starts.
+
+**Mail** goes to Mailpit, in the stack, which catches it: nothing leaves the machine. Its page and
+API are on `http://localhost:8025`; SMTP is `mailpit:1025` inside the network, and `localhost:1025`
+for a host-side run, published by `docker-compose.override.yml`. `spring.mail.*` takes `MAIL_HOST`
+and `MAIL_PORT`, no credentials, with 5 second timeouts - JavaMail waits forever by default.
+`app.base-url` (`APP_BASE_URL`) is the address the browser opens the application on, for links in
+mails: behind the Next.js server, the backend cannot know it. `/actuator/health` includes the mail
+server, through Boot's mail health indicator: with Mailpit stopped the backend answers 503 - though
+it still serves - so Compose starts it only once Mailpit is healthy. The tests send no mail: their
+`application.properties` replaces the main one and sets no `spring.mail.host`, so Boot creates no
+`JavaMailSender`. Their only `MailSender` is `RecordingMailSender`, a `@Component` in the test
+sources that the component scan of every `@SpringBootTest` picks up: it keeps each mail for the
+test to read, and `failNextSend` makes it fail as a server that is down would.
 
 ## Docker
 
@@ -264,8 +309,9 @@ must be reachable before the application starts.
 - The schema's collation is Danish, `utf8mb4_da_0900_ai_ci` (`db.changelog_1.4.xml`, MySQL only):
   `æ`, `ø` and `å` are letters of their own, so `Brod` and `Brød` - or `soren` and `Søren` - are
   different names, and case is still ignored. For `=`, Danish also takes `aa` for `å`: `Aalborg` is
-  taken by `Ålborg`; `LIKE` does not. H2 has no such collation, so no test sees any of this - prove a
-  change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
+  taken by `Ålborg`; `LIKE` does not. Email addresses follow it too, as decided (`docs/PLAN_V6.md`
+  decision 1): `aase@x.dk` is taken by `åse@x.dk`, `jose@x.dk` by `josé@x.dk`. H2 has no such
+  collation, so no test sees any of this - prove a change to it on the stack. Before V4 Part 8 MySQL's default made `ø` equal `o`.
 - A constraint on a controller parameter changes how that method's `@Valid` body is validated:
   Spring validates both in one pass and raises `HandlerMethodValidationException`, not
   `MethodArgumentNotValidException`. Every `PUT` here has a `@UUID` path id, so its body errors take

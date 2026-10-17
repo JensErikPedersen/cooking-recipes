@@ -18,6 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -141,11 +142,12 @@ class AuthenticationIT {
 	}
 
 	@Test
-	@DisplayName("Given a signed-in session, When GET auth/me, Then the signed-in user")
+	@DisplayName("Given a signed-in session, When GET auth/me, Then the signed-in user - without an address, as bootstrapped")
 	void shouldReportCurrentUser() throws Exception {
 		mockMvc.perform(get(ME).session(signIn().session()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.username").value(USERNAME));
+				.andExpect(jsonPath("$.username").value(USERNAME))
+				.andExpect(jsonPath("$.email").value(nullValue()));
 	}
 
 	@Test

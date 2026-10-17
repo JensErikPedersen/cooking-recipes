@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { deleteAccount, uniqueUsername } from "../support/accounts";
+import { deleteAccount, emailOf, uniqueUsername } from "../support/accounts";
 import { deleteById } from "../support/api";
 import { signIn, USERNAME } from "../support/auth";
 import { createThroughForm, expectCreatedNowBy, uniqueName } from "../support/pages";
@@ -21,13 +21,24 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-async function register(page: Page, username: string, password = PASSWORD, confirm = password) {
-  await page.goto("/register");
-  await fillAndRegister(page, username, password, confirm);
+interface Registration {
+  email?: string;
+  password?: string;
+  confirm?: string;
 }
 
-async function fillAndRegister(page: Page, username: string, password: string, confirm: string) {
+async function register(page: Page, username: string, registration: Registration = {}) {
+  await page.goto("/register");
+  await fillAndRegister(page, username, registration);
+}
+
+async function fillAndRegister(
+  page: Page,
+  username: string,
+  { email = emailOf(username), password = PASSWORD, confirm = password }: Registration = {},
+) {
   await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByLabel("Confirm password").fill(confirm);
   await page.getByRole("button", { name: "Register" }).click();
@@ -76,7 +87,7 @@ test("typing waits until the page is ready, so nothing typed early is lost", asy
   accounts.push(username);
   await page.goto("/register", { waitUntil: "commit" });
 
-  await fillAndRegister(page, username, PASSWORD, PASSWORD);
+  await fillAndRegister(page, username);
 
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("banner")).toContainText(username);
@@ -91,11 +102,42 @@ test("a taken username, in any case, is shown on the username field", async ({ p
   await expect(page).toHaveURL("/register");
 });
 
+test("a taken email address, in any case, is shown on the address field", async ({ page }) => {
+  const first = await registerNew(page);
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page).toHaveURL("/login");
+  const username = uniqueUsername();
+  accounts.push(username);
+  const taken = emailOf(first).toUpperCase();
+
+  await register(page, username, { email: taken });
+
+  await expect(page.getByLabel("Email address")).toHaveAccessibleDescription(`The email address '${taken}' is taken`);
+  await expect(page).toHaveURL("/register");
+});
+
+test("a malformed or missing email address is the server's message on the address field, not the browser's", async ({
+  page,
+}) => {
+  const username = uniqueUsername();
+  accounts.push(username);
+
+  await register(page, username, { email: "not-an-address" });
+
+  await expect(page.getByLabel("Email address")).toHaveAccessibleDescription("Email address is not valid");
+  await expect(page).toHaveURL("/register");
+
+  await page.getByLabel("Email address").fill("");
+  await page.getByRole("button", { name: "Register" }).click();
+
+  await expect(page.getByLabel("Email address")).toHaveAccessibleDescription("Email address is required");
+});
+
 test("a confirmation that differs is shown on the confirm field, from the server", async ({ page }) => {
   const username = uniqueUsername();
   accounts.push(username);
 
-  await register(page, username, PASSWORD, PASSWORD + "!");
+  await register(page, username, { confirm: PASSWORD + "!" });
 
   await expect(page.getByLabel("Confirm password")).toHaveAccessibleDescription("The passwords do not match");
   await expect(page).toHaveURL("/register");
@@ -105,7 +147,7 @@ test("a password that is too short is shown on the password field", async ({ pag
   const username = uniqueUsername();
   accounts.push(username);
 
-  await register(page, username, "short", "short");
+  await register(page, username, { password: "short" });
 
   await expect(page.getByLabel("Password", { exact: true })).toHaveAccessibleDescription(
     "Password must be at least 8 characters",

@@ -40,9 +40,17 @@ services:
       # The first account, created by AdminBootstrap only while app_user is empty.
       APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:?APP_ADMIN_USERNAME is not set - copy .env.example to .env}
       APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is not set - copy .env.example to .env}
+      # Mail, and the address in its links. No credentials, and defaults that suit this stack, so an
+      # .env from before version 6 still starts it.
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:${FRONTEND_PORT}}
     depends_on:
       # Liquibase runs during Spring startup and does not retry a refused connection.
       mysql:
+        condition: service_healthy
+      # The backend's health includes the mail server's.
+      mailpit:
         condition: service_healthy
     healthcheck:
       # Answers only after Liquibase has finished and the application context is up.
@@ -50,6 +58,16 @@ services:
       interval: 5s
       start_period: 90s
       start_interval: 2s
+    networks:
+      - recipes
+
+  mailpit:
+    # Catches every mail the backend sends; nothing leaves the machine. Read them on
+    # http://localhost:8025 - the web page and its API, published on this machine only. SMTP stays
+    # inside the network. The image carries its own healthcheck.
+    image: axllent/mailpit:v1.31.5
+    ports:
+      - "127.0.0.1:8025:8025"
     networks:
       - recipes
 

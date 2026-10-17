@@ -24,8 +24,10 @@ for (const path of [
   "/ingredients",
   "/units/new",
   "/tags",
-  "/account/password",
+  "/account",
   "/users",
+  "/forgot-password",
+  "/reset-password?token=any",
 ]) {
   test(`${path} fits a phone screen without scrolling sideways`, async ({ page }) => {
     await page.goto(path);

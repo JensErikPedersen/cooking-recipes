@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, auth } from "@/lib/api";
 import { afterSignIn } from "@/lib/return-to";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -31,6 +31,10 @@ export default function LoginPage() {
   return (
     <main className="mx-auto mt-24 w-full max-w-sm px-8">
       <h1 className="text-2xl font-bold">Sign in</h1>
+      {/* Only the notice waits for the URL; the rest of the page stays prerendered. */}
+      <Suspense>
+        <ResetNotice />
+      </Suspense>
       <form onSubmit={onSubmit} className="mt-6">
         <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
           <label className="flex flex-col gap-1">
@@ -67,6 +71,11 @@ export default function LoginPage() {
         </fieldset>
       </form>
       <p className="mt-6 text-sm">
+        <Link href="/forgot-password" className="underline">
+          Forgot your password?
+        </Link>
+      </p>
+      <p className="mt-2 text-sm">
         No account yet?{" "}
         <Link href="/register" className="underline">
           Create an account
@@ -74,4 +83,14 @@ export default function LoginPage() {
       </p>
     </main>
   );
+}
+
+// After a reset, from /reset-password, which comes here with ?reset. useSearchParams, not
+// window.location, which a client-side navigation updates only after rendering the new page.
+function ResetNotice() {
+  return useSearchParams().has("reset") ? (
+    <p role="status" className="mt-6">
+      Your password has been reset. Sign in with the new one.
+    </p>
+  ) : null;
 }

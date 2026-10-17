@@ -67,18 +67,21 @@ class RegistrationIT {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
-	@DisplayName("Given a new username, When registering, Then 201, signed in as the new user with ROLE_USER only")
+	@DisplayName("Given a new username, When registering, Then 201, signed in as the new user with its address and ROLE_USER only")
 	void shouldRegisterAndSignIn() throws Exception {
 		String username = uniqueUsername();
-		MvcResult result = register(username, PASSWORD, PASSWORD)
+		String email = uniqueEmail();
+		MvcResult result = register(username, email, PASSWORD, PASSWORD)
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.username").value(username))
+				.andExpect(jsonPath("$.email").value(email))
 				.andExpect(jsonPath("$.roles", contains("ROLE_USER")))
 				.andReturn();
 
 		mockMvc.perform(get(ME).session((MockHttpSession) result.getRequest().getSession(false)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.username").value(username));
+				.andExpect(jsonPath("$.username").value(username))
+				.andExpect(jsonPath("$.email").value(email));
 	}
 
 	@Test
@@ -97,13 +100,14 @@ class RegistrationIT {
 	}
 
 	@Test
-	@DisplayName("Given a registration, When the row is read, Then a bcrypt hash, ROLE_USER, enabled, and created by the new user")
+	@DisplayName("Given a registration, When the row is read, Then the address, a bcrypt hash, ROLE_USER, enabled, and created by the new user")
 	void shouldStoreTheAccount() throws Exception {
 		String username = uniqueUsername();
-		register(username, PASSWORD, PASSWORD).andExpect(status().isCreated());
+		register(username, username + "@example.com", PASSWORD, PASSWORD).andExpect(status().isCreated());
 
 		Map<String, Object> row = jdbcTemplate.queryForMap(
-				"SELECT password, roles, enabled, created_by FROM app_user WHERE username = ?", username);
+				"SELECT email, password, roles, enabled, created_by FROM app_user WHERE username = ?", username);
+		assertThat(row.get("email")).isEqualTo(username + "@example.com");
 		assertThat((String) row.get("password")).startsWith("{bcrypt}").doesNotContain(PASSWORD);
 		assertThat(row.get("roles")).isEqualTo("ROLE_USER");
 		assertThat(row.get("enabled")).isEqualTo(true);
@@ -171,6 +175,54 @@ class RegistrationIT {
 		register(username, PASSWORD, PASSWORD).andExpect(status().isCreated());
 
 		assertTaken(username.toUpperCase());
+	}
+
+	@Test
+	@DisplayName("Given a taken email address, When another username registers with it, Then 409 on the field email and no account")
+	void shouldRejectTakenEmail() throws Exception {
+		String email = uniqueEmail();
+		register(uniqueUsername(), email, PASSWORD, PASSWORD).andExpect(status().isCreated());
+
+		assertEmailTaken(email);
+	}
+
+	@Test
+	@DisplayName("Given a taken email address, When registering it in other case, Then the same 409 - not left to the collation")
+	void shouldRejectTakenEmailInAnotherCase() throws Exception {
+		String email = uniqueEmail();
+		register(uniqueUsername(), email, PASSWORD, PASSWORD).andExpect(status().isCreated());
+
+		assertEmailTaken(email.toUpperCase());
+	}
+
+	@ParameterizedTest(name = "\"{0}\" -> {1}")
+	@CsvSource(delimiter = '|', value = {
+			"''                    | Email address is required",
+			"not-an-address        | Email address is not valid",
+			"two@at@example.com    | Email address is not valid",
+	})
+	@DisplayName("Given an email address breaking a rule, When registering, Then 400 on the field email")
+	void shouldRejectInvalidEmail(String email, String message) throws Exception {
+		assertRejected(uniqueUsername(), email, PASSWORD, PASSWORD, "email", message);
+	}
+
+	@Test
+	@DisplayName("Given no email address, When registering, Then 400 on the field email")
+	void shouldRequireEmail() throws Exception {
+		assertRejected(uniqueUsername(), null, PASSWORD, PASSWORD, "email", "Email address is required");
+	}
+
+	@Test
+	@DisplayName("Given an email address of 254 characters, When registering, Then 201 - the limit is inclusive")
+	void shouldAcceptEmailOf254Characters() throws Exception {
+		register(uniqueUsername(), emailOfLength(254), PASSWORD, PASSWORD).andExpect(status().isCreated());
+	}
+
+	@Test
+	@DisplayName("Given a valid email address of 255 characters, When registering, Then 400 on the field email")
+	void shouldRejectEmailOver254Characters() throws Exception {
+		assertRejected(uniqueUsername(), emailOfLength(255), PASSWORD, PASSWORD, "email",
+				"Email address must be at most 254 characters");
 	}
 
 	@ParameterizedTest(name = "\"{0}\" -> {1}")
@@ -242,6 +294,17 @@ class RegistrationIT {
 				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.ACCESS_DENIED.getCode()));
 	}
 
+	private void assertEmailTaken(String email) throws Exception {
+		String username = uniqueUsername();
+		register(username, email, PASSWORD, PASSWORD)
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.EMAIL_TAKEN.getCode()))
+				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("email"))
+				.andExpect(jsonPath("$.validationExceptions[0].message").value("The email address '" + email + "' is taken"));
+		assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM app_user WHERE username = ?", Integer.class, username))
+				.isZero();
+	}
+
 	private void assertTaken(String username) throws Exception {
 		register(username, PASSWORD, PASSWORD)
 				.andExpect(status().isConflict())
@@ -251,7 +314,11 @@ class RegistrationIT {
 	}
 
 	private void assertRejected(String username, String password, String confirm, String field, String message) throws Exception {
-		register(username, password, confirm)
+		assertRejected(username, uniqueEmail(), password, confirm, field, message);
+	}
+
+	private void assertRejected(String username, String email, String password, String confirm, String field, String message) throws Exception {
+		register(username, email, password, confirm)
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.VALIDATION_EXCEPTION.getCode()))
 				.andExpect(jsonPath("$.validationExceptions[0].objectName").value(field))
@@ -259,9 +326,13 @@ class RegistrationIT {
 	}
 
 	private ResultActions register(String username, String password, String confirm) throws Exception {
+		return register(username, uniqueEmail(), password, confirm);
+	}
+
+	private ResultActions register(String username, String email, String password, String confirm) throws Exception {
 		Cookie xsrf = xsrfCookie();
 		return mockMvc.perform(post(REGISTER).cookie(xsrf).header(XSRF_HEADER, xsrf.getValue())
-				.contentType(MediaType.APPLICATION_JSON).content(body(username, password, confirm)));
+				.contentType(MediaType.APPLICATION_JSON).content(body(username, email, password, confirm)));
 	}
 
 	private Cookie xsrfCookie() throws Exception {
@@ -269,11 +340,30 @@ class RegistrationIT {
 	}
 
 	private String body(String username, String password, String confirm) {
+		return body(username, uniqueEmail(), password, confirm);
+	}
+
+	private String body(String username, String email, String password, String confirm) {
 		return jsonMapper.writeValueAsString(RegisterRequestDTO.builder()
-				.username(username).password(password).confirmPassword(confirm).build());
+				.username(username).email(email).password(password).confirmPassword(confirm).build());
+	}
+
+	/**
+	 * A unique address valid in all but length: a local part of 64 characters, the most allowed, and
+	 * domain labels of at most 63 - so a longer one breaks only the 254 character limit.
+	 */
+	private static String emailOfLength(int length) {
+		String local = uniqueUsername();
+		local += "x".repeat(64 - local.length());
+		return local + "@" + "a".repeat(63) + "." + "b".repeat(63) + "." + "c".repeat(length - 64 - 1 - 64 - 64 - 3) + ".dk";
 	}
 
 	private static String uniqueUsername() {
 		return "user-" + UUID.randomUUID().toString().substring(0, 8);
+	}
+
+	/** An address of its own, not made from the username: a test of a bad username keeps a good address. */
+	private static String uniqueEmail() {
+		return uniqueUsername() + "@example.com";
 	}
 }
