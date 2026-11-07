@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
-day. Part 1 is done.
+day. Parts 1 and 2 are done.
 
 ## Shape of the work
 
@@ -50,7 +50,7 @@ Settled 2026-11-07. The parts refer to them by number.
    | Cream | `#F5EFE3` | page background; text on olive |
    | Olive | `#4F5B2A` | text, primary buttons, the header band, input borders, focus ring |
    | Ochre | `#B8892D` | accents only: frames, rules, drawings, the error bar, the current menu entry's mark |
-   | Tan | `#D8C9A8` | surfaces: cards, labels, table heads, dividers |
+   | Tan | `#D8C9A8` | the band of a label, rules between rows; at half strength or less, a tint behind text |
 
    Measured contrast (WCAG): olive/cream 6.41, olive/tan 4.49, cream/ochre 2.76, olive/ochre 2.32,
    ochre/tan 1.93, cream/tan 1.43. So:
@@ -58,11 +58,16 @@ Settled 2026-11-07. The parts refer to them by number.
      since 4.49 is just under the 4.5 body text needs.
    - Ochre never carries text and is never the only edge of a control - controls need 3:1. Input
      borders and the focus ring are olive.
-   - A palette colour with transparency is allowed for shadows, the dialog backdrop and hover
-     tints, never to lighten text.
-   - Errors are olive text with an ochre bar and a warning icon, `role="alert"` as now. The Delete
+   - A palette colour with transparency is allowed for shadows, the dialog backdrop and tints. Tan
+     at 50% over cream takes olive text at 5.40, at 25% at 5.91. Text itself is never lightened
+     below 85% olive (4.54): "None" and placeholders are set in italics instead.
+   - Errors are olive text on a tan tint with a warning icon, `role="alert"` as now. The Delete
      dialog's confirming button is the primary look; its wording - "This cannot be undone." -
      carries the warning. `dangerButton` goes.
+
+   *Amended in Part 2.* Tan was "surfaces: cards, labels, table heads" and errors had "an ochre
+   bar": small text on full tan fails (4.49), and a coloured bar down the side of a box is a stock
+   look the frontend-design skill warns against.
 2. **Direction: pantry labels** - the labels on preserving jars: an olive header band, tan labels
    in thin ochre frames, an expressive serif for headings. Part 2 turns it into tokens and
    wireframes.
@@ -91,6 +96,228 @@ Settled 2026-11-07. The parts refer to them by number.
    names. Looks are reviewed by eye: every code part ends with screenshots of its pages at the
    four sizes, taken with Playwright into a scratch folder that is not committed.
 10. **Light only, still**: the palette is a light one.
+
+---
+
+## Design language
+
+Written in Part 2 with the frontend-design skill. Parts 3 to 6 build to it; a change to it is a
+change to this section first.
+
+**Subject.** A household's own recipes, in Danish - Fuldkorns hvedebrød, Stegt flæsk med
+persillesovs, measured in gr, dl and tsk. **Audience**: the people of that household, signed in,
+as often on a phone or a tablet propped up on the kitchen counter as at a desk. **Primary job**:
+find a recipe and read it at arm's length while cooking; now and then add one or fix one.
+
+**Concept: the pantry.** The entity types are jars on a shelf, and anything a user opens wears a
+jar's label: a cream field inside a tan band, with an ochre hairline inside the field, as a jam
+label is printed. The label is kept for what is opened or read as one thing - a recipe card, a
+recipe's ingredients, the sign-in panel. Lists, forms and tables stay plain on the cream page.
+
+**The one bold element: the shelf** on the Welcome page. Five drawn jars stand on an ochre shelf,
+one per entity type, each with its name and one sentence, each a link to its list. The jars are
+set down on the shelf one after another when the page opens - the one entrance of decision 7.
+Everything else is quiet: no other drawing moves, and no other page has a hero.
+
+**Typefaces** (decision 8):
+- **Young Serif** for the app's name, page headings and recipe names. One heavy weight with the
+  ink of letterpress on a label; it carries the personality, so it is used for names only, never
+  for running text.
+- **Fira Sans** for everything else. A humanist sans drawn for small screens, open and easy to
+  read from across a counter. Its zero is a plain narrow oval, never mistaken for Ø, and its `l`
+  has a tail, so "1 dl" and "Il" read apart. Weights 400 and 600, and 400 italic for "None" and
+  placeholders.
+
+Fallbacks are Georgia and the system sans. Both faces have Æ, Ø and Å, checked in the preview.
+*Changed after the preview's first look:* the body face was Atkinson Hyperlegible Next, chosen
+for legibility - but its zero carries a slash, so "10 gr Gær" read "1Ø gr Gær", and no stylistic
+set of the font removes it. Of the alternatives rendered side by side, Lexend, Readex Pro and
+Figtree draw `I` and `l` alike, and Andika's single-storey `a` sits badly beside Young Serif.
+
+**Type scale**, from the classic scale in *The Elements of Typographic Style*, in px:
+
+| Size | Use |
+|---|---|
+| 14 | small print: the audit fields, a field's error |
+| 16 | body, inputs, buttons, table cells |
+| 18 | a recipe's ingredient lines and instructions |
+| 21 | recipe names on cards, `h2` |
+| 24 | `h1` on a phone |
+| 36 | `h1` from `md`; the Welcome page's title on a phone |
+| 48 | the Welcome page's title from `md` |
+
+Line height 1.5 for the sans, 1.65 for instructions, 1.15 for headings. Running text at most
+65 characters wide. Headings `text-wrap: balance`. Sentence case everywhere; no capitals as labels.
+
+**Spacing and width.** Tailwind's 4 px steps. Side gutter 16 px on a phone, 32 px from `md`.
+Content at most 64 rem wide (`max-w-5xl`), wider than today's `max-w-4xl` for three columns of cards.
+
+**Shapes, by hierarchy.**
+- The label: the jar-label outline, its four corners cut in by a quarter circle of 12 px. The
+  notch is drawn with a CSS mask on a background layer (`::before`), not on the element: a mask
+  on the element would cut off its focus ring too.
+- Buttons and inputs: 6 px corners.
+- The category of a recipe: a pill tinted tan at 50%. Its tags: pills with an olive outline on
+  cream. The two differ by fill, so a recipe's category is never read as one of its tags.
+- The header band and tables: square.
+
+**Shadows.** None, but under what floats above the page - the open menu panel and the dialog: an
+olive shadow at 25%, never grey.
+
+**Colour, by element** (decision 1 holds throughout):
+- Header band olive; the app's name and the entries cream; the current entry has an ochre bar
+  under it, 3 px; an entry under the pointer is underlined in cream.
+- Primary button olive with cream text, an ochre ring inside it under the pointer. Secondary
+  button cream with an olive outline, tinted tan at 50% under the pointer. Disabled: at half
+  opacity, which WCAG exempts.
+- Inputs: a well tinted tan at 25%, an olive outline 1.5 px, 2 px when invalid. Focus ring olive,
+  2 px, 2 px away from the control; cream on the olive band.
+- Links in running text: olive, underlined in ochre 2 px below the baseline, olive under the pointer.
+- Tables: the head olive and bold on cream with an ochre rule beneath it, rows divided by tan
+  rules, a row under the pointer tinted tan at 25%. Amounts use tabular figures, right aligned.
+- Errors: olive text on tan at 50%, after an outlined warning triangle. A field's error is the
+  same at 14 px, under its input.
+
+**Drawings** (decision 4): flat shapes in the four colours, an olive outline 2.5 px. Five jars,
+each telling what it holds - Recipes a tall jar with a clamp lid, full of preserves; Categories a
+wide jar of three layers; Ingredients a round jar of grains under a cloth tied with twine; Units a
+measuring jug with marks; Tags a jar with a tag on a string. A dill sprig and an ear of wheat for
+the sign-in pages. The jars stand empty for an empty list and a page not found. They are
+decoration, `aria-hidden`: the text beside them says what they show.
+
+**Motion** (decision 7), all of it off with `prefers-reduced-motion`:
+1. The menu panel opens down in 160 ms; closing is instant.
+2. The Delete dialog rises 8 px into place in 160 ms, its backdrop olive at 40%.
+3. A button pressed moves 1 px down.
+4. A recipe card under the pointer or in focus: its ochre hairline goes from 1 to 2 px. No lift.
+5. The Welcome page's jars set down on the shelf, 70 ms apart, 320 ms each. They start in place
+   and visible - the page is complete without the animation.
+
+**Checked against the skill's generic defaults.**
+- *Cream with a high-contrast serif and a terracotta accent*: the cream is the brief's own. The
+  serif is Young Serif, heavy and low in contrast - lettering, not a fashion display - and there
+  is no terracotta. Changed: the first choice was Fraunces, the serif such pages default to.
+- *Broadsheet hairlines and zero radius*: the frames are bands; hairlines only inside labels.
+- *The SaaS card kit*: labels only where a thing is opened, a silhouette rather than `rounded-lg`,
+  no shadows under them, no gradients. Changed: the error box first had an ochre bar down its side.
+- *Template chrome*: no capitals as eyebrows, no middle dots, no arrows after links, no monospace.
+  Changed: a card first had its category as a small-capitals line above the name - now a pill
+  under it, and category and tags no longer read "Brød · Godt til kaffen".
+- Changed for contrast: table heads were to be tan, and the ingredients panel a full-tan surface;
+  small text fails there, so both are cream, the panel inside a tan band.
+
+### Wireframes
+
+**Header, from `md`.** One row; between `md` and `lg` the entries may wrap to a second.
+
+```
++------------------------------------------------------------------------------------+
+| Cooking Recipes  Recipes  Categories  Ingredients  Units  Tags  Users  jens [Log out] |
+|                  =======                                                           |
++------------------------------------------------------------------------------------+
+                   ochre bar under the current entry
+```
+
+**Header on a phone**, closed and open. The button's name stays "Menu"; its icon turns from three
+bars into a cross. The panel pushes the page down rather than covering it.
+
+```
++-----------------------------------+    +-----------------------------------+
+| Cooking Recipes         [≡ Menu]  |    | Cooking Recipes         [x Menu]  |
++-----------------------------------+    +-----------------------------------+
+  Recipes                                 | Recipes                   48 px   |
+  ...                                     | Categories                        |
+                                          | Ingredients                       |
+                                          | Units                             |
+                                          | Tags                              |
+                                          | Users            (admins only)    |
+                                          | --------------- ochre rule ------ |
+                                          | jens                   [Log out]  |
+                                          +-----------------------------------+
+```
+
+**Recipe cards.** One column on a phone, two from `md`, three from `lg`. The whole card is the
+link; the name is its text.
+
+```
+ .--------------------------.  .--------------------------.  .--------------------------.
+(  Fuldkorns hvedebrød       )(  Hvedebrød med Rugmel      )(  Kylling med bacon og     )
+(                            )(                            )(  lækker kålsalat           )
+(  (Brød)                    )(  (Brød)                    )(                            )
+(  [Godt til kaffen]         )(  [Godt til kaffen]         )(  (Hovedret)                )
+ '--------------------------'  '--------------------------'  '--------------------------'
+   (..) category, tan pill       [..] tag, outlined pill
+```
+
+**A recipe on a phone.** Ingredients before the instructions.
+
+```
+Fuldkorns hvedebrød              h1, 24 px
+[Edit] [Delete]
+Category     (Brød)
+Tags         [Godt til kaffen]
+Description  Et dejligt Fuldkorns brød som ...
+ .-----------------------------.
+(  Ingredients                  )
+(    170 gr  Fuldkorns hvedemel )   18 px, amounts right aligned
+(     10 gr  Gær                )
+(    550 gr  Hvedemel           )
+ '-----------------------------'
+Instructions                     h2
+1. Hæld vand og gær i en ...     18 px, line height 1.65
+```
+
+**A recipe from `md`.** The ingredients beside the instructions, and sticky, so the amounts stay
+in view while the steps are read.
+
+```
+Fuldkorns hvedebrød                                       [Edit] [Delete]
+Category (Brød)    Tags [Godt til kaffen]
+Description  Et dejligt Fuldkorns brød som smager godt og mætter dejligt
+ .------------------------.   Instructions
+(  Ingredients             )  1. Hæld vand og gær i en røremaskine ...
+(   170 gr Fuldkorns ...   )  2. ...
+(    10 gr Gær             )
+(   550 gr Hvedemel        )     at most 65 characters wide
+ '------------------------'
+   sticky while scrolling
+```
+
+**The Welcome page.** From `md` one shelf of five; on a phone each jar has a shelf of its own, with
+its name and sentence beside it.
+
+```
+Cooking Recipes                                   48 px
+Keep your recipes in one place. ...               at most 65 characters
+
+   _____      _______      .---.        __         _____
+  |     |    |=======|    (     )     _/  |       |     |_
+  |#####|    |-------|    |:::::|    |-- -|       |#####| \ tag
+  |#####|    |#######|    |:::::|    |-- -|       |#####|
+==================================================================  ochre shelf
+  Recipes    Categories   Ingredients  Units       Tags
+  Each with  What kind    What         What        Labels to
+  its ...    of dish ...  recipes ...  ...         find ...
+```
+
+**Sign in** (and register, forgot and reset password): one label, centred on the cream page, the
+dill sprig above it.
+
+```
+              (dill sprig)
+     .-------------------------------.
+    (  Cooking Recipes                )   Young Serif, 24 px
+    (  Sign in                        )
+    (  Username                       )
+    (  [___________________________]  )
+    (  Password                       )
+    (  [___________________________]  )
+    (  [          Sign in          ]  )
+    (  Forgot your password?          )
+    (  No account yet?                )
+    (  Create an account              )
+     '-------------------------------'
+```
 
 ---
 
@@ -125,19 +352,30 @@ the docs and the code cite its decisions, and stay.
 
 Docs only, with the frontend-design skill.
 
-- [ ] A "Design language" section in this file: subject, audience and primary job (a home cook's
+- [x] A "Design language" section in this file: subject, audience and primary job (a home cook's
       own Danish recipes, read on a phone or tablet propped up while cooking); the colours' roles
       from decision 1; the two typefaces and a type scale; spacing, corner radii by hierarchy,
       shadows; the drawings to make; the motion list from decision 7
-- [ ] ASCII wireframes: the header at desktop and on a phone, closed and open; the recipe cards;
+- [x] ASCII wireframes: the header at desktop and on a phone, closed and open; the recipe cards;
       a recipe's read view on a phone and a tablet; the Welcome page; the sign-in page
-- [ ] The one bold element named, and everything else quiet
-- [ ] The design checked against the skill's list of generic defaults, with what was changed
-- [ ] A one-page preview of the palette, type scale and a recipe card with real names
+- [x] The one bold element named, and everything else quiet
+- [x] The design checked against the skill's list of generic defaults, with what was changed
+- [x] A one-page preview of the palette, type scale and a recipe card with real names
       ("Fuldkorns hvedebrød", "Ølandshvedebrød"), published as a private Artifact for review and
       not added to the repository
 
 **Verify it yourself.** Read the section; open the preview on a phone and a desktop.
+
+**Done 2026-11-07.** The section is "Design language", above the parts. The preview,
+"Pantry Labels Preview", is https://claude.ai/artifact/VpqQ45zKky75C7YR2rX7y8 - private to its
+owner. It goes further than asked: the header and its phone menu work, as do the Delete dialog
+and the jars' entrance, so decisions 5 and 7 can be tried before Part 3. Its names, amounts and
+messages come from the seed data and the backend; steps 2 to 4 of the instructions are example
+text. Two things changed on the way, both recorded where they belong:
+- Decision 1 was amended: small text on full tan fails, so tan became a band and a tint, and the
+  error box lost the ochre bar the skill lists as a stock look.
+- The body face became Fira Sans: Atkinson Hyperlegible Next, the first choice, has a slashed
+  zero, which in Danish reads as Ø.
 
 ---
 
