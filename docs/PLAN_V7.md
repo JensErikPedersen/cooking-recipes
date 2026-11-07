@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
-day. Parts 1 and 2 are done.
+day. Parts 1 to 3 are done.
 
 ## Shape of the work
 
@@ -402,26 +402,40 @@ no longer break inside a word. The burger menu stays as it is.
 
 Frontend, e2e. The header keeps today's layout, recoloured; Part 4 rebuilds it.
 
-- [ ] `app/globals.css`: the four colours as Tailwind theme colours (`bg-cream`, `text-olive`, ...)
+- [x] `app/globals.css`: the four colours as Tailwind theme colours (`bg-cream`, `text-olive`, ...)
       and the fonts; body cream with olive text
-- [ ] `app/layout.tsx`: the Part 2 fonts instead of Geist; a `viewport` export with `themeColor`
+- [x] `app/layout.tsx`: the Part 2 fonts instead of Geist; a `viewport` export with `themeColor`
       olive, which colours a phone browser's bar
-- [ ] `components/styles.ts`: primary and secondary looks in the palette, `dangerButton` gone,
+- [x] `components/styles.ts`: primary and secondary looks in the palette, `dangerButton` gone,
       and one input look - olive border, 16 px, 44 px tall below `lg` - used by `TextField`,
       `SelectField`, `IngredientLines`, the search field and the four pages outside the frame
-- [ ] Restyled: `ErrorMessage` and field errors, `Loading`, `NotFound`, `PageNotFound`,
+- [x] Restyled: `ErrorMessage` and field errors, `Loading`, `NotFound`, `PageNotFound`,
       `DetailList`, `PageHeader`, the `DeleteButton` dialog, the `EntityList` table, the Users table
-- [ ] Icons on buttons below `md`, as "Buttons on a phone" says: the six icons in
+- [x] Icons on buttons below `md`, as "Buttons on a phone" says: the six icons in
       `components/icons.tsx`, used by the Edit links, `DeleteButton`, `EntityForm`, `EntityList`
       (New, Search) and `IngredientLines` (Remove); each button keeps its word as its name
-- [ ] A visible focus ring on every control
-- [ ] No grey, red, white or black class is left: a grep for them finds nothing
-- [ ] `phone.spec.ts` becomes `responsive.spec.ts`: no sideways scrolling on every page it lists,
+- [x] A visible focus ring on every control
+- [x] No grey, red, white or black class is left: a grep for them finds nothing
+- [x] `phone.spec.ts` becomes `responsive.spec.ts`: no sideways scrolling on every page it lists,
       at 375, 768 and 1024 px
-- [ ] `frontend/CLAUDE.md`: the palette instead of "fixed Tailwind greys", the fonts, `styles.ts`
+- [x] `frontend/CLAUDE.md`: the palette instead of "fixed Tailwind greys", the fonts, `styles.ts`
 
 **Verify it yourself.** Rebuild with `scripts\start.ps1`, run the whole Playwright suite, and look
 through the screenshots; open a few pages at `http://localhost:3000` in the browser's device mode.
+
+**Done 2026-11-07.** Lint clean, the build succeeds, and the whole Playwright suite passes on a
+freshly built stack: 177 tests, where there were 152 - the 14 phone tests became 36 at three
+widths, and one more checks that a recipe's Edit and Delete are 44 px icons on its heading's row.
+Screenshots of eight pages at the four sizes were looked through. On the way:
+- Tailwind's own palette is cleared in `globals.css` (`--color-*: initial`), so the grep is not
+  the only guard: a grey or red class generates no CSS at all. The built stylesheet holds only
+  the four colours and their tints.
+- Errors share one `Alert` - the dialog's refusal, the sign-in failure, a reset link that no
+  longer works - and fields one `FieldError`; both carry the warning sign.
+- Young Serif has one weight, so the headings lost `font-bold` - a browser would fake a bold.
+- The content is 64 rem wide (`max-w-5xl`), with a 16 px gutter on a phone and 32 px from `md`.
+- The Delete dialog rises into place, and a pressed button moves 1 px (motion 2 and 3); both
+  stop with `prefers-reduced-motion`.
 
 ---
 

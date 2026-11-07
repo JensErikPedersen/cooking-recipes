@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Ingredient, Unit } from "@/lib/api";
-import { secondaryButton } from "@/components/styles";
+import { FieldError } from "@/components/error-message";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, input, secondaryButton } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 /** A line as the form edits it: what the inputs hold, the amount still as typed. */
@@ -111,9 +113,9 @@ export function IngredientLines({
             <button
               type="button"
               onClick={() => onChange(lines.filter((other) => other.key !== line.key))}
-              className={secondaryButton}
+              className={`${secondaryButton} ${iconButton}`}
             >
-              Remove
+              <ButtonLabel icon="delete">Remove</ButtonLabel>
             </button>
           </div>
         );
@@ -155,15 +157,11 @@ function LineInput({
       </label>
       {children({
         id,
-        className: "rounded border px-3 py-2",
+        className: input,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": error ? errorId : undefined,
       })}
-      {error && (
-        <p id={errorId} className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 }

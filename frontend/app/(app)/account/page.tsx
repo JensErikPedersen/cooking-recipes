@@ -23,7 +23,7 @@ export default function AccountPage() {
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="mt-8 max-w-sm">
-      <h2 id={id} className="text-lg font-semibold">
+      <h2 id={id} className="text-xl">
         {title}
       </h2>
       {children}

@@ -55,9 +55,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <header className="border-b">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-2 px-8 py-3">
-          <Link href="/" className="text-lg font-semibold">
+      {/* The olive band; its focus ring is cream, as olive would not show on it. */}
+      <header className="bg-olive text-cream [&_:focus-visible]:outline-cream">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 md:px-8">
+          <Link href="/" className="font-display text-xl">
             Cooking Recipes
           </Link>
           {/* Narrower than md, the menu takes a row of its own below the title, the user and Log out. */}
@@ -70,7 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Link
                       href={href}
                       aria-current={current ? "page" : undefined}
-                      className={current ? "font-semibold underline" : "hover:underline"}
+                      className={`font-semibold underline-offset-4 ${current ? "underline decoration-ochre decoration-[3px]" : "hover:underline"}`}
                     >
                       {label}
                     </Link>
@@ -80,15 +81,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </ul>
           </nav>
           {/* The account's own page: its email address and password. */}
-          <Link href="/account" className="ml-auto text-sm underline hover:no-underline">
+          <Link href="/account" className="ml-auto underline underline-offset-4 hover:no-underline">
             {user.username}
           </Link>
-          <button type="button" onClick={logout} className="rounded border px-3 py-1 text-sm hover:bg-gray-100">
+          <button
+            type="button"
+            onClick={logout}
+            className="inline-flex min-h-11 items-center rounded-md border-[1.5px] border-cream px-3.5 font-semibold hover:bg-cream/15 lg:min-h-10"
+          >
             Log out
           </button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-4xl px-8 py-6">
+      <main className="mx-auto w-full max-w-5xl px-4 pt-8 pb-16 md:px-8">
         <CurrentUser value={user}>{children}</CurrentUser>
       </main>
     </>

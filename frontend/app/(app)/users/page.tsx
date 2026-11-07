@@ -52,12 +52,12 @@ export default function UsersPage() {
         error === undefined && <Loading />
       ) : (
         <table className="mt-6 w-full text-left">
-          <thead className="border-b">
+          <thead className="border-b-2 border-ochre">
             <tr>
-              <th className="py-2 pr-4">Username</th>
-              <th className="py-2 pr-4">Role</th>
-              <th className="py-2 pr-4">Status</th>
-              <th className="hidden py-2 pr-4 sm:table-cell">Created</th>
+              <th className="py-2 pr-4 font-semibold">Username</th>
+              <th className="py-2 pr-4 font-semibold">Role</th>
+              <th className="py-2 pr-4 font-semibold">Status</th>
+              <th className="hidden py-2 pr-4 font-semibold sm:table-cell">Created</th>
               <th className="py-2">
                 <span className="sr-only">Actions</span>
               </th>
@@ -69,12 +69,12 @@ export default function UsersPage() {
               .map((user) => {
                 const userIsAdmin = isAdmin(user);
                 return (
-                  <tr key={user.id} className="border-b">
-                    <td className="py-2 pr-4 break-all">{user.username}</td>
-                    <td className="py-2 pr-4">{userIsAdmin ? "Admin" : "User"}</td>
-                    <td className="py-2 pr-4">{user.enabled ? "Enabled" : "Disabled"}</td>
-                    <td className="hidden py-2 pr-4 sm:table-cell">{formatDateTime(user.created)}</td>
-                    <td className="py-2">
+                  <tr key={user.id} className="border-b border-tan hover:bg-tan/25">
+                    <td className="py-2.5 pr-4 break-all">{user.username}</td>
+                    <td className="py-2.5 pr-4">{userIsAdmin ? "Admin" : "User"}</td>
+                    <td className="py-2.5 pr-4">{user.enabled ? "Enabled" : "Disabled"}</td>
+                    <td className="hidden py-2.5 pr-4 sm:table-cell">{formatDateTime(user.created)}</td>
+                    <td className="py-2.5">
                       {user.username !== me.username && (
                         <div className="flex flex-wrap justify-end gap-2">
                           <button

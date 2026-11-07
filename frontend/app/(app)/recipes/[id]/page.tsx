@@ -4,13 +4,12 @@ import { use } from "react";
 import Link from "next/link";
 import { recipes, type Recipe } from "@/lib/api";
 import { DeleteButton } from "@/components/delete-button";
-import { DetailList } from "@/components/detail-list";
+import { DetailList, None } from "@/components/detail-list";
 import { EntityLoader } from "@/components/entity-loader";
 import { PageHeader } from "@/components/page-header";
-import { secondaryButton } from "@/components/styles";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, secondaryButton, textLink as link } from "@/components/styles";
 import { danish } from "@/lib/sort";
-
-const link = "underline hover:no-underline";
 
 export default function RecipePage({ params }: PageProps<"/recipes/[id]">) {
   const { id } = use(params);
@@ -20,8 +19,8 @@ export default function RecipePage({ params }: PageProps<"/recipes/[id]">) {
       {(recipe) => (
         <>
           <PageHeader title={recipe.name}>
-            <Link href={`/recipes/${recipe.id}/edit`} className={secondaryButton}>
-              Edit
+            <Link href={`/recipes/${recipe.id}/edit`} className={`${secondaryButton} ${iconButton}`}>
+              <ButtonLabel icon="edit">Edit</ButtonLabel>
             </Link>
             <DeleteButton what="recipe" name={recipe.name} remove={() => recipes.remove(recipe.id)} listHref="/recipes" />
           </PageHeader>
@@ -37,19 +36,15 @@ export default function RecipePage({ params }: PageProps<"/recipes/[id]">) {
               ["Description", recipe.description],
             ]}
           />
-          <h2 className="mt-8 text-lg font-semibold">Ingredients</h2>
+          <h2 className="mt-8 text-xl">Ingredients</h2>
           <Ingredients recipe={recipe} />
-          <h2 className="mt-8 text-lg font-semibold">Instructions</h2>
+          <h2 className="mt-8 text-xl">Instructions</h2>
           {/* Instructions are free text with numbered lines; keep the line breaks. */}
           <p className="mt-2 whitespace-pre-line">{recipe.instructions || <None />}</p>
         </>
       )}
     </EntityLoader>
   );
-}
-
-function None() {
-  return <span className="text-gray-500">None</span>;
 }
 
 function Tags({ recipe }: { recipe: Recipe }) {

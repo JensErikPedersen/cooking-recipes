@@ -8,7 +8,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 ## Conventions
 
 - `app/` at the project root, no `src/`. Imports use the `@/*` alias.
-- Styling is Tailwind utility classes; `app/globals.css` holds the theme variables.
+- Styling is Tailwind utility classes; `app/globals.css` holds the theme. Its colours are the four
+  of `docs/PLAN_V7.md` - `cream`, `olive`, `ochre`, `tan` - and Tailwind's own palette is cleared
+  (`--color-*: initial`), so `text-gray-500` or `bg-white` generates nothing. A tint is a palette
+  colour with an opacity, such as `bg-tan/50`. Text is never lightened: "None" and placeholders are
+  italic. `font-display` is Young Serif, for `h1`, `h2` and names; `font-sans` Fira Sans, for
+  everything else - both from `next/font/google` in `app/layout.tsx`. Young Serif has one weight,
+  so a heading is never `font-bold`. One focus ring for every control, olive, in `globals.css`.
 - `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
   The app has no route handlers of its own; one would have to live outside `/api`.
 - The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
@@ -52,11 +58,17 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
 - Shared pieces for every entity: `ErrorMessage` renders a failed call (the backend's message is
-  written for the user), `DetailList` the labelled fields of a read view, `NotFound` what a read
-  view or edit form shows for a 404, `PageHeader` the heading with its action buttons, and
-  `components/styles.ts` the primary, secondary and danger button looks. `DeleteButton` confirms
-  in a native `<dialog>` (never `window.confirm`), shows the server's refusal inside it with only
-  an OK button, and goes to the list after a delete.
+  written for the user) in an `Alert`, olive on a tan tint after a warning sign, and `FieldError`
+  a field's own; `DetailList` the labelled fields of a read view, `NotFound` what a read view or
+  edit form shows for a 404, `PageHeader` the heading with its action buttons, and
+  `components/styles.ts` the looks: `primaryButton`, `secondaryButton`, `input` and `textLink`.
+  There is no danger look; the Delete dialog's confirming button is the primary one. Below `md`
+  an action button - Edit, Delete, Save, Cancel, Search, New, Remove - shows an icon instead of its
+  word: `<ButtonLabel icon="edit">Edit</ButtonLabel>` from `components/icons.tsx` inside it, and
+  `iconButton` among its classes. The word stays, visually hidden, as the button's name.
+  `DeleteButton` confirms in a native `<dialog>` (never `window.confirm`), shows the server's
+  refusal inside it with only an OK button, and goes to the list after a delete. Its own buttons
+  keep their words.
 - Forms: one `<Entity>Form` per entity, used by both its `new` and `[id]/edit` pages, holds the
   field state and wraps its `TextField`s in `EntityForm`. `EntityForm` does the rest - the audit
   fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
@@ -111,8 +123,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   and Make admin or Remove admin - none on the admin's own row, which the backend refuses. A change
   answers 204, so the page lists again. Anyone else sees `PageNotFound` and never asks for the list.
   Not `notFound()`: Next 16 documents it for server components, not for client pages like this.
-- Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
-- Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
+- Light only: the palette is a light one, and `globals.css` has no dark scheme.
+- Phones and tablets - 375, 768 and 1024 px - are covered by `e2e/tests/responsive.spec.ts`.
+  Below `lg` every control is at least 44 px tall (`min-h-11`). The header wraps, with the menu
   on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A
   `<fieldset>` needs `min-w-0`, or it grows to its content and runs past the page margin.
 - Sorting is Danish, always: `danish` from `lib/sort.ts`, never a bare `localeCompare` or

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { textLink } from "@/components/styles";
 
 const SECTIONS = [
   { href: "/recipes", label: "Recipes", text: "Each with its category, tags, ingredients and instructions." },
@@ -12,7 +13,7 @@ const SECTIONS = [
 export default function WelcomePage() {
   return (
     <>
-      <h1 className="text-3xl font-bold">Cooking Recipes</h1>
+      <h1 className="text-4xl md:text-5xl">Cooking Recipes</h1>
       <p className="mt-4 max-w-2xl">
         Keep your recipes in one place. A recipe has a category, any number of tags, and a list of
         ingredients, each with an amount and a unit. Start with a recipe, or set up the categories,
@@ -21,10 +22,10 @@ export default function WelcomePage() {
       <ul className="mt-8 flex flex-col gap-4">
         {SECTIONS.map(({ href, label, text }) => (
           <li key={href}>
-            <Link href={href} className="text-lg font-semibold underline hover:no-underline">
+            <Link href={href} className={`font-display text-xl ${textLink}`}>
               {label}
             </Link>
-            <p className="text-gray-700">{text}</p>
+            <p className="mt-1">{text}</p>
           </li>
         ))}
       </ul>

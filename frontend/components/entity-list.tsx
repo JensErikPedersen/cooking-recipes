@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ErrorMessage } from "@/components/error-message";
 import { Loading } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
-import { primaryButton, secondaryButton } from "@/components/styles";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, input, primaryButton, secondaryButton, textLink } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 // The list page of an entity type: a New button, then a table that starts with the name, linked to
@@ -65,8 +66,8 @@ export function EntityList<T extends { id: string; name: string }>({
   return (
     <>
       <PageHeader title={title}>
-        <Link href={`${path}/new`} className={primaryButton}>
-          {newLabel}
+        <Link href={`${path}/new`} className={`${primaryButton} ${iconButton}`}>
+          <ButtonLabel icon="new">{newLabel}</ButtonLabel>
         </Link>
       </PageHeader>
       {searchable && (
@@ -80,10 +81,10 @@ export function EntityList<T extends { id: string; name: string }>({
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder="Search by name"
-            className="min-w-0 flex-1 rounded border px-3 py-2"
+            className={`${input} min-w-0 flex-1`}
           />
-          <button type="submit" className={secondaryButton}>
-            Search
+          <button type="submit" className={`${secondaryButton} ${iconButton} flex-none`}>
+            <ButtonLabel icon="search">Search</ButtonLabel>
           </button>
         </form>
       )}
@@ -99,11 +100,11 @@ export function EntityList<T extends { id: string; name: string }>({
         </p>
       ) : (
         <table className="mt-6 w-full text-left">
-          <thead className="border-b">
+          <thead className="border-b-2 border-ochre">
             <tr>
-              <th className="py-2 pr-8">Name</th>
+              <th className="py-2 pr-8 font-semibold">Name</th>
               {columns.map(([header]) => (
-                <th key={header} className="py-2 pr-8">
+                <th key={header} className="py-2 pr-8 font-semibold">
                   {header}
                 </th>
               ))}
@@ -113,14 +114,14 @@ export function EntityList<T extends { id: string; name: string }>({
             {list
               .toSorted((a, b) => danish(a.name, b.name))
               .map((entity) => (
-                <tr key={entity.id} className="border-b">
-                  <td className="py-2 pr-8">
-                    <Link href={`${path}/${entity.id}`} className="underline hover:no-underline">
+                <tr key={entity.id} className="border-b border-tan hover:bg-tan/25">
+                  <td className="py-2.5 pr-8">
+                    <Link href={`${path}/${entity.id}`} className={textLink}>
                       {entity.name}
                     </Link>
                   </td>
                   {columns.map(([header, value]) => (
-                    <td key={header} className="py-2 pr-8">
+                    <td key={header} className="py-2.5 pr-8">
                       {value(entity)}
                     </td>
                   ))}

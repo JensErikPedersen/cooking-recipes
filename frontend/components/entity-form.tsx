@@ -7,7 +7,8 @@ import { fieldErrors, type Audited } from "@/lib/api";
 import { formatDateTime } from "@/lib/date";
 import { DetailList } from "@/components/detail-list";
 import { ErrorMessage } from "@/components/error-message";
-import { primaryButton, secondaryButton } from "@/components/styles";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, primaryButton, secondaryButton } from "@/components/styles";
 
 // The frame of every create and edit form; the entity's own form supplies only its fields.
 //
@@ -58,12 +59,12 @@ export function EntityForm({
       <div className="mt-6 flex flex-col gap-4">{children(errors)}</div>
       {/* An error that belongs to no field - not found, a conflict without a field, a failure. */}
       {error !== undefined && Object.keys(errors).length === 0 && <ErrorMessage error={error} />}
-      <div className="mt-6 flex gap-3">
-        <button type="submit" disabled={saving} className={primaryButton}>
-          Save
+      <div className="mt-6 flex gap-2 md:gap-3">
+        <button type="submit" disabled={saving} className={`${primaryButton} ${iconButton}`}>
+          <ButtonLabel icon="save">Save</ButtonLabel>
         </button>
-        <Link href={entity ? `${path}/${entity.id}` : path} className={secondaryButton}>
-          Cancel
+        <Link href={entity ? `${path}/${entity.id}` : path} className={`${secondaryButton} ${iconButton}`}>
+          <ButtonLabel icon="cancel">Cancel</ButtonLabel>
         </Link>
       </div>
     </form>
