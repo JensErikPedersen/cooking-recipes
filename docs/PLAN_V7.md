@@ -147,7 +147,8 @@ Figtree draw `I` and `l` alike, and Andika's single-storey `a` sits badly beside
 | 48 | the Welcome page's title from `md` |
 
 Line height 1.5 for the sans, 1.65 for instructions, 1.15 for headings. Running text at most
-65 characters wide. Headings `text-wrap: balance`. Sentence case everywhere; no capitals as labels.
+65 characters wide. Headings `text-wrap: balance`; a word breaks only when it is wider than the
+line (`overflow-wrap: break-word`). Sentence case everywhere; no capitals as labels.
 
 **Spacing and width.** Tailwind's 4 px steps. Side gutter 16 px on a phone, 32 px from `md`.
 Content at most 64 rem wide (`max-w-5xl`), wider than today's `max-w-4xl` for three columns of cards.
@@ -177,6 +178,19 @@ olive shadow at 25%, never grey.
   rules, a row under the pointer tinted tan at 25%. Amounts use tabular figures, right aligned.
 - Errors: olive text on tan at 50%, after an outlined warning triangle. A field's error is the
   same at 14 px, under its input.
+
+**Buttons on a phone.** Below `md`, a button that acts on a thing shows an icon instead of its
+word: Edit a pencil, Delete a bin, Save a tick, Cancel a cross, Search a magnifying glass, New
+("New recipe" and the rest) a plus, and Remove on an ingredient line the bin. Each is a 44 px
+square. The word stays in the button, visually hidden, so it is still the button's name for a
+screen reader and for the tests' `getByRole("button", { name: "Edit" })`. From `md` the word shows
+and the icon does not. The icons are line drawings, 22 px, in the button's text colour, 2 px
+strokes with round ends: controls, not decoration, so unlike the drawings they have no fill. Words
+stay where they are the point or there is room: the Delete dialog's buttons, where a choice is
+confirmed; Add ingredient; the sign-in pages; the account page; the Users page's actions. A page's
+heading and its buttons share one row on a phone; a long name wraps beside the buttons. Changed
+on review: in the first preview, on a phone, a recipe's Delete fell under its name and a row of
+four buttons broke over two lines.
 
 **Drawings** (decision 4): flat shapes in the four colours, an olive outline 2.5 px. Five jars,
 each telling what it holds - Recipes a tall jar with a clamp lid, full of preserves; Categories a
@@ -252,8 +266,8 @@ link; the name is its text.
 **A recipe on a phone.** Ingredients before the instructions.
 
 ```
-Fuldkorns hvedebrød              h1, 24 px
-[Edit] [Delete]
+Fuldkorns        [pen] [bin]     h1, 24 px; Edit and Delete as icons
+hvedebrød
 Category     (Brød)
 Tags         [Godt til kaffen]
 Description  Et dejligt Fuldkorns brød som ...
@@ -377,6 +391,11 @@ text. Two things changed on the way, both recorded where they belong:
 - The body face became Fira Sans: Atkinson Hyperlegible Next, the first choice, has a slashed
   zero, which in Danish reads as Ø.
 
+Revised on review, the same day. On a phone the buttons were too large and wrapped onto a second
+line, so below `md` they became icons ("Buttons on a phone" above). The preview's type scale showed
+the 48 px title on a phone, where the app never uses it, so there it is left out; and its samples
+no longer break inside a word. The burger menu stays as it is.
+
 ---
 
 ## Part 3: Foundation - colours, type, controls
@@ -392,6 +411,9 @@ Frontend, e2e. The header keeps today's layout, recoloured; Part 4 rebuilds it.
       `SelectField`, `IngredientLines`, the search field and the four pages outside the frame
 - [ ] Restyled: `ErrorMessage` and field errors, `Loading`, `NotFound`, `PageNotFound`,
       `DetailList`, `PageHeader`, the `DeleteButton` dialog, the `EntityList` table, the Users table
+- [ ] Icons on buttons below `md`, as "Buttons on a phone" says: the six icons in
+      `components/icons.tsx`, used by the Edit links, `DeleteButton`, `EntityForm`, `EntityList`
+      (New, Search) and `IngredientLines` (Remove); each button keeps its word as its name
 - [ ] A visible focus ring on every control
 - [ ] No grey, red, white or black class is left: a grep for them finds nothing
 - [ ] `phone.spec.ts` becomes `responsive.spec.ts`: no sideways scrolling on every page it lists,
