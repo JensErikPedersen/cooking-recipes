@@ -7,7 +7,8 @@ as the record; this file plans the sixth round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: planned.** Drafted 2026-11-07; the decisions below were settled that day.
+**Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
+day. Part 1 is done.
 
 ## Shape of the work
 
@@ -97,12 +98,12 @@ Settled 2026-11-07. The parts refer to them by number.
 
 Docs.
 
-- [ ] Work on `spice_up_frontend`, branched from `master` at version 6's merge
-- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V7.md` as the current plan, with
+- [x] Work on `spice_up_frontend`, branched from `master` at version 6's merge
+- [x] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V7.md` as the current plan, with
       `PLAN_V6.md` joining the record; ratings out of scope "in versions 2 to 7"
-- [ ] Decisions recorded as settled
-- [ ] `backend/docs/future_enhancements.md`: recipe photos, and what they would take
-- [ ] Baseline green: `./mvnw clean verify` and the whole Playwright suite at version 6's final
+- [x] Decisions recorded as settled
+- [x] `backend/docs/future_enhancements.md`: recipe photos, and what they would take
+- [x] Baseline green: `./mvnw clean verify` and the whole Playwright suite at version 6's final
       numbers: 275 unit, 211 integration, 152 Playwright
 
 **Verify it yourself.** Read the diff, then:
@@ -112,6 +113,11 @@ scripts\start.ps1
 cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
+
+**Done 2026-11-07.** On `spice_up_frontend`, at `master`'s merge of version 6 (`b54de6e`), plus
+the plan's own commit. Baseline on a freshly built stack: 275 unit, 211 integration, 152
+Playwright tests, all green - version 6's final numbers. The references to `PLAN_V6.md` left in
+the docs and the code cite its decisions, and stay.
 
 ---
 

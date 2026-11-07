@@ -105,3 +105,25 @@ answer, from a queue or an `@Async` method; a failed send then goes to the log i
 (`docs/PLAN_V6.md` decision 3).
 
 **Value.** Only once the application faces the internet; until then, neither is worth its code.
+
+---
+
+## Recipe photos: none, by decision
+
+**Status.** A recipe has no picture. `docs/PLAN_V7.md` restyles the frontend for phones and
+tablets without one, by decision 4: inline drawings give the pages their look, and the change
+stays in the frontend.
+
+**What it would take.**
+
+1. A nullable column on `recipe` for the photo's key, in a new changelog.
+2. Storage that survives the container: a Docker volume mounted into the backend, or an object
+   store. Not the database - images would bloat every backup and every recipe read.
+3. An upload endpoint, multipart, with a size limit and a check that the file is an image, and a
+   GET that serves it behind the same sign-in. The photo is deleted with its recipe.
+4. A file field on the recipe form, and the photo on the card and the read view - the cards of
+   version 7 have room for it.
+5. e2e: upload, show, replace and remove, and a test that a non-image is refused.
+
+**Value.** The richest single improvement to how recipes look, once someone wants to photograph
+their cooking. Until then the drawings do the job without a storage concern.
