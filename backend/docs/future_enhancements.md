@@ -108,25 +108,26 @@ answer, from a queue or an `@Async` method; a failed send then goes to the log i
 
 ---
 
-## Recipe photos: none, by decision
+## Pictures: what version 8 leaves out
 
-**Status.** A recipe has no picture. `docs/PLAN_V7.md` restyles the frontend for phones and
-tablets without one, by decision 4: inline drawings give the pages their look, and the change
-stays in the frontend.
+**Status.** `docs/PLAN_V8.md` adds a library of pictures, kept on a Docker volume in three sizes. A
+recipe, an ingredient and the Welcome page can each show one picture from it. Version 7 had no
+photos, by its decision 4. Three things were left out of version 8 by decision.
 
-**What it would take.**
+**What is missing.**
 
-1. A nullable column on `recipe` for the photo's key, in a new changelog.
-2. Storage that survives the container: a Docker volume mounted into the backend, or an object
-   store. Not the database - images would bloat every backup and every recipe read.
-3. An upload endpoint, multipart, with a size limit and a check that the file is an image, and a
-   GET that serves it behind the same sign-in. The photo is deleted with its recipe.
-4. A file field on the recipe form, and the photo on the card and the read view - the cards of
-   version 7 have room for it.
-5. e2e: upload, show, replace and remove, and a test that a non-image is refused.
+1. **One picture each.** A recipe or an ingredient has a nullable `picture_id`, not a gallery
+   (`docs/PLAN_V8.md` decision 2). Several pictures would need join tables, `recipe_picture` and
+   `ingredient_picture`, with an order column, and a gallery on the read view.
+2. **No cropping or rotating in the browser.** The upload is resized as it is; the page crops it
+   to the grid with CSS `object-fit: cover`, from the centre. Choosing the crop would need a focal
+   point stored with the picture, or an editor before upload.
+3. **JPEG and PNG only** (decision 5). Java's ImageIO reads neither WebP nor HEIC. WebP would take
+   a reader plugin such as TwelveMonkeys' `imageio-webp`. HEIC has no maintained pure-Java reader,
+   so it would mean a native library, or converting in the browser before upload.
 
-**Value.** The richest single improvement to how recipes look, once someone wants to photograph
-their cooking. Until then the drawings do the job without a storage concern.
+**Value.** Small next to what version 8 delivers. Each is worth its work only if someone asks for
+it in use.
 
 ---
 

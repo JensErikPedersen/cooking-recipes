@@ -126,13 +126,13 @@ Settled 2026-11-08. The parts refer to them by number.
 
 Docs.
 
-- [ ] Work on `add_pictures_feature`, branched from `master` at version 7's merge
-- [ ] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V8.md` as the current plan, with
+- [x] Work on `add_pictures_feature`, branched from `master` at version 7's merge
+- [x] Root `CLAUDE.md` and `README.md` point at `docs/PLAN_V8.md` as the current plan, with
       `PLAN_V7.md` joining the record; ratings out of scope "in versions 2 to 8"
-- [ ] Decisions recorded as settled
-- [ ] `backend/docs/future_enhancements.md`: "Recipe photos: none, by decision" replaced by what
+- [x] Decisions recorded as settled
+- [x] `backend/docs/future_enhancements.md`: "Recipe photos: none, by decision" replaced by what
       version 8 leaves out - several pictures per recipe, cropping in the browser, WebP and HEIC
-- [ ] Baseline green: `./mvnw clean verify` and the whole Playwright suite at version 7's final
+- [x] Baseline green: `./mvnw clean verify` and the whole Playwright suite at version 7's final
       numbers: 275 unit, 211 integration, 190 Playwright
 
 **Verify it yourself.** Read the diff, then:
@@ -142,6 +142,15 @@ scripts\start.ps1
 cd backend; .\mvnw clean verify
 cd ..\e2e; npx playwright test
 ```
+
+**Done 2026-11-08.** On `add_pictures_feature`, at `master`'s merge of version 7 (`9aadb7c`), plus
+the plan's own commit. Baseline: 275 unit, 211 integration, 190 Playwright tests, all green -
+version 7's numbers - but only on a reseeded stack. The first run failed 10 recipe tests: the
+seeded "Brunkage" had been renamed by hand that morning, so the test expecting "already exists" for
+that name created a real "Brunkage" instead, and left it behind. Reseeded with
+`docker compose down -v`, the suite passed. The references to `PLAN_V7.md` left in the docs cite
+its design language and its desktop review, and stay. An OpenAPI specification generated at build
+time joined `future_enhancements.md` before this part, at the user's request.
 
 ---
 
