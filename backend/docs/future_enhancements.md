@@ -148,3 +148,35 @@ tablet. Not designed yet; what follows is what the screenshots suggest, to weigh
 **What it would take.** A pass with the frontend-design skill on the three pages above at 1280 px,
 recorded in the design language of `docs/PLAN_V7.md` first, then built and reviewed by screenshot
 as each V7 part was. Frontend only.
+
+---
+
+## OpenAPI specification: generated at build time
+
+**Status.** Requested 2026-11-08, before `docs/PLAN_V8.md` started. The API is documented by hand,
+in `backend/README.md` and `backend/CLAUDE.md`. Nothing describes it in a form a tool can read, and
+nothing checks that the documentation still matches the controllers.
+
+**What it would take.**
+
+1. springdoc-openapi's `springdoc-openapi-starter-webmvc-api` (the spec only, no Swagger UI), at
+   the latest stable release that supports Spring Boot 4. It builds an OpenAPI 3 document at
+   runtime from the controllers, the DTOs and their validation annotations, served on
+   `/v3/api-docs`.
+2. `springdoc-openapi-maven-plugin` in the `integration-test` phase, with
+   `spring-boot-maven-plugin`'s `start` and `stop` goals around it. Those goals run the
+   application, and the plugin writes the document it fetches to `target/openapi.json` (or
+   `.yaml`) during `./mvnw clean verify`.
+3. A database for that run: the application starts with Liquibase, so the build runs it on
+   in-memory H2, as the tests do, in a profile of its own. A build must not need the stack.
+4. `/v3/api-docs` reachable without sign-in, in that build profile only; elsewhere it stays behind
+   sign-in like the rest of `/api`, or is switched off.
+5. Annotations only where the generated document is wrong or unclear, for example the session
+   cookie and CSRF header as the security scheme, the error envelope as the 4xx body, and the
+   multipart upload of `docs/PLAN_V8.md`. Not a description on every endpoint.
+6. A decision on where the file goes: a build artifact only, or committed so a change to the API
+   shows in a pull request's diff.
+
+**Value.** An exact, current contract instead of prose that can drift. It could later produce the
+frontend's TypeScript types (for example with `openapi-typescript`) in place of the hand-written
+ones. That would be a step of its own.
