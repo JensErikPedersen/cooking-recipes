@@ -8,7 +8,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 ## Conventions
 
 - `app/` at the project root, no `src/`. Imports use the `@/*` alias.
-- Styling is Tailwind utility classes; `app/globals.css` holds the theme variables.
+- Styling is Tailwind utility classes; `app/globals.css` holds the theme. Its colours are the four
+  of `docs/PLAN_V7.md` - `cream`, `olive`, `ochre`, `tan` - and Tailwind's own palette is cleared
+  (`--color-*: initial`), so `text-gray-500` or `bg-white` generates nothing. A tint is a palette
+  colour with an opacity, such as `bg-tan/50`. Text is never lightened: "None" and placeholders are
+  italic. `font-display` is Young Serif, for `h1`, `h2` and names; `font-sans` Fira Sans, for
+  everything else - both from `next/font/google` in `app/layout.tsx`. Young Serif has one weight,
+  so a heading is never `font-bold`. One focus ring for every control, olive, in `globals.css`.
 - `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
   The app has no route handlers of its own; one would have to live outside `/api`.
 - The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
@@ -39,24 +45,37 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   the address bar changes, so it read the old URL and showed nothing.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
-  it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
+  it is given; "No <things> yet." when empty. Given a `card` instead, as Recipes is, it lists
+  cards: each a `Label`, the name its heading, whose link's `::after` covers the card - so the link
+  is still named by the name alone - and what `card` returns under it. The e2e specs read a list's
+  names, rows or cards alike, with `listNames` in `e2e/support/pages.ts`. A `searchable` one - Recipes, Categories,
   Ingredients and Tags, not Units - has a "Search by name" field that asks the API with
   `?name=`, never filters in the page, and says "No <things> match "<term>"." when nothing does;
   an empty field asks for everything again. Its effect drops a response for a term no longer
   searched: the list asked for on arrival can come back after a quick search. A read view or edit page wraps itself in
   `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
   otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
-  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame; its content is
-  `PageNotFound`, which a signed-in page the viewer may not see renders inside the frame. Not server components: they
+  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame, in the sign-in pages'
+  `SignInFrame`; its sentence is `NoPageHere`, which `PageNotFound` - what a signed-in page the
+  viewer may not see renders inside the frame - shows under its own heading. Not server components: they
   would have to forward the session and CSRF cookies to the backend's internal address.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
 - Shared pieces for every entity: `ErrorMessage` renders a failed call (the backend's message is
-  written for the user), `DetailList` the labelled fields of a read view, `NotFound` what a read
-  view or edit form shows for a 404, `PageHeader` the heading with its action buttons, and
-  `components/styles.ts` the primary, secondary and danger button looks. `DeleteButton` confirms
-  in a native `<dialog>` (never `window.confirm`), shows the server's refusal inside it with only
-  an OK button, and goes to the list after a delete.
+  written for the user) in an `Alert`, olive on a tan tint after a warning sign, and `FieldError`
+  a field's own; `DetailList` the labelled fields of a read view, `NotFound` what a read view or
+  edit form shows for a 404, `PageHeader` the heading with its action buttons, and
+  `components/styles.ts` the looks: `primaryButton`, `secondaryButton`, `input`, `textLink`, and
+  `categoryPill` and `tagPill`, told apart by fill. `Label` is the jar's label, drawn by `.label`
+  and `.label-field` in `globals.css`, for what is read as one thing: a recipe card, a recipe's
+  ingredients.
+  There is no danger look; the Delete dialog's confirming button is the primary one. Below `md`
+  an action button - Edit, Delete, Save, Cancel, Search, New, Remove - shows an icon instead of its
+  word: `<ButtonLabel icon="edit">Edit</ButtonLabel>` from `components/icons.tsx` inside it, and
+  `iconButton` among its classes. The word stays, visually hidden, as the button's name.
+  `DeleteButton` confirms in a native `<dialog>` (never `window.confirm`), shows the server's
+  refusal inside it with only an OK button, and goes to the list after a delete. Its own buttons
+  keep their words.
 - Forms: one `<Entity>Form` per entity, used by both its `new` and `[id]/edit` pages, holds the
   field state and wraps its `TextField`s in `EntityForm`. `EntityForm` does the rest - the audit
   fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
@@ -79,6 +98,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   same rule: the password confirmation and the address are checked by the backend, not here. It
   has `noValidate`: a `type="email"` field, there for the phone keyboard and autofill, would
   otherwise be checked by the browser, which blocks the submit with a message of its own.
+- The login, register, forgot-password and reset-password pages are each a `SignInFrame`: one
+  `Label`, the app's name at its head and the page's `h1` under it, centred under the wheat and dill
+  drawing. The drawings - the five jars of the Welcome page's shelf, the empty jar of a page not
+  found, the wheat and dill - are SVG components in `components/drawings.tsx`, `aria-hidden`, in
+  the four colours; there is no `public/` directory for them. A Welcome jar's link covers its jar
+  and sentence as a recipe card's does, and the jars set down on the shelf as the page opens
+  (`animate-set-down` in `globals.css`, with `motion-safe`).
 - The login, register, forgot-password and reset-password pages are rendered on the server, so
   their fields exist before React does. What is typed into them then, React never sees: the form would send it empty. Each wraps
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.
@@ -103,17 +129,23 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages,
-  then "Users" for an admin - the username, linked to `/account`, and the `<main>` every
-  page renders into. Pages start at their `<h1>`. It shares the user it confirmed through
+  then "Users" for an admin - the username, linked to `/account`, Log out, and the `<main>` every
+  page renders into. Pages start at their `<h1>`. Narrower than `md` the menu, the username and
+  Log out are a panel behind a "Menu" button: a disclosure (`aria-expanded`, `aria-controls`), not
+  a `<dialog>`. Any link chosen in the header closes it, as does Escape, which puts focus back on
+  the button. From `md` the panel is `contents` and its pieces sit in the band; between `md` and
+  `lg` the menu takes a row of its own. The current entry has `aria-current="page"` either way.
+  `openFromMenu` in `e2e/support/pages.ts` opens the panel first when the button is shown. It shares the user it confirmed through
   `useCurrentUser()`, so a page need not ask `/auth/me` again; `isAdmin()` in `lib/api.ts` reads
   the roles. Both only shape what is shown: the backend decides what an account may do.
 - `/users`, for an admin: every account with its role and status, and per row Disable or Enable
   and Make admin or Remove admin - none on the admin's own row, which the backend refuses. A change
   answers 204, so the page lists again. Anyone else sees `PageNotFound` and never asks for the list.
   Not `notFound()`: Next 16 documents it for server components, not for client pages like this.
-- Light only: `globals.css` has no dark scheme, since the components use fixed Tailwind greys.
-- Phone width, 375 px, is covered by `e2e/tests/phone.spec.ts`. The header wraps, with the menu
-  on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A
+- Light only: the palette is a light one, and `globals.css` has no dark scheme.
+- Phones and tablets - 375, 768 and 1024 px - are covered by `e2e/tests/responsive.spec.ts`.
+  Below `lg` every control is at least 44 px tall (`min-h-11`). The header's menu is
+  `menu.spec.ts`; ingredient lines take two rows narrower than `sm`. A
   `<fieldset>` needs `min-w-0`, or it grows to its content and runs past the page margin.
 - Sorting is Danish, always: `danish` from `lib/sort.ts`, never a bare `localeCompare` or
   `.toSorted()`. The names are Danish, and without a locale the order followed the viewer's

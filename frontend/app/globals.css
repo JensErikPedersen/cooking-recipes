@@ -1,19 +1,142 @@
 @import "tailwindcss";
 
-/* Light only. The components use fixed Tailwind greys, which a dark scheme would not invert. */
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* The four colours of docs/PLAN_V7.md, decision 1, and no others: Tailwind's own palette is
+   cleared, so a grey, red, white or black class generates nothing. Tints are these colours with
+   an opacity - bg-tan/50 behind an error, bg-olive/40 behind a dialog. Light only. */
+@theme {
+  --color-*: initial;
+  --color-cream: #f5efe3;
+  --color-olive: #4f5b2a;
+  --color-ochre: #b8892d;
+  --color-tan: #d8c9a8;
+
+  /* The classic type scale has 21, not Tailwind's 20; text-xl is the h2. From 21 up the sizes are
+     headings, set tight. */
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.2;
+  --text-2xl--line-height: 1.15;
+  --text-4xl--line-height: 1.15;
+  --text-5xl--line-height: 1.15;
+
+  /* The phone menu opens down; closing is instant. Used with motion-safe. */
+  --animate-open-down: open-down 160ms ease-out;
+  @keyframes open-down {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  /* The Welcome page's jars set down on the shelf. Never hidden: they start in place. */
+  --animate-set-down: set-down 320ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  @keyframes set-down {
+    from {
+      transform: translateY(-16px);
+    }
+  }
 }
 
+/* The faces come from next/font as variables on <html>, set in app/layout.tsx. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-fira-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-young-serif), Georgia, "Times New Roman", serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--color-cream);
+    color: var(--color-olive);
+  }
+
+  /* Young Serif has one weight; headings are names, never bold. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+  }
+
+  /* One focus ring for every control. On the olive header it is cream (AppShell). */
+  :focus-visible {
+    outline: 2px solid var(--color-olive);
+    outline-offset: 2px;
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--color-olive);
+  }
+}
+
+/* The jar's label of docs/PLAN_V7.md, "Shapes": a tan band with its four corners cut in by a
+   quarter circle, around a cream field with an ochre hairline inside it. The notches are masks on
+   the band's ::before and on the field, never on .label itself, which would cut off a focus ring.
+   <div class="label"><div class="label-field">...</div></div> - components/label.tsx. */
+@layer components {
+  .label {
+    --notch: 12px;
+    --band: 7px;
+    --m: #0000 calc(var(--notch) - 0.5px), #000 var(--notch);
+    position: relative;
+    isolation: isolate;
+    padding: var(--band);
+  }
+  .label::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-tan);
+    mask:
+      radial-gradient(circle at 0 0, var(--m)) top left / 51% 51% no-repeat,
+      radial-gradient(circle at 100% 0, var(--m)) top right / 51% 51% no-repeat,
+      radial-gradient(circle at 0 100%, var(--m)) bottom left / 51% 51% no-repeat,
+      radial-gradient(circle at 100% 100%, var(--m)) bottom right / 51% 51% no-repeat;
+  }
+  .label-field {
+    --b: calc(-1 * var(--band));
+    height: 100%;
+    background: var(--color-cream);
+    padding: 20px 22px 22px;
+    outline: 1px solid var(--color-ochre);
+    outline-offset: -6px;
+    transition: outline-width 120ms ease-out;
+    mask:
+      radial-gradient(circle at var(--b) var(--b), var(--m)) top left / 51% 51% no-repeat,
+      radial-gradient(circle at calc(100% + var(--band)) var(--b), var(--m)) top right / 51% 51% no-repeat,
+      radial-gradient(circle at var(--b) calc(100% + var(--band)), var(--m)) bottom left / 51% 51% no-repeat,
+      radial-gradient(circle at calc(100% + var(--band)) calc(100% + var(--band)), var(--m)) bottom right / 51% 51% no-repeat;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .label-field {
+      transition: none;
+    }
+  }
+}
+
+/* The Delete dialog rises into place; only when the user has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog[open] {
+    animation: rise 160ms ease-out;
+  }
+  dialog[open]::backdrop {
+    animation: fade 160ms ease-out;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
 }

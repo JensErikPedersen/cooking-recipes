@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { auth, fieldErrors } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
 import { TextField } from "@/components/text-field";
-import { primaryButton } from "@/components/styles";
+import { primaryButton, textLink } from "@/components/styles";
+import { SignInFrame } from "@/components/sign-in-frame";
 import { useHydrated } from "@/lib/use-hydrated";
 
 // A new account, for a visitor who has none. The backend checks every rule - the confirmation and
@@ -37,8 +38,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm px-8">
-      <h1 className="text-2xl font-bold">Create an account</h1>
+    <SignInFrame title="Create an account">
       <form onSubmit={onSubmit} noValidate className="mt-6">
         <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
           <TextField
@@ -84,10 +84,10 @@ export default function RegisterPage() {
         </fieldset>
       </form>
       <p className="mt-6 text-sm">
-        <Link href="/login" className="underline">
+        <Link href="/login" className={textLink}>
           Back to sign in
         </Link>
       </p>
-    </main>
+    </SignInFrame>
   );
 }

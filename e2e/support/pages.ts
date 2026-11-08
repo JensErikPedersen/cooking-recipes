@@ -12,11 +12,23 @@ export const uniqueName = () => `E2E ${randomUUID().slice(0, 8)}`;
 
 export const main = (page: Page) => page.getByRole("main");
 
+/** The names a list page shows, in its order: each table row's first cell, or each card's heading. */
+export const listNames = (page: Page) =>
+  main(page).locator("tbody tr td:first-child").or(main(page).getByRole("listitem").getByRole("heading"));
+
 /** The URL of a read view in a collection, such as /units/<uuid>. */
 export const readView = (collection: string) => new RegExp(`/${collection}/[0-9a-f-]{36}$`);
 
-/** Clicks an entry of the header menu and lands on its list. */
+/** The header's Menu button, shown narrower than md: the menu is a panel behind it there. */
+export const menuButton = (page: Page) => page.getByRole("button", { name: "Menu", exact: true });
+
+/** Clicks an entry of the header menu and lands on its list - on a phone, opening the menu first. */
 export async function openFromMenu(page: Page, label: string, href: string) {
+  // The header renders once the session is confirmed; only then does the button's absence tell.
+  await expect(page.getByRole("banner")).toBeVisible();
+  if (await menuButton(page).isVisible()) {
+    await menuButton(page).click();
+  }
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: label }).click();
   await expect(page).toHaveURL(href);
 }

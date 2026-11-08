@@ -105,3 +105,46 @@ answer, from a queue or an `@Async` method; a failed send then goes to the log i
 (`docs/PLAN_V6.md` decision 3).
 
 **Value.** Only once the application faces the internet; until then, neither is worth its code.
+
+---
+
+## Recipe photos: none, by decision
+
+**Status.** A recipe has no picture. `docs/PLAN_V7.md` restyles the frontend for phones and
+tablets without one, by decision 4: inline drawings give the pages their look, and the change
+stays in the frontend.
+
+**What it would take.**
+
+1. A nullable column on `recipe` for the photo's key, in a new changelog.
+2. Storage that survives the container: a Docker volume mounted into the backend, or an object
+   store. Not the database - images would bloat every backup and every recipe read.
+3. An upload endpoint, multipart, with a size limit and a check that the file is an image, and a
+   GET that serves it behind the same sign-in. The photo is deleted with its recipe.
+4. A file field on the recipe form, and the photo on the card and the read view - the cards of
+   version 7 have room for it.
+5. e2e: upload, show, replace and remove, and a test that a non-image is refused.
+
+**Value.** The richest single improvement to how recipes look, once someone wants to photograph
+their cooking. Until then the drawings do the job without a storage concern.
+
+---
+
+## Desktop polish: the large screen could look better
+
+**Status.** Noted on review of `docs/PLAN_V7.md` Part 5, 2026-11-08, from the screenshots: version
+7 was designed phone first, and at 1280 px the pages work but look plainer than on a phone or a
+tablet. Not designed yet; what follows is what the screenshots suggest, to weigh when it is.
+
+**Where it shows.**
+
+* A recipe's read view: the instructions column ends far short of the page, and with the seeded
+  one-line instructions the page is mostly empty cream. Edit and Delete sit far from the name.
+* The recipe cards: short, with rows of uneven height, and the label's tan band reads as separate
+  strips at that size rather than one frame.
+* The reference lists: the name column takes most of the width, with the other columns pushed to
+  the far right.
+
+**What it would take.** A pass with the frontend-design skill on the three pages above at 1280 px,
+recorded in the design language of `docs/PLAN_V7.md` first, then built and reviewed by screenshot
+as each V7 part was. Frontend only.

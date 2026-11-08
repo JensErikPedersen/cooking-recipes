@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { danish, main } from "../support/pages";
+import { danish, listNames, main } from "../support/pages";
 
 // The search field on the lists that have one. Each term is typed in another case than the names it
 // finds, and the names other tests create - "E2E " and a hex part - can contain none of them.
@@ -15,7 +15,7 @@ const LISTS = [
   },
 ];
 
-const names = (page: Page) => main(page).locator("tbody tr td:first-child");
+const names = listNames;
 
 async function search(page: Page, term: string) {
   await page.getByRole("searchbox", { name: "Search by name" }).fill(term);
@@ -38,7 +38,7 @@ for (const { path, title, term, found } of LISTS) {
     await search(page, "no such name anywhere");
 
     await expect(main(page)).toContainText(`No ${title} match "no such name anywhere".`);
-    await expect(main(page).getByRole("table")).toHaveCount(0);
+    await expect(names(page)).toHaveCount(0);
   });
 }
 

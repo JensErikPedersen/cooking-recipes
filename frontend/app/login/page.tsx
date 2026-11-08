@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, auth } from "@/lib/api";
 import { afterSignIn } from "@/lib/return-to";
+import { Alert } from "@/components/error-message";
+import { input, primaryButton, textLink } from "@/components/styles";
+import { SignInFrame } from "@/components/sign-in-frame";
 import { useHydrated } from "@/lib/use-hydrated";
 
 export default function LoginPage() {
@@ -29,15 +32,14 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm px-8">
-      <h1 className="text-2xl font-bold">Sign in</h1>
+    <SignInFrame title="Sign in">
       {/* Only the notice waits for the URL; the rest of the page stays prerendered. */}
       <Suspense>
         <ResetNotice />
       </Suspense>
       <form onSubmit={onSubmit} className="mt-6">
         <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 font-semibold">
             Username
             <input
               name="username"
@@ -45,10 +47,10 @@ export default function LoginPage() {
               required
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="rounded border px-3 py-2"
+              className={input}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 font-semibold">
             Password
             <input
               name="password"
@@ -57,31 +59,27 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="rounded border px-3 py-2"
+              className={input}
             />
           </label>
-          {error && (
-            <p role="alert" className="text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="rounded bg-gray-900 px-3 py-2 text-white hover:bg-gray-700">
+          {error && <Alert>{error}</Alert>}
+          <button type="submit" className={primaryButton}>
             Sign in
           </button>
         </fieldset>
       </form>
       <p className="mt-6 text-sm">
-        <Link href="/forgot-password" className="underline">
+        <Link href="/forgot-password" className={textLink}>
           Forgot your password?
         </Link>
       </p>
       <p className="mt-2 text-sm">
         No account yet?{" "}
-        <Link href="/register" className="underline">
+        <Link href="/register" className={textLink}>
           Create an account
         </Link>
       </p>
-    </main>
+    </SignInFrame>
   );
 }
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Ingredient, Unit } from "@/lib/api";
-import { secondaryButton } from "@/components/styles";
+import { FieldError } from "@/components/error-message";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, input, secondaryButton } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 /** A line as the form edits it: what the inputs hold, the amount still as typed. */
@@ -52,8 +54,9 @@ export function IngredientLines({
   return (
     <fieldset
       // min-w-0: a fieldset is at least as wide as its content by default, which pushed the lines
-      // past the page margin on a phone.
-      className="flex min-w-0 flex-col gap-2"
+      // past the page margin on a phone. There a line takes two rows, so the lines stand further
+      // apart than the rows of one.
+      className="flex min-w-0 flex-col gap-4 sm:gap-2"
     >
       <legend className="font-semibold">Ingredients</legend>
       {lines.map((line, index) => {
@@ -111,9 +114,9 @@ export function IngredientLines({
             <button
               type="button"
               onClick={() => onChange(lines.filter((other) => other.key !== line.key))}
-              className={secondaryButton}
+              className={`${secondaryButton} ${iconButton}`}
             >
-              Remove
+              <ButtonLabel icon="delete">Remove</ButtonLabel>
             </button>
           </div>
         );
@@ -155,15 +158,11 @@ function LineInput({
       </label>
       {children({
         id,
-        className: "rounded border px-3 py-2",
+        className: input,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": error ? errorId : undefined,
       })}
-      {error && (
-        <p id={errorId} className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 }

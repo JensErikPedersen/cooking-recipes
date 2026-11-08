@@ -1,3 +1,6 @@
+import { FieldError } from "@/components/error-message";
+import { input } from "@/components/styles";
+
 // A labelled input with the server's error for it underneath, tied to it by aria-describedby so the
 // error belongs to the field for assistive technology and for Playwright alike.
 export function TextField({
@@ -26,7 +29,7 @@ export function TextField({
     value,
     "aria-invalid": error ? true : undefined,
     "aria-describedby": error ? errorId : undefined,
-    className: "rounded border px-3 py-2",
+    className: input,
   };
 
   return (
@@ -39,11 +42,7 @@ export function TextField({
       ) : (
         <input {...props} type={type} autoComplete={autoComplete} onChange={(event) => onChange(event.target.value)} />
       )}
-      {error && (
-        <p id={errorId} className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 }

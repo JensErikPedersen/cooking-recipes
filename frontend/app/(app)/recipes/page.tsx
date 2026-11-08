@@ -2,6 +2,7 @@
 
 import { recipes } from "@/lib/api";
 import { EntityList } from "@/components/entity-list";
+import { categoryPill, tagPill } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 export default function RecipesPage() {
@@ -12,10 +13,16 @@ export default function RecipesPage() {
       newLabel="New recipe"
       load={recipes.list}
       searchable
-      columns={[
-        ["Category", (recipe) => recipe.category.name],
-        ["Tags", (recipe) => (recipe.tags ?? []).map((tag) => tag.name).toSorted(danish).join(", ")],
-      ]}
+      card={(recipe) => (
+        <ul className="flex flex-wrap gap-2">
+          <li className={categoryPill}>{recipe.category.name}</li>
+          {(recipe.tags ?? []).toSorted((a, b) => danish(a.name, b.name)).map((tag) => (
+            <li key={tag.id} className={tagPill}>
+              {tag.name}
+            </li>
+          ))}
+        </ul>
+      )}
     />
   );
 }

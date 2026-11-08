@@ -97,17 +97,23 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
             placeholder="Choose a category"
             error={errors.category}
           />
-          <fieldset className="flex flex-col gap-1">
-            <legend className="font-semibold">Tags</legend>
-            <div className="flex flex-wrap gap-x-5 gap-y-1">
+          <fieldset className="flex min-w-0 flex-col gap-1">
+            <legend className="mb-1 font-semibold">Tags</legend>
+            {/* Each tag a pill, as on the read view, and at least 44 px tall below lg; a checked one is
+                tinted. The box stays: it is what says checked. */}
+            <div className="flex flex-wrap gap-2">
               {choices.tags
                 .toSorted((a, b) => danish(a.name, b.name))
                 .map((tag) => (
-                  <label key={tag.id} className="flex items-center gap-2">
+                  <label
+                    key={tag.id}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3.5 inset-ring-[1.5px] inset-ring-olive has-checked:bg-tan/50 lg:min-h-10"
+                  >
                     <input
                       type="checkbox"
                       checked={tagIds.includes(tag.id)}
                       onChange={(event) => toggleTag(tag.id, event.target.checked)}
+                      className="size-4.5"
                     />
                     {tag.name}
                   </label>

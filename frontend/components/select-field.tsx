@@ -1,3 +1,6 @@
+import { FieldError } from "@/components/error-message";
+import { input } from "@/components/styles";
+
 // A labelled dropdown with the server's error underneath, tied to it as TextField ties its own.
 // The first, empty option stands for "nothing chosen yet".
 export function SelectField({
@@ -31,7 +34,7 @@ export function SelectField({
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="rounded border px-3 py-2"
+        className={input}
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (
@@ -40,11 +43,7 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {error && (
-        <p id={errorId} className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 }

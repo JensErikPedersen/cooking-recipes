@@ -7,7 +7,8 @@ import { DeleteButton } from "@/components/delete-button";
 import { DetailList } from "@/components/detail-list";
 import { EntityLoader } from "@/components/entity-loader";
 import { PageHeader } from "@/components/page-header";
-import { secondaryButton } from "@/components/styles";
+import { ButtonLabel } from "@/components/icons";
+import { iconButton, secondaryButton } from "@/components/styles";
 
 export default function IngredientPage({ params }: PageProps<"/ingredients/[id]">) {
   const { id } = use(params);
@@ -23,8 +24,8 @@ export default function IngredientPage({ params }: PageProps<"/ingredients/[id]"
       {(ingredient) => (
         <>
           <PageHeader title={ingredient.name}>
-            <Link href={`/ingredients/${ingredient.id}/edit`} className={secondaryButton}>
-              Edit
+            <Link href={`/ingredients/${ingredient.id}/edit`} className={`${secondaryButton} ${iconButton}`}>
+              <ButtonLabel icon="edit">Edit</ButtonLabel>
             </Link>
             <DeleteButton
               what="ingredient"

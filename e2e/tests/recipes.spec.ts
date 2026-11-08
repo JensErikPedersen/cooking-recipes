@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createById, deleteById } from "../support/api";
 import { USERNAME } from "../support/auth";
-import { danish, expectCreatedNowBy, expectReadView, main, openFromMenu, readView, uniqueName } from "../support/pages";
+import { danish, expectCreatedNowBy, expectReadView, listNames, main, openFromMenu, readView, uniqueName } from "../support/pages";
 
 // Seeded by db.changelog_1.1.xml, in Danish order. No test may change or delete them.
 const SEEDED = [
@@ -60,8 +60,24 @@ test("the menu leads to the recipe list, which shows the seeded recipes with the
   for (const name of SEEDED) {
     await expect(main(page).getByRole("link", { name, exact: true })).toBeVisible();
   }
-  await expect(main(page).getByRole("row", { name: /Fuldkorns hvedebrød/ })).toContainText("Brød");
-  await expect(main(page).getByRole("row", { name: /Fuldkorns hvedebrød/ })).toContainText("Godt til kaffen");
+  // A card per recipe, its category and tags under the name.
+  const card = main(page)
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name: "Fuldkorns hvedebrød", exact: true }) });
+  await expect(card.getByRole("listitem")).toHaveText(["Brød", "Godt til kaffen"]);
+});
+
+test("a recipe card opens the recipe wherever it is clicked, not only on its name", async ({ page }) => {
+  await page.goto("/recipes");
+  const card = main(page)
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name: "Brunkage", exact: true }) });
+  const box = (await card.boundingBox())!;
+
+  // Near the bottom right corner, away from the name and the category.
+  await card.click({ position: { x: box.width - 24, y: box.height - 16 } });
+
+  await expect(page).toHaveURL(`/recipes/${BRUNKAGE_ID}`);
 });
 
 test("the recipe list is in alphabetical order, whatever order the API returns", async ({ page }) => {
@@ -73,7 +89,7 @@ test("the recipe list is in alphabetical order, whatever order the API returns",
   await page.goto("/recipes");
   await expect(main(page).getByRole("link", { name: "Brunkage", exact: true })).toBeVisible();
 
-  const names = await main(page).locator("tbody tr td:first-child").allTextContents();
+  const names = await listNames(page).allTextContents();
   expect(names).toEqual(names.toSorted(danish));
   // Danish order: Ølandshvedebrød last, not beside the Os.
   expect(names.filter((name) => SEEDED.includes(name))).toEqual(SEEDED);
