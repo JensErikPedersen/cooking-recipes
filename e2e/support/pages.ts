@@ -12,6 +12,10 @@ export const uniqueName = () => `E2E ${randomUUID().slice(0, 8)}`;
 
 export const main = (page: Page) => page.getByRole("main");
 
+/** The names a list page shows, in its order: each table row's first cell, or each card's heading. */
+export const listNames = (page: Page) =>
+  main(page).locator("tbody tr td:first-child").or(main(page).getByRole("listitem").getByRole("heading"));
+
 /** The URL of a read view in a collection, such as /units/<uuid>. */
 export const readView = (collection: string) => new RegExp(`/${collection}/[0-9a-f-]{36}$`);
 

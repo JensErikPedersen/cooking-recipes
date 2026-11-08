@@ -6,6 +6,7 @@ import {
   danish,
   expectCreatedNowBy,
   expectReadView,
+  listNames,
   main,
   openFromMenu,
   readView,
@@ -51,7 +52,7 @@ test("the tag list is in alphabetical order, whatever order the API returns", as
   await page.goto("/tags");
   await expect(main(page).getByRole("link", { name: "Thai", exact: true })).toBeVisible();
 
-  const names = await main(page).locator("tbody tr td:first-child").allTextContents();
+  const names = await listNames(page).allTextContents();
   expect(names).toEqual(names.toSorted(danish));
   expect(names.filter((name) => SEEDED.includes(name))).toEqual(SEEDED);
 });

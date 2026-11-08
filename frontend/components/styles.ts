@@ -17,5 +17,10 @@ export const input =
   "min-h-11 w-full rounded-md border-[1.5px] border-olive bg-tan/25 px-3 py-2 text-base font-normal text-olive " +
   "placeholder:text-olive placeholder:italic aria-invalid:border-2 lg:min-h-10";
 
+// A recipe's category and its tags, told apart by fill: the category tinted tan, a tag outlined.
+const pill = "inline-flex min-h-7 items-center rounded-full px-3 py-0.5 text-[15px] font-semibold";
+export const categoryPill = `${pill} bg-tan/50`;
+export const tagPill = `${pill} inset-ring-[1.5px] inset-ring-olive`;
+
 // A link in running text or a table: underlined in ochre, olive under the pointer.
 export const textLink = "underline decoration-ochre decoration-2 underline-offset-4 hover:decoration-olive";

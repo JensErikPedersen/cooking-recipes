@@ -54,8 +54,9 @@ export function IngredientLines({
   return (
     <fieldset
       // min-w-0: a fieldset is at least as wide as its content by default, which pushed the lines
-      // past the page margin on a phone.
-      className="flex min-w-0 flex-col gap-2"
+      // past the page margin on a phone. There a line takes two rows, so the lines stand further
+      // apart than the rows of one.
+      className="flex min-w-0 flex-col gap-4 sm:gap-2"
     >
       <legend className="font-semibold">Ingredients</legend>
       {lines.map((line, index) => {

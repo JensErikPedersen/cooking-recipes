@@ -6,11 +6,14 @@ import { ErrorMessage } from "@/components/error-message";
 import { Loading } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
 import { ButtonLabel } from "@/components/icons";
+import { Label } from "@/components/label";
 import { iconButton, input, primaryButton, secondaryButton, textLink } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
 // The list page of an entity type: a New button, then a table that starts with the name, linked to
-// the read view and sorted by it, the Danish way. The API returns rows in storage order.
+// the read view and sorted by it, the Danish way. The API returns rows in storage order. Given a
+// card, the list is cards instead - Recipes (docs/PLAN_V7.md, decision 3) - each a label with the
+// name as its heading, whose link covers the whole card, and what the card adds under it.
 //
 // A searchable list has a field above the table. Searching asks the API with the term, which
 // answers the names containing it in any case; an empty field asks for everything again. The page
@@ -22,6 +25,7 @@ export function EntityList<T extends { id: string; name: string }>({
   load,
   searchable = false,
   columns = [],
+  card,
 }: {
   title: string;
   /** The list route, such as "/units"; the read view is path/id. */
@@ -32,6 +36,8 @@ export function EntityList<T extends { id: string; name: string }>({
   searchable?: boolean;
   /** The columns after Name. */
   columns?: [header: string, value: (entity: T) => ReactNode][];
+  /** What a card shows under the name; given, the list is cards rather than a table. */
+  card?: (entity: T) => ReactNode;
 }) {
   const [list, setList] = useState<T[]>();
   const [error, setError] = useState<unknown>();
@@ -98,6 +104,28 @@ export function EntityList<T extends { id: string; name: string }>({
             ? `No ${title.toLowerCase()} yet.`
             : `No ${title.toLowerCase()} match "${searched}".`}
         </p>
+      ) : card ? (
+        <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {list
+            .toSorted((a, b) => danish(a.name, b.name))
+            .map((entity) => (
+              // The link's ::after spans the card, so the card is the target; its focus ring is the
+              // card's, and under the pointer or in focus the hairline thickens (motion 4).
+              <Label
+                key={entity.id}
+                as="li"
+                className="group has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-olive"
+                fieldClassName="flex flex-col gap-3.5 group-hover:outline-2 group-has-[a:focus-visible]:outline-2"
+              >
+                <h2 className="text-xl">
+                  <Link href={`${path}/${entity.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
+                    {entity.name}
+                  </Link>
+                </h2>
+                {card(entity)}
+              </Label>
+            ))}
+        </ul>
       ) : (
         <table className="mt-6 w-full text-left">
           <thead className="border-b-2 border-ochre">

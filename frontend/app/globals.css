@@ -64,6 +64,52 @@
   }
 }
 
+/* The jar's label of docs/PLAN_V7.md, "Shapes": a tan band with its four corners cut in by a
+   quarter circle, around a cream field with an ochre hairline inside it. The notches are masks on
+   the band's ::before and on the field, never on .label itself, which would cut off a focus ring.
+   <div class="label"><div class="label-field">...</div></div> - components/label.tsx. */
+@layer components {
+  .label {
+    --notch: 12px;
+    --band: 7px;
+    --m: #0000 calc(var(--notch) - 0.5px), #000 var(--notch);
+    position: relative;
+    isolation: isolate;
+    padding: var(--band);
+  }
+  .label::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-tan);
+    mask:
+      radial-gradient(circle at 0 0, var(--m)) top left / 51% 51% no-repeat,
+      radial-gradient(circle at 100% 0, var(--m)) top right / 51% 51% no-repeat,
+      radial-gradient(circle at 0 100%, var(--m)) bottom left / 51% 51% no-repeat,
+      radial-gradient(circle at 100% 100%, var(--m)) bottom right / 51% 51% no-repeat;
+  }
+  .label-field {
+    --b: calc(-1 * var(--band));
+    height: 100%;
+    background: var(--color-cream);
+    padding: 20px 22px 22px;
+    outline: 1px solid var(--color-ochre);
+    outline-offset: -6px;
+    transition: outline-width 120ms ease-out;
+    mask:
+      radial-gradient(circle at var(--b) var(--b), var(--m)) top left / 51% 51% no-repeat,
+      radial-gradient(circle at calc(100% + var(--band)) var(--b), var(--m)) top right / 51% 51% no-repeat,
+      radial-gradient(circle at var(--b) calc(100% + var(--band)), var(--m)) bottom left / 51% 51% no-repeat,
+      radial-gradient(circle at calc(100% + var(--band)) calc(100% + var(--band)), var(--m)) bottom right / 51% 51% no-repeat;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .label-field {
+      transition: none;
+    }
+  }
+}
+
 /* The Delete dialog rises into place; only when the user has not asked for less motion. */
 @media (prefers-reduced-motion: no-preference) {
   dialog[open] {

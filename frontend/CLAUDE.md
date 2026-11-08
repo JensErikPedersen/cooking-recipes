@@ -45,7 +45,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   the address bar changes, so it read the old URL and showed nothing.
 - Data fetching: pages are client components, and none fetches by itself. A list page is an
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
-  it is given; "No <things> yet." when empty. A `searchable` one - Recipes, Categories,
+  it is given; "No <things> yet." when empty. Given a `card` instead, as Recipes is, it lists
+  cards: each a `Label`, the name its heading, whose link's `::after` covers the card - so the link
+  is still named by the name alone - and what `card` returns under it. The e2e specs read a list's
+  names, rows or cards alike, with `listNames` in `e2e/support/pages.ts`. A `searchable` one - Recipes, Categories,
   Ingredients and Tags, not Units - has a "Search by name" field that asks the API with
   `?name=`, never filters in the page, and says "No <things> match "<term>"." when nothing does;
   an empty field asks for everything again. Its effect drops a response for a term no longer
@@ -61,7 +64,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   written for the user) in an `Alert`, olive on a tan tint after a warning sign, and `FieldError`
   a field's own; `DetailList` the labelled fields of a read view, `NotFound` what a read view or
   edit form shows for a 404, `PageHeader` the heading with its action buttons, and
-  `components/styles.ts` the looks: `primaryButton`, `secondaryButton`, `input` and `textLink`.
+  `components/styles.ts` the looks: `primaryButton`, `secondaryButton`, `input`, `textLink`, and
+  `categoryPill` and `tagPill`, told apart by fill. `Label` is the jar's label, drawn by `.label`
+  and `.label-field` in `globals.css`, for what is read as one thing: a recipe card, a recipe's
+  ingredients.
   There is no danger look; the Delete dialog's confirming button is the primary one. Below `md`
   an action button - Edit, Delete, Save, Cancel, Search, New, Remove - shows an icon instead of its
   word: `<ButtonLabel icon="edit">Edit</ButtonLabel>` from `components/icons.tsx` inside it, and

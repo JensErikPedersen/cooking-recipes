@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
-day. Parts 1 to 4 are done.
+day. Parts 1 to 5 are done.
 
 ## Shape of the work
 
@@ -477,18 +477,35 @@ the four sizes, the panel open and in focus, were looked through. On the way:
 
 Frontend, e2e.
 
-- [ ] The recipe list as cards (decision 3): `EntityList` takes a card for Recipes; the other
+- [x] The recipe list as cards (decision 3): `EntityList` takes a card for Recipes; the other
       lists keep their columns. The empty and no-match messages are as before
-- [ ] The read view: category and tags as labels; ingredients on a tan label beside the
+- [x] The read view: category and tags as labels; ingredients on a tan label beside the
       instructions from `md`, above them on a phone; instructions in a size readable at arm's
       length; `dl`/`dt`/`dd` kept for Category, Tags and Description
-- [ ] The recipe form: ingredient lines on a phone (two rows, as now) and a tablet
-- [ ] e2e: one helper reads a list's names from cards or rows; the empty-list checks look for no
+- [x] The recipe form: ingredient lines on a phone (two rows, as now) and a tablet
+- [x] e2e: one helper reads a list's names from cards or rows; the empty-list checks look for no
       cards on Recipes; `recipes.spec.ts` reads a card instead of a row
-- [ ] `frontend/CLAUDE.md`: the `EntityList` line
+- [x] `frontend/CLAUDE.md`: the `EntityList` line
 
 **Verify it yourself.** Run `npx playwright test recipes.spec.ts search.spec.ts states.spec.ts`;
 open Recipes and "Fuldkorns hvedebrød" at all four sizes.
+
+**Done 2026-11-08.** Lint clean, the build succeeds, and the whole Playwright suite passes on a
+freshly built stack: 183 tests. Screenshots of the list, two recipes and the form at the four
+sizes were looked through, and the cards beside the preview's. On the way:
+- A card's link covers the card through its `::after`, rather than the card being one `<a>`: a
+  link that wrapped the pills would be named "Fuldkorns hvedebrød Brød Godt til kaffen". The name
+  is an `h2`, so a screen reader can step from card to card. One new test clicks a card's corner.
+- `listNames` reads the names of a table or of cards, in all six specs that read a list; the
+  no-match check of the search spec now asks for no names, not for no table.
+- The ingredients stay a table inside their label, amounts right aligned in tabular figures, so
+  the read view's specs read them as before. The label and the instructions are 18 px.
+- From `md` the details stay one `dl` row per field, not Category and Tags on one line as the
+  wireframe drew: all five read views keep the same list. Its rows now align on the baseline, as
+  a pill is taller than its label.
+- The form: tags were 13 px checkboxes with their names, under 44 px for a finger. Each is now a
+  pill as on the read view, tinted when checked, the box kept inside it. On a phone the
+  ingredient lines, two rows each, stand 16 px apart instead of 8, so a line's rows read together.
 
 ---
 
