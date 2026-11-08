@@ -6,6 +6,7 @@ import { auth, fieldErrors } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
 import { TextField } from "@/components/text-field";
 import { primaryButton, textLink } from "@/components/styles";
+import { SignInFrame } from "@/components/sign-in-frame";
 import { useHydrated } from "@/lib/use-hydrated";
 
 // Asks for a reset link by email, for a visitor who cannot sign in. The backend answers alike
@@ -33,8 +34,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm px-4 md:px-8">
-      <h1 className="text-2xl">Forgot your password?</h1>
+    <SignInFrame title="Forgot your password?">
       {sent ? (
         <p role="status" className="mt-6">
           If an account has that address, a mail with a link to choose a new password is on its way.
@@ -65,6 +65,6 @@ export default function ForgotPasswordPage() {
           Back to sign in
         </Link>
       </p>
-    </main>
+    </SignInFrame>
   );
 }

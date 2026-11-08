@@ -26,6 +26,14 @@
       transform: translateY(-6px);
     }
   }
+
+  /* The Welcome page's jars set down on the shelf. Never hidden: they start in place. */
+  --animate-set-down: set-down 320ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  @keyframes set-down {
+    from {
+      transform: translateY(-16px);
+    }
+  }
 }
 
 /* The faces come from next/font as variables on <html>, set in app/layout.tsx. */

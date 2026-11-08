@@ -13,3 +13,14 @@ test("the start page welcomes, describes the application and leads to each part 
   await expect(page).toHaveURL("/recipes");
   await expect(page.getByRole("heading", { name: "Recipes" })).toBeVisible();
 });
+
+test("each part's jar on the start page leads there, the drawing as much as the name", async ({ page }) => {
+  await page.goto("/");
+  const units = page.getByRole("main").getByRole("listitem").filter({ hasText: "What ingredients are measured in" });
+  const box = (await units.boundingBox())!;
+
+  // The top of the tile: the jug, above the name and its sentence.
+  await units.click({ position: { x: box.width / 2, y: 12 } });
+
+  await expect(page).toHaveURL("/units");
+});

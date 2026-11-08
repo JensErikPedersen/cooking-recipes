@@ -7,8 +7,8 @@ as the record; this file plans the sixth round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
-day. Parts 1 to 5 are done.
+**Status: done.** Drafted and started 2026-11-07, the decisions below settled that day; finished
+2026-11-08.
 
 ## Shape of the work
 
@@ -516,13 +516,38 @@ On review the phone and tablet looked right, and the desktop could look a little
 
 Frontend, e2e, docs.
 
-- [ ] The Welcome page: the bold element from Part 2 with its drawing, the five sections as
+- [x] The Welcome page: the bold element from Part 2 with its drawing, the five sections as
       labels, the one entrance (decision 7)
-- [ ] Sign in, register, forgot-password and reset-password in one framed panel; the
+- [x] Sign in, register, forgot-password and reset-password in one framed panel; the
       `useHydrated` fieldset is unchanged
-- [ ] `app/not-found.tsx` in the same design
-- [ ] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
+- [x] `app/not-found.tsx` in the same design
+- [x] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
       `README.md`, `backend/README.md`, `future_enhancements.md`), status done
 
 **Verify it yourself.** The whole suite green; sign out and walk through sign-in, registration and
 a reset at phone size.
+
+**Done 2026-11-08.** Lint clean, the build succeeds, and on a freshly built stack: 275 unit and 211
+integration tests, version 6's numbers - the backend is untouched - and 190 Playwright tests, where
+version 6 ended at 152. Screenshots of the Welcome page and the five framed pages at the four
+sizes were looked through. On the way:
+- The shelf is the preview's: five jars on one ochre shelf from `md`, a shelf each on a phone. A
+  jar's name is its link, covering the jar and its sentence as a recipe card's does, since the
+  smoke test - and a screen reader - names each link by its word alone. A new test clicks a jar.
+  The jars set down 70 ms apart, 320 ms each, and only with motion allowed.
+- The drawings are SVG components in `components/drawings.tsx`. The preview had no wheat or dill:
+  they were drawn here, each upright from its foot and then turned, after a first try whose ear
+  of wheat ran off the top of its box.
+- The five pages outside the frame share `SignInFrame`. The wireframe set "Cooking Recipes" and
+  "Sign in" one under the other; as built, too alike, they read as one title, so the name is ruled
+  off in ochre, as a jar label's name is, and the page's heading stands under the rule.
+- A page not found has the empty jar, framed alike - but only when signed in: signed out, the
+  proxy sends any address to sign in first, as before. Its sentence is shared with the signed-in
+  `PageNotFound` as `NoPageHere`.
+- The design language's empty jars for an empty list were in no part's checklist; they are in,
+  beside "No recipes yet." and a search that finds nothing.
+- `/login` and `/register` joined the pages `responsive.spec.ts` checks at three widths.
+- Docs swept: `frontend/CLAUDE.md` has the frame, the drawings and the shelf. The root
+  `CLAUDE.md`, `README.md`, `backend/README.md` and `backend/CLAUDE.md` needed no change: no
+  command changed, and the backend did not. `future_enhancements.md` gained recipe photos in
+  Part 1 and desktop polish in Part 5.

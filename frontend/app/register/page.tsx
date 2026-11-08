@@ -7,6 +7,7 @@ import { auth, fieldErrors } from "@/lib/api";
 import { ErrorMessage } from "@/components/error-message";
 import { TextField } from "@/components/text-field";
 import { primaryButton, textLink } from "@/components/styles";
+import { SignInFrame } from "@/components/sign-in-frame";
 import { useHydrated } from "@/lib/use-hydrated";
 
 // A new account, for a visitor who has none. The backend checks every rule - the confirmation and
@@ -37,8 +38,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm px-4 md:px-8">
-      <h1 className="text-2xl">Create an account</h1>
+    <SignInFrame title="Create an account">
       <form onSubmit={onSubmit} noValidate className="mt-6">
         <fieldset disabled={!hydrated} className="flex min-w-0 flex-col gap-4">
           <TextField
@@ -88,6 +88,6 @@ export default function RegisterPage() {
           Back to sign in
         </Link>
       </p>
-    </main>
+    </SignInFrame>
   );
 }

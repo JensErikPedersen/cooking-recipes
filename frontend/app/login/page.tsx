@@ -7,6 +7,7 @@ import { ApiError, auth } from "@/lib/api";
 import { afterSignIn } from "@/lib/return-to";
 import { Alert } from "@/components/error-message";
 import { input, primaryButton, textLink } from "@/components/styles";
+import { SignInFrame } from "@/components/sign-in-frame";
 import { useHydrated } from "@/lib/use-hydrated";
 
 export default function LoginPage() {
@@ -31,8 +32,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto mt-24 w-full max-w-sm px-4 md:px-8">
-      <h1 className="text-2xl">Sign in</h1>
+    <SignInFrame title="Sign in">
       {/* Only the notice waits for the URL; the rest of the page stays prerendered. */}
       <Suspense>
         <ResetNotice />
@@ -79,7 +79,7 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
-    </main>
+    </SignInFrame>
   );
 }
 

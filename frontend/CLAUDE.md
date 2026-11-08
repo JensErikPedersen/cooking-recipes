@@ -55,8 +55,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   searched: the list asked for on arrival can come back after a quick search. A read view or edit page wraps itself in
   `EntityLoader`, which loads the one entity and renders it - or `NotFound` for a 404, the error
   otherwise. Both take the `lib/api.ts` call as a prop, and show `Loading` while they wait, as does
-  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame; its content is
-  `PageNotFound`, which a signed-in page the viewer may not see renders inside the frame. Not server components: they
+  a form loading its choices. An unknown URL gets `app/not-found.tsx`, outside the signed-in frame, in the sign-in pages'
+  `SignInFrame`; its sentence is `NoPageHere`, which `PageNotFound` - what a signed-in page the
+  viewer may not see renders inside the frame - shows under its own heading. Not server components: they
   would have to forward the session and CSRF cookies to the backend's internal address.
   `lib/api.ts` declares one type and one client object per entity, holding only the calls a page
   uses. Dynamic route params come in with `use(params)`, typed `PageProps<"/categories/[id]">`.
@@ -97,6 +98,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   same rule: the password confirmation and the address are checked by the backend, not here. It
   has `noValidate`: a `type="email"` field, there for the phone keyboard and autofill, would
   otherwise be checked by the browser, which blocks the submit with a message of its own.
+- The login, register, forgot-password and reset-password pages are each a `SignInFrame`: one
+  `Label`, the app's name at its head and the page's `h1` under it, centred under the wheat and dill
+  drawing. The drawings - the five jars of the Welcome page's shelf, the empty jar of a page not
+  found, the wheat and dill - are SVG components in `components/drawings.tsx`, `aria-hidden`, in
+  the four colours; there is no `public/` directory for them. A Welcome jar's link covers its jar
+  and sentence as a recipe card's does, and the jars set down on the shelf as the page opens
+  (`animate-set-down` in `globals.css`, with `motion-safe`).
 - The login, register, forgot-password and reset-password pages are rendered on the server, so
   their fields exist before React does. What is typed into them then, React never sees: the form would send it empty. Each wraps
   its fields in `<fieldset disabled={!hydrated}>`, with `useHydrated()` from `lib/use-hydrated.ts`.

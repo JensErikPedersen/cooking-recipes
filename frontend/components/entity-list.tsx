@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { EmptyJar } from "@/components/drawings";
 import { ErrorMessage } from "@/components/error-message";
 import { Loading } from "@/components/loading";
 import { PageHeader } from "@/components/page-header";
@@ -99,11 +100,15 @@ export function EntityList<T extends { id: string; name: string }>({
       ) : !list ? (
         <Loading />
       ) : list.length === 0 ? (
-        <p className="mt-6">
-          {searched === undefined
-            ? `No ${title.toLowerCase()} yet.`
-            : `No ${title.toLowerCase()} match "${searched}".`}
-        </p>
+        // An empty jar beside the words, as on a page not found.
+        <div className="mt-6 flex items-end gap-4">
+          <EmptyJar className="h-auto w-12 flex-none" />
+          <p>
+            {searched === undefined
+              ? `No ${title.toLowerCase()} yet.`
+              : `No ${title.toLowerCase()} match "${searched}".`}
+          </p>
+        </div>
       ) : card ? (
         <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {list

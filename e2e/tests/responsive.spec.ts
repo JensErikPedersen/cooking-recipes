@@ -30,6 +30,8 @@ for (const width of [375, 768, 1024]) {
       "/tags",
       "/account",
       "/users",
+      "/login",
+      "/register",
       "/forgot-password",
       "/reset-password?token=any",
     ]) {
