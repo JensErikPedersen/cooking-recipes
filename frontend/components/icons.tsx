@@ -9,9 +9,27 @@ const ICONS = {
   cancel: "M6.5 6.5l11 11 M17.5 6.5l-11 11",
   search: "M16.5 10.5a6 6 0 1 1-12 0a6 6 0 0 1 12 0Z M15 15l5 5",
   new: "M12 5v14 M5 12h14",
+  menu: "M4 6.5h16 M4 12h16 M4 17.5h16",
 };
 
-export type IconName = keyof typeof ICONS;
+export type IconName = Exclude<keyof typeof ICONS, "menu">;
+
+function Icon({ path, className }: { path: string; className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
 
 // A button's content: narrower than md its icon, from md its word. The word stays in the button,
 // visually hidden, as its name for a screen reader and for the tests. The button itself takes
@@ -19,21 +37,15 @@ export type IconName = keyof typeof ICONS;
 export function ButtonLabel({ icon, children }: { icon: IconName; children: ReactNode }) {
   return (
     <>
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className="size-[22px] md:hidden"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d={ICONS[icon]} />
-      </svg>
+      <Icon path={ICONS[icon]} className="size-[22px] md:hidden" />
       <span className="max-md:sr-only">{children}</span>
     </>
   );
+}
+
+// The Menu button's: three bars, a cross while the menu is open.
+export function MenuIcon({ open }: { open: boolean }) {
+  return <Icon path={open ? ICONS.cancel : ICONS.menu} className="size-5" />;
 }
 
 // Before an error: an ochre triangle outlined in olive, so the warning does not rest on colour.

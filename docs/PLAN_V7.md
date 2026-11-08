@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: in progress.** Drafted and started 2026-11-07; the decisions below were settled that
-day. Parts 1 to 3 are done.
+day. Parts 1 to 4 are done.
 
 ## Shape of the work
 
@@ -222,7 +222,8 @@ decoration, `aria-hidden`: the text beside them says what they show.
 
 ### Wireframes
 
-**Header, from `md`.** One row; between `md` and `lg` the entries may wrap to a second.
+**Header, from `md`.** One row from `lg`. Between `md` and `lg` the entries take a second row,
+under the name and the account (changed in Part 4: wrapping beside the name broke "Log out").
 
 ```
 +------------------------------------------------------------------------------------+
@@ -443,17 +444,32 @@ Screenshots of eight pages at the four sizes were looked through. On the way:
 
 Frontend, e2e.
 
-- [ ] `AppShell`: the olive band, the menu inline from `md`, the Menu button below it
-- [ ] The panel as decision 5 says; the current page marked with `aria-current` in both layouts
-- [ ] `openFromMenu` in `e2e/support/pages.ts` opens the menu first when the Menu button is shown
-- [ ] `menu.spec.ts`: at 375 px the menu is hidden until opened and `aria-expanded` follows; every
+- [x] `AppShell`: the olive band, the menu inline from `md`, the Menu button below it
+- [x] The panel as decision 5 says; the current page marked with `aria-current` in both layouts
+- [x] `openFromMenu` in `e2e/support/pages.ts` opens the menu first when the Menu button is shown
+- [x] `menu.spec.ts`: at 375 px the menu is hidden until opened and `aria-expanded` follows; every
       entry, the username and Log out are in the panel; choosing an entry closes it; Escape closes
       it with focus on the button; an admin sees Users; at 768 and 1280 px there is no Menu button
       and the entries are visible
-- [ ] `frontend/CLAUDE.md`: the `AppShell` and phone-width lines
+- [x] `frontend/CLAUDE.md`: the `AppShell` and phone-width lines
 
 **Verify it yourself.** Run `npx playwright test menu.spec.ts responsive.spec.ts`; on a phone,
 open the app via the PC's network address, or use the browser's device mode.
+
+**Done 2026-11-08.** Lint clean, the build succeeds, and the whole Playwright suite passes on a
+freshly built stack: 182 tests. `menu.spec.ts` adds six; the phone test that walked the menu left
+`responsive.spec.ts`, as `openFromMenu` now does it for every spec. Screenshots of the header at
+the four sizes, the panel open and in focus, were looked through. On the way:
+- The panel is a `<div>` holding the `<nav>` and the account, and `aria-controls` names it, since
+  decision 5 puts the username and Log out in the panel but they are not menu entries. From `md`
+  it is `display: contents`, so its pieces are laid out in the band.
+- Between `md` and `lg` the wireframe let the entries wrap beside the name, but at 768 px that
+  left two ragged rows and broke "Log out" over two lines, in a band 120 px tall. Now the name
+  and the account share the first row and the entries the second, at 88 px. Keyboard focus there
+  goes name, entries, account - the order of the desktop row - while the account is seen first.
+- Any link in the band closes the panel - the name too, which leads home - not only the entries.
+- The open panel casts the olive shadow of the design language; it opens down in 160 ms
+  (motion 1), and not at all with `prefers-reduced-motion`.
 
 ---
 

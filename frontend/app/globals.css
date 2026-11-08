@@ -17,6 +17,15 @@
   --text-2xl--line-height: 1.15;
   --text-4xl--line-height: 1.15;
   --text-5xl--line-height: 1.15;
+
+  /* The phone menu opens down; closing is instant. Used with motion-safe. */
+  --animate-open-down: open-down 160ms ease-out;
+  @keyframes open-down {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
 }
 
 /* The faces come from next/font as variables on <html>, set in app/layout.tsx. */

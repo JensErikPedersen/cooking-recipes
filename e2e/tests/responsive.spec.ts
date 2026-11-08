@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { main, openFromMenu } from "../support/pages";
+import { main } from "../support/pages";
 
 // The sizes of docs/PLAN_V7.md, decision 6, below the desktop: a small phone (375 px), a tablet
 // upright (768) and on its side (1024). Before the MVP's Part 8b every signed-in page was about 620 px
@@ -45,21 +45,6 @@ for (const width of [375, 768, 1024]) {
 
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 375, height: 800 } });
-
-  test("every menu entry is reachable", async ({ page }) => {
-    await page.goto("/");
-
-    for (const [label, href] of [
-      ["Recipes", "/recipes"],
-      ["Categories", "/categories"],
-      ["Ingredients", "/ingredients"],
-      ["Units", "/units"],
-      ["Tags", "/tags"],
-    ]) {
-      await openFromMenu(page, label, href);
-    }
-    await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
-  });
 
   test("a recipe's ingredient lines keep within the page margin", async ({ page }) => {
     await page.goto(`/recipes/${FULDKORN_ID}/edit`);

@@ -115,8 +115,13 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.
 - `AppShell` holds the menu - one entry per entity type, added by the slice that builds its pages,
-  then "Users" for an admin - the username, linked to `/account`, and the `<main>` every
-  page renders into. Pages start at their `<h1>`. It shares the user it confirmed through
+  then "Users" for an admin - the username, linked to `/account`, Log out, and the `<main>` every
+  page renders into. Pages start at their `<h1>`. Narrower than `md` the menu, the username and
+  Log out are a panel behind a "Menu" button: a disclosure (`aria-expanded`, `aria-controls`), not
+  a `<dialog>`. Any link chosen in the header closes it, as does Escape, which puts focus back on
+  the button. From `md` the panel is `contents` and its pieces sit in the band; between `md` and
+  `lg` the menu takes a row of its own. The current entry has `aria-current="page"` either way.
+  `openFromMenu` in `e2e/support/pages.ts` opens the panel first when the button is shown. It shares the user it confirmed through
   `useCurrentUser()`, so a page need not ask `/auth/me` again; `isAdmin()` in `lib/api.ts` reads
   the roles. Both only shape what is shown: the backend decides what an account may do.
 - `/users`, for an admin: every account with its role and status, and per row Disable or Enable
@@ -125,8 +130,8 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   Not `notFound()`: Next 16 documents it for server components, not for client pages like this.
 - Light only: the palette is a light one, and `globals.css` has no dark scheme.
 - Phones and tablets - 375, 768 and 1024 px - are covered by `e2e/tests/responsive.spec.ts`.
-  Below `lg` every control is at least 44 px tall (`min-h-11`). The header wraps, with the menu
-  on its own row narrower than `md`; ingredient lines take two rows narrower than `sm`. A
+  Below `lg` every control is at least 44 px tall (`min-h-11`). The header's menu is
+  `menu.spec.ts`; ingredient lines take two rows narrower than `sm`. A
   `<fieldset>` needs `min-w-0`, or it grows to its content and runs past the page margin.
 - Sorting is Danish, always: `danish` from `lib/sort.ts`, never a bare `localeCompare` or
   `.toSorted()`. The names are Danish, and without a locale the order followed the viewer's
