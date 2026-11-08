@@ -127,3 +127,24 @@ stays in the frontend.
 
 **Value.** The richest single improvement to how recipes look, once someone wants to photograph
 their cooking. Until then the drawings do the job without a storage concern.
+
+---
+
+## Desktop polish: the large screen could look better
+
+**Status.** Noted on review of `docs/PLAN_V7.md` Part 5, 2026-11-08, from the screenshots: version
+7 was designed phone first, and at 1280 px the pages work but look plainer than on a phone or a
+tablet. Not designed yet; what follows is what the screenshots suggest, to weigh when it is.
+
+**Where it shows.**
+
+* A recipe's read view: the instructions column ends far short of the page, and with the seeded
+  one-line instructions the page is mostly empty cream. Edit and Delete sit far from the name.
+* The recipe cards: short, with rows of uneven height, and the label's tan band reads as separate
+  strips at that size rather than one frame.
+* The reference lists: the name column takes most of the width, with the other columns pushed to
+  the far right.
+
+**What it would take.** A pass with the frontend-design skill on the three pages above at 1280 px,
+recorded in the design language of `docs/PLAN_V7.md` first, then built and reviewed by screenshot
+as each V7 part was. Frontend only.

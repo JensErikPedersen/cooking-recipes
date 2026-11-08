@@ -507,6 +507,9 @@ sizes were looked through, and the cards beside the preview's. On the way:
   pill as on the read view, tinted when checked, the box kept inside it. On a phone the
   ingredient lines, two rows each, stand 16 px apart instead of 8, so a line's rows read together.
 
+On review the phone and tablet looked right, and the desktop could look a little better: noted in
+`backend/docs/future_enhancements.md`, "Desktop polish", for a later version.
+
 ---
 
 ## Part 6: Welcome and sign-in pages
