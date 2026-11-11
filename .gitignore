@@ -45,3 +45,11 @@ hs_err_pid*
 # Local developer overrides (credentials) - never commit
 application-local.properties
 .env
+
+# SSH keys and private key material - never commit
+gh.txt
+gh.txt.pub
+id_ed25519*
+id_rsa*
+*.pem
+*.key
