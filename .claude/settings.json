@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "code-review@anthropic-plugin-directory": true,
+    "code-simplifier@anthropic-plugin-directory": true,
+    "frontend-design@anthropic-plugin-directory": true
+  }
+}
