@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Part 1 next.
+Part 2 done, for review.
 
 ## Shape of the work
 
@@ -159,19 +159,41 @@ time joined `future_enhancements.md` before this part, at the user's request.
 Docs only, with the frontend-design skill. Amends the "Design language" of `docs/PLAN_V7.md`, which
 stays the design's home.
 
-- [ ] Where a picture sits in a recipe card, and the card without one unchanged; its aspect ratio
-- [ ] A recipe's and an ingredient's read view with a picture, on a phone and a desktop
-- [ ] The Pictures grid: columns per size, the thumbnail's frame, the hover from decision 9
-- [ ] The picker dialog and the upload form, with the file field's states: none chosen, chosen,
+- [x] Where a picture sits in a recipe card, and the card without one unchanged; its aspect ratio
+- [x] A recipe's and an ingredient's read view with a picture, on a phone and a desktop
+- [x] The Pictures grid: columns per size, the thumbnail's frame, the hover from decision 9
+- [x] The picker dialog and the upload form, with the file field's states: none chosen, chosen,
       uploading, refused
-- [ ] The Welcome page's picture beside the shelf, V7's one bold element: whether it joins the
+- [x] The Welcome page's picture beside the shelf, V7's one bold element: whether it joins the
       shelf, stands above it, or replaces the drawn jar of Recipes - decided here, with wireframes
-- [ ] The `sizes` value for each place a picture appears, from the grid at the four sizes of V7's
+- [x] The `sizes` value for each place a picture appears, from the grid at the four sizes of V7's
       decision 6
-- [ ] A preview published as a private Artifact, with stand-in pictures, not added to the
+- [x] A preview published as a private Artifact, with stand-in pictures, not added to the
       repository
 
 **Verify it yourself.** Read the amended section; open the preview on a phone and a desktop.
+
+**Done 2026-11-12, for review.** The design is "Pictures (version 8)" in `docs/PLAN_V7.md`, under
+its "Design language", with wireframes of its own. The preview, "Pantry Pictures Preview", is
+https://claude.ai/artifact/NSbW4GZ6ZsGbEPCsxyFY3j - private to its owner; its photos are painted by
+the page, since an Artifact cannot load images from elsewhere. Its Welcome page switches between
+the recommended layout, the alternative on the shelf, and none. The frontend-design skill named
+above is not available in this environment; the design was checked against V7's list of generic
+defaults instead.
+
+In short: 3:2 at the top of a card, inside the label; 4:3 heading the ingredients' column of a
+read view from `md`, under the heading on a phone; square tiles in a tan band, 2, 3 and 4 columns;
+the Welcome picture beside the introduction, the shelf unchanged. A photo keeps its own colours -
+decision 1's palette rules the interface - and never carries text.
+
+Three findings change later parts, if accepted:
+- **Part 5, verify.** "The phone width fetches `small` or `medium`, never `large`" holds only at a
+  screen density of 1 or 2. A phone at density 3 needs `large` for a read view (343 px x 3), and
+  should fetch it. The check belongs at Playwright's density 1.
+- **Part 5, menu.** No sixth jar on the Welcome shelf for Pictures: it is a store of photos, not
+  something a recipe is made of. The menu entry is in the header and the burger menu only.
+- **Part 6, the form.** The form has Choose and Remove; Upload new lives in the picker, as
+  decision 10 already has it, rather than as a third button on the form.
 
 ---
 
