@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Part 2 done, for review.
+Part 2 done and accepted. Part 3 next.
 
 ## Shape of the work
 
@@ -173,7 +173,7 @@ stays the design's home.
 
 **Verify it yourself.** Read the amended section; open the preview on a phone and a desktop.
 
-**Done 2026-11-12, for review.** The design is "Pictures (version 8)" in `docs/PLAN_V7.md`, under
+**Done 2026-11-12.** The design is "Pictures (version 8)" in `docs/PLAN_V7.md`, under
 its "Design language", with wireframes of its own. The preview, "Pantry Pictures Preview", is
 https://claude.ai/artifact/NSbW4GZ6ZsGbEPCsxyFY3j - private to its owner; its photos are painted by
 the page, since an Artifact cannot load images from elsewhere. Its Welcome page switches between
@@ -186,7 +186,7 @@ read view from `md`, under the heading on a phone; square tiles in a tan band, 2
 the Welcome picture beside the introduction, the shelf unchanged. A photo keeps its own colours -
 decision 1's palette rules the interface - and never carries text.
 
-Three findings change later parts, if accepted:
+Three findings changed later parts, accepted on review the same day and applied above:
 - **Part 5, verify.** "The phone width fetches `small` or `medium`, never `large`" holds only at a
   screen density of 1 or 2. A phone at density 3 needs `large` for a read view (343 px x 3), and
   should fetch it. The check belongs at Playwright's density 1.
@@ -254,8 +254,8 @@ files are gone from `/data/pictures`.
 
 Frontend, e2e.
 
-- [ ] Menu entry "Pictures", in the header, the burger menu and on the Welcome page's list of
-      sections if Part 2 says so
+- [ ] Menu entry "Pictures", after Tags, in the header and the burger menu; not on the Welcome
+      page's shelf (Part 2)
 - [ ] `/pictures`: the thumbnail grid with the hover of decision 9; "No pictures yet." when empty
 - [ ] `/pictures/[id]`: the read view of decision 7, with where the picture is used, each a link
 - [ ] `/pictures/new`: the upload form; `/pictures/[id]/edit`: name and alt text
@@ -267,8 +267,9 @@ Frontend, e2e.
 
 **Verify it yourself.** `npm run lint`, `npm run build`, the whole Playwright suite. At phone and
 desktop size: upload a photo, see the thumbnail, hover it on the desktop, open it, edit its alt
-text, delete it. In the browser's network tab, the phone width fetches `small` or `medium`, never
-`large`.
+text, delete it. In the browser's network tab, at a screen density of 1 (Playwright's), the phone
+width fetches `small` or `medium`, never `large`; a real phone at density 3 rightly fetches `large`
+for a read view (Part 2).
 
 ---
 
@@ -277,7 +278,8 @@ text, delete it. In the browser's network tab, the phone width fetches `small` o
 Frontend, e2e.
 
 - [ ] The picker of decision 10, using the Pictures upload
-- [ ] The recipe form and the ingredient form: a picture field with Choose, Upload new and Remove
+- [ ] The recipe form and the ingredient form: a picture field with Choose and Remove; Upload new
+      is in the picker (Part 2)
 - [ ] The recipe card and the recipe's read view with its picture, as Part 2 drew them
 - [ ] The ingredient's read view with its picture
 - [ ] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
