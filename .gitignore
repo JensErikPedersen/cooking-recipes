@@ -53,3 +53,6 @@ id_ed25519*
 id_rsa*
 *.pem
 *.key
+
+# Pictures of a host-side backend run (app.pictures.dir)
+backend/pictures/

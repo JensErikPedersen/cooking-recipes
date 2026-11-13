@@ -37,6 +37,7 @@ at startup with `Access denied for user 'recipesadmin'`; without `DB_PASSWORD`, 
 | `APPLICATION_PORT` | `8080` |
 | `MAIL_HOST` / `MAIL_PORT` | `localhost` / `1025` - the stack's Mailpit, published on this machine |
 | `APP_BASE_URL` | `http://localhost:3000` - the address in the links of mails |
+| `PICTURES_DIR` | `pictures` under the working directory; `/data/pictures` in the image, the `pictures-data` volume |
 
 Add `-Dspring-boot.run.profiles=dev` for SQL statement and bind-value logging. Do not enable it in
 production: bind-value logging writes user data to the log.
@@ -91,6 +92,14 @@ does. Names compare as Danish: `brød` finds `Brød`, `brod` does not.
 A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
 tags and the lines with the lists it sends.
 
+| Pictures | |
+|---|---|
+| `GET /api/v1/pictures` | every picture's metadata: id, name, alt text, audit fields |
+| `GET /api/v1/pictures/{id}` | one picture's metadata |
+| `GET /api/v1/pictures/{id}/{size}` | the picture as JPEG, `small`, `medium` or `large` - 400, 800 and 1600 px wide, never enlarged; cached by the browser for a year (`private, immutable`); 404 for an unknown picture or size |
+| `POST /api/v1/pictures` | multipart: `file` (JPEG or PNG, up to 10 MB), `name`, `altText`; 201 with the picture; 400 for a file that is not a picture or a missing field, 413 over 10 MB |
+| `DELETE /api/v1/pictures/{id}` | 204, the row and its three files |
+
 Errors return a consistent envelope:
 
 ```json
@@ -103,7 +112,7 @@ Errors return a consistent envelope:
 
 `200` read · `201` create (with `Location`) · `204` delete · `400` validation · `401` not signed
 in · `403` missing CSRF token · `404` unknown · `409` conflict: a duplicate name, or
-a delete of something still in use.
+a delete of something still in use · `413` a picture over 10 MB.
 
 ### Not in this version
 

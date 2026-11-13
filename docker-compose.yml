@@ -45,6 +45,9 @@ services:
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:${FRONTEND_PORT}}
+    volumes:
+      # The pictures' files, kept with the database: docker compose down -v removes both together.
+      - pictures-data:/data/pictures
     depends_on:
       # Liquibase runs during Spring startup and does not retry a refused connection.
       mysql:
@@ -87,6 +90,7 @@ services:
 
 volumes:
   mysql-data:
+  pictures-data:
 
 networks:
   recipes:

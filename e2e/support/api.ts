@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 // what the UI cannot create yet.
 
 /** The CSRF header for a write on the page's own session. */
-async function csrfHeader(page: Page) {
+export async function csrfHeader(page: Page) {
   // Any API response sets the XSRF-TOKEN cookie a write has to send back.
   await page.request.get("/api/v1/auth/me");
   const token = (await page.context().cookies()).find((cookie) => cookie.name === "XSRF-TOKEN")!.value;

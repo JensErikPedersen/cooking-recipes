@@ -102,8 +102,8 @@ session except `POST /api/v1/auth/login`, `/register`, `/password-reset` and
 
 | Package | Holds |
 |---|---|
-| `controllers` | Five entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
-| `service` | One interface + one `Impl` per entity, plus `ServiceArguments` and `PasswordResetMail` |
+| `controllers` | Six entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
+| `service` | One interface + one `Impl` per entity, plus `ServiceArguments`, `PasswordResetMail`, and `PictureStorage` with `PictureSize` |
 | `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits; `AppUserWriter` and `PasswordResetTokens` in plain SQL |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
 | `dto` | Request/response shapes, `BaseDTO`, `BaseIdentityDTO` |
@@ -148,7 +148,8 @@ not `Comparable` - the comment there records why.
 
 Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`, and optionally
 `validationExceptions[]`. Codes are in `ApplicationErrorCodes`, grouped by domain in hundreds
-(recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s, accounts 600s).
+(recipe 50-70, category 100s, ingredient 200s, unit 300s, tag 400s, rating 500s, accounts 600s,
+pictures 700s).
 
 | Exception | Result |
 |---|---|
@@ -158,6 +159,7 @@ Everything leaves as `ExceptionEnvelope`: `errorCode`, `message`, `description`,
 | `HandlerMethodValidationException` (a `@UUID` path id, and a PUT's `@Valid` body with it) | 400 + `validationExceptions[]`, body errors by field, parameters by name |
 | Spring MVC's own rejections - any `ErrorResponse`: unknown path, wrong method, wrong media type | their own status (404, 405, 415, ...), code `REQUEST_REJECTED` (10), Spring's client-safe detail as message |
 | `HttpMessageNotReadableException` (malformed JSON) | 400, code 10, fixed message - not an `ErrorResponse` |
+| `MaxUploadSizeExceededException` (a picture over 10 MB, refused while Tomcat reads the request) | 413, `PICTURE_TOO_LARGE` (721), on the field `file` |
 | `DataIntegrityViolationException` (a database constraint, raised at commit) | a unique or foreign key violation, or a `DuplicateKeyException`: 409, code `DATA_CONFLICT` (40), generic message, the raw text logged only. Any other kind - NOT NULL, CHECK - goes to the catch-all as a 500 |
 | anything else | 500, message replaced by a random reference id that is logged server-side |
 
@@ -193,6 +195,37 @@ order of ingredient name, while the entity keeps them in a `Set`. The recipe's o
 are the only way to write lines: the `/recipes/{id}/ingredients` sub-resource was removed in V3
 Part 5, and its error codes 60-62 are not reused.
 
+## Pictures
+
+The picture library of `docs/PLAN_V8.md`. A `picture` row holds the name, the alt text and the
+audit fields (`db.changelog_1.7.xml`); the files are on disk in `app.pictures.dir` (`PICTURES_DIR`),
+never in the database - `/data/pictures` in the image, the `pictures-data` volume, which the
+`Dockerfile` creates owned by `recipes` so the volume is writable. `PictureStorage` writes three
+JPEGs per picture, `{id}-small.jpg`, `-medium.jpg` and `-large.jpg`, 400, 800 and 1600 px wide
+(`PictureSize`), the height in proportion, never enlarged. The original is not kept.
+
+- **Upload** is `multipart/form-data` bound to the record `PictureUploadDTO` by
+  `@Valid @ModelAttribute`, so a missing file, name or alt text is a 400 on its field like any DTO's.
+  JPEG and PNG only, told by the first bytes - ImageIO would read GIF and BMP too - and decoded:
+  anything else is a 400 (720) on `file`, and nothing is written. Up to 10 MB a file,
+  `spring.servlet.multipart.max-file-size`; over that Tomcat refuses it before any controller, a
+  413 (721) on `file`. MockMvc runs no Tomcat, so only e2e's `pictures-api.spec.ts` proves the
+  limit - through the Next.js proxy as well.
+- **Thumbnailator**, not ImageIO alone, reads the picture: it turns it by its EXIF orientation,
+  which ImageIO ignores, so a phone photo comes out upright. A PNG's transparency is drawn onto
+  cream (`#F5EFE3`), since JPEG has none. AWT needs `java.awt.headless`: Spring Boot sets it for
+  the application, the `argLine` of Surefire and Failsafe for the tests - without it a shell with a
+  `DISPLAY` and no X server fails every picture test.
+- **Order in `create`**: the row, flushed, then the files under its id. A picture that does not
+  decode throws, and the row rolls back with it. Flushed first because the transaction's 5 second
+  timeout is checked at each statement: an insert left for the commit would run after the resizing,
+  which takes seconds for a large photo.
+- **Serving**: `GET /pictures/{id}/{size}` streams the file as `image/jpeg` with
+  `Cache-Control: max-age=31536000, private, immutable` - a picture's file never changes. Spring
+  Security writes its `no-cache` headers only when the response has no `Cache-Control` of its own;
+  `PictureIT` pins that it has none of them.
+- **Delete** removes the row and the three files. Nothing refers to a picture yet.
+
 ## Tests
 
 `./mvnw clean verify`. Surefire runs `*Test`, Failsafe runs `*IT`. Jacoco is wired in, and the
@@ -221,7 +254,8 @@ Test layers, and what each one mocks:
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
 | `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
-| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
+| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT`, `PictureIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
+| `PictureStorageTest` | plain JUnit on a `@TempDir` | nothing - real files, from pictures `TestPictures` draws, one with an EXIF orientation written by hand |
 
 **`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository
 to database**, for every entity's writes. `RecipeIT` asserts a recipe's relations on a fresh GET

@@ -17,6 +17,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   so a heading is never `font-bold`. One focus ring for every control, olive, in `globals.css`.
 - `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
   The app has no route handlers of its own; one would have to live outside `/api`.
+- Because `proxy.ts` exists, Next buffers every request body - `/api` included, whatever the
+  matcher says - and cuts it off at `experimental.proxyClientMaxBodySize`. That is set to the
+  backend's `max-request-size` (11 MB); raise both together, or a larger upload arrives truncated
+  and the backend waits on it until the client gives up.
 - The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
   writes the URL into `.next/routes-manifest.json`. So `BACKEND_URL` is a Docker build argument,
   derived by Compose from `APPLICATION_PORT`; setting it on the running container does nothing.

@@ -45,7 +45,11 @@ public enum ApplicationErrorCodes {
     USER_ID_IS_NULL(604),
     USER_NOT_FOUND(605),
     OWN_ACCOUNT(606),
-    EMAIL_TAKEN(607);
+    EMAIL_TAKEN(607),
+    PICTURE_ID_IS_NULL(701),
+    PICTURE_NOT_FOUND(710),
+    PICTURE_UNREADABLE(720),
+    PICTURE_TOO_LARGE(721);
 
     private final int code;
 

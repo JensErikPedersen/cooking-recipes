@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Part 2 done and accepted. Part 3 next.
+Part 2 done and accepted. Part 3 done, awaiting review.
 
 ## Shape of the work
 
@@ -201,28 +201,76 @@ Three findings changed later parts, accepted on review the same day and applied 
 
 Backend, docker, e2e. No link to recipes yet.
 
-- [ ] Changelog `1.7`: table `picture` (`id`, `name`, `alt_text`, the audit columns)
-- [ ] Thumbnailator in `pom.xml`, at its latest stable version
-- [ ] `PictureStorage`: writes the three sizes of decision 4, reads one, deletes all three; unit
+- [x] Changelog `1.7`: table `picture` (`id`, `name`, `alt_text`, the audit columns)
+- [x] Thumbnailator in `pom.xml`, at its latest stable version
+- [x] `PictureStorage`: writes the three sizes of decision 4, reads one, deletes all three; unit
       tests on a `@TempDir` with fixture pictures - a landscape and a portrait JPEG, one with an EXIF
       rotation, a transparent PNG, one smaller than 400 px
-- [ ] `POST /api/v1/pictures`, multipart: the file, a name and an alt text; 201 with the picture.
+- [x] `POST /api/v1/pictures`, multipart: the file, a name and an alt text; 201 with the picture.
       400 for a file that does not decode or a missing name or alt text; 413 above 10 MB
-- [ ] `GET /api/v1/pictures` and `GET /api/v1/pictures/{id}`: the metadata, as for other entities
-- [ ] `GET /api/v1/pictures/{id}/{size}` for `small`, `medium`, `large`: `image/jpeg`, the cache
+- [x] `GET /api/v1/pictures` and `GET /api/v1/pictures/{id}`: the metadata, as for other entities
+- [x] `GET /api/v1/pictures/{id}/{size}` for `small`, `medium`, `large`: `image/jpeg`, the cache
       header of decision 3; 404 for an unknown id or size
-- [ ] Volume `pictures-data` in `docker-compose.yml`; `/data/pictures` in the backend's
+- [x] Volume `pictures-data` in `docker-compose.yml`; `/data/pictures` in the backend's
       `Dockerfile`, owned by `recipes`
-- [ ] e2e `pictures-api.spec.ts`, through `localhost:3000`: upload, list, fetch each size, a
+- [x] e2e `pictures-api.spec.ts`, through `localhost:3000`: upload, list, fetch each size, a
       file that is not a picture refused, a file just under 10 MB accepted and one over refused - the proof that the
       Next.js proxy passes a large body - and 401 signed out; each test deletes what it uploads
-- [ ] `backend/CLAUDE.md` and `backend/README.md`: the endpoints, the storage, the volume
+- [x] `backend/CLAUDE.md` and `backend/README.md`: the endpoints, the storage, the volume
 
 **Verify it yourself.** `./mvnw clean verify` and `npx playwright test pictures-api.spec.ts`. Then,
 signed in at `localhost:3000`, upload a phone photo from the browser's console with a few lines of
 `fetch` given in the part's record, and open its three sizes in the browser; restart the stack (`scripts\stop.ps1`, `scripts\start.ps1`) and open them
 again - they survive. List the files with
 `docker compose exec backend ls -l /data/pictures`.
+
+**Done 2026-11-13.** `./mvnw clean verify` green, Failsafe included: 285 unit and 222 integration
+tests (275 and 211 at the baseline). On the rebuilt stack the whole Playwright suite is green, 197
+tests, the baseline's 190 and 7 in `pictures-api.spec.ts`. By hand: a JPEG uploaded through
+`localhost:3000` gave three files owned by `recipes` in `/data/pictures`; after `scripts/stop.sh`
+and `scripts/start.sh` all three were still served, `image/jpeg`, with
+`Cache-Control: max-age=31536000, private, immutable`; deleting the picture removed the row and
+the files. A real phone photo is still the user's own check, with the snippet below.
+- **`experimental.proxyClientMaxBodySize: "11mb"` in `next.config.ts`.** Next cuts every proxied
+  request body off at 10 MB by default, rewrites to the backend included - the `proxy.ts` matcher
+  does not exempt `/api`, as first assumed. The first run of `pictures-api.spec.ts` proved it: an
+  upload of 10.1 MB reached the backend cut at 10 MB, under the file limit but short of its
+  `Content-Length`, and the backend waited until the test timed out. The limit now matches the
+  backend's `max-request-size`; above it the backend answers 413 from the `Content-Length` alone.
+What differs from the plan:
+- **`DELETE /api/v1/pictures/{id}` came forward from Part 4**, without the in-use check: e2e has
+  to remove what it uploads, and nothing links to a picture yet. Part 4 adds the 409.
+- **No committed fixtures** (decision 11). The backend's tests draw their pictures
+  (`TestPictures`), the EXIF orientation written into the JPEG by hand; e2e draws them on a canvas
+  (`e2e/support/pictures.ts`), and makes the 10 MB files by padding a small JPEG after its end
+  marker. No image tool was at hand to make real files, and drawn ones show which way a picture was
+  turned. A real phone photo is still the manual check above.
+- **`java.awt.headless=true`** in the `argLine` of Surefire and Failsafe: in a shell with a
+  `DISPLAY` and no X server, AWT failed every picture test. Spring Boot sets it for the application.
+- **Names are not unique**, unlike the other entities': two photos of one dish may share a name.
+- **The upload is the record `PictureUploadDTO`**, bound with `@Valid @ModelAttribute`, so a
+  missing file, name or alt text is one 400 naming each field.
+- **The row is flushed before resizing**: the 5 second transaction timeout is checked per
+  statement, and a large photo's resizing would otherwise come before the insert.
+- Error codes 700s: 701 id, 710 not found, 720 not a picture, 721 too large.
+
+To upload a photo by hand, signed in at `localhost:3000`, in the browser's console:
+
+```js
+const input = Object.assign(document.createElement("input"), { type: "file" });
+input.onchange = async () => {
+  const form = new FormData();
+  form.append("file", input.files[0]);
+  form.append("name", "Test");
+  form.append("altText", "A test photo");
+  const csrf = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
+  const response = await fetch("/api/v1/pictures", { method: "POST", body: form, headers: { "X-XSRF-TOKEN": csrf } });
+  const picture = await response.json();
+  console.log(response.status, picture);
+  ["small", "medium", "large"].forEach((size) => window.open(`/api/v1/pictures/${picture.id}/${size}`));
+};
+input.click();
+```
 
 ---
 
