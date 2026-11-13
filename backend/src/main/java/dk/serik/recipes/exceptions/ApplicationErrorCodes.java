@@ -48,6 +48,7 @@ public enum ApplicationErrorCodes {
     EMAIL_TAKEN(607),
     PICTURE_ID_IS_NULL(701),
     PICTURE_NOT_FOUND(710),
+    PICTURE_IN_USE(711),
     PICTURE_UNREADABLE(720),
     PICTURE_TOO_LARGE(721);
 

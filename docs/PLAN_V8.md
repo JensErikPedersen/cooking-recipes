@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Part 2 done and accepted. Part 3 done, awaiting review.
+Parts 2 and 3 done and accepted. Part 4 done, awaiting review.
 
 ## Shape of the work
 
@@ -278,23 +278,48 @@ input.click();
 
 Backend, e2e.
 
-- [ ] Changelog `1.8`: `recipe.picture_id`, `ingredient.picture_id`, table `welcome_page` with its
+- [x] Changelog `1.8`: `recipe.picture_id`, `ingredient.picture_id`, table `welcome_page` with its
       one row; foreign keys to `picture`
-- [ ] `RecipeDTO` and `IngredientDTO` carry a `picture` reference, written and read as `category`
+- [x] `RecipeDTO` and `IngredientDTO` carry a `picture` reference, written and read as `category`
       is; an unknown picture id is a 400
-- [ ] `GET` and `PUT /api/v1/welcome-page`: the Welcome page's picture, or none
-- [ ] `PUT /api/v1/pictures/{id}`: name and alt text only (decision 3)
-- [ ] The picture DTO says where it is used: the recipes and ingredients, by id and name, and
+- [x] `GET` and `PUT /api/v1/welcome-page`: the Welcome page's picture, or none
+- [x] `PUT /api/v1/pictures/{id}`: name and alt text only (decision 3)
+- [x] The picture DTO says where it is used: the recipes and ingredients, by id and name, and
       whether the Welcome page uses it
-- [ ] `DELETE /api/v1/pictures/{id}`: 409 `PICTURE_IN_USE` while in use (decision 6), else the row
+- [x] `DELETE /api/v1/pictures/{id}`: 409 `PICTURE_IN_USE` while in use (decision 6), else the row
       and the three files
-- [ ] Unit and integration tests for each; e2e `pictures-api.spec.ts` extended with linking,
+- [x] Unit and integration tests for each; e2e `pictures-api.spec.ts` extended with linking,
       unlinking and the refused delete
-- [ ] `backend/CLAUDE.md`, `backend/README.md`, and the error code in their list
+- [x] `backend/CLAUDE.md`, `backend/README.md`, and the error code in their list
 
 **Verify it yourself.** `./mvnw clean verify` and the e2e spec. Link a picture to a recipe through
 the API, try to delete the picture (409 naming the recipe), unlink it and delete it (204); its
 files are gone from `/data/pictures`.
+
+**Done 2026-11-13.** `./mvnw clean verify` green: 302 unit and 233 integration tests (285 and 222
+after Part 3) - `PictureServiceTest`, `WelcomePageServiceTest`, picture cases in the recipe and
+ingredient service tests, edit in `PictureIT`, and `PictureUseIT` for linking, unlinking, the
+Welcome page and the refused delete. Changelog `1.8` applied to the stack's existing database. The
+whole Playwright suite green, 201 tests: `pictures-api.spec.ts` gained 4 - edit, a recipe and an
+ingredient sharing a picture, the refused delete until the recipe and the Welcome page let go, an
+unknown picture refused. Nothing is left behind in `picture`, `welcome_page` or the volume.
+What differs from or settles the plan:
+- **A write without a picture has none.** A recipe's or an ingredient's PUT that leaves out
+  `picture` unlinks it, as a missing description clears the description. The tags and lines work
+  the other way, absent meaning "leave as is", but for one reference Jackson cannot tell absent
+  from `null`, and the form's Remove needs one of them to mean none. Until Part 6 the forms send
+  no picture, so editing a recipe or an ingredient in the browser unlinks its picture; no page
+  shows one before then.
+- **An unknown picture is a 400 (710) on the field `picture`**, as the plan says, though the same
+  code is the 404 of an unknown picture's address. An unknown category on a recipe is still a 404.
+- **Where it is used is on a single picture only** - `GET /pictures/{id}` and the PUT's response.
+  The list would cost three queries a picture, and the grid does not show it.
+- **`PICTURE_IN_USE` is 711.** The message names each use: "used by 2 recipes, 1 ingredient and
+  the Welcome page".
+- **The Welcome page's row** has a fixed id from the changelog and `created_by` `system`; the
+  service reads the one row there is.
+- **`PUT /api/v1/pictures/{id}` takes JSON**, the `PictureDTO` with `@NotBlank` and `@Size(255)`
+  on name and alt text; anything else in the body is ignored.
 
 ---
 

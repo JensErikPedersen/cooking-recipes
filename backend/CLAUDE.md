@@ -102,7 +102,7 @@ session except `POST /api/v1/auth/login`, `/register`, `/password-reset` and
 
 | Package | Holds |
 |---|---|
-| `controllers` | Six entity `@RestController`s under `/api/v1/`, plus `AuthController` and `UserController` |
+| `controllers` | Six entity `@RestController`s under `/api/v1/`, plus `WelcomePageController`, `AuthController` and `UserController` |
 | `service` | One interface + one `Impl` per entity, plus `ServiceArguments`, `PasswordResetMail`, and `PictureStorage` with `PictureSize` |
 | `repository` | `JpaRepository` per entity, derived queries - one JPQL `@Query`, `countRecipesByUnitId`, where none fits; `AppUserWriter` and `PasswordResetTokens` in plain SQL |
 | `model` | JPA entities, `BaseEntity`, `BaseIdentifierEntity`, `BaseEntityListener` |
@@ -173,7 +173,7 @@ A service that can say *why* a write conflicts checks before writing and throws 
 `CategoryServiceImpl` rejects a duplicate name (104, on field `name`) and deleting a category
 recipes use (105); `UnitServiceImpl` the same (311, 312), counting recipes rather than
 `recipe_ingredient` lines; `TagServiceImpl` (411, 412) and `IngredientServiceImpl` (211, 212) the
-same. Tag names are unique, like the others - the schema says so, whatever older comments claimed.
+same, and `PictureServiceImpl` refuses deleting a picture in use (711). Tag names are unique, like the others - the schema says so, whatever older comments claimed.
 The database constraint behind each stays the backstop, caught by the
 `DataIntegrityViolationException` handler. `RecipeServiceImpl` rejects a duplicate recipe name
 (53). The backstop tells a conflict from a server fault by Hibernate's
@@ -224,7 +224,24 @@ JPEGs per picture, `{id}-small.jpg`, `-medium.jpg` and `-large.jpg`, 400, 800 an
   `Cache-Control: max-age=31536000, private, immutable` - a picture's file never changes. Spring
   Security writes its `no-cache` headers only when the response has no `Cache-Control` of its own;
   `PictureIT` pins that it has none of them.
-- **Delete** removes the row and the three files. Nothing refers to a picture yet.
+- **Edit** is `PUT /pictures/{id}` with the name and alt text, a JSON `PictureDTO` - never the file,
+  so a size's address keeps serving the same bytes. `saveAndFlush`, so the response carries the
+  `updated` and `updatedBy` the listener stamps.
+- **Where a picture is used** (`db.changelog_1.8.xml`): nullable `recipe.picture_id` and
+  `ingredient.picture_id`, and the one row of `welcome_page`, created by the changelog with no
+  context filter - the tests need it too; nothing inserts or deletes another. Each is a RESTRICT
+  foreign key. `RecipeDTO`, `IngredientDTO` and `WelcomePageDTO` carry a nested `PictureDTO`; a
+  write reads only its `id`, through `ServiceArguments.toPicture`, and an unknown one is a 400
+  (710) on the field `picture` - not a 404, since the address is right. A write without a picture
+  has none: unlike the tags and lines, an absent picture is not "leave as is", because Jackson
+  cannot tell it from an explicit `null` - so Remove on a form just leaves the picture out.
+- **A single picture says where it is used.** `GET /pictures/{id}` and the PUT's response add
+  `recipes` and `ingredients`, each `{id, name}` in order of name, and `welcomePage`. The list, the
+  upload's response and a nested picture leave them out - `null`, so `NON_NULL` drops them.
+- **Delete** removes the row and the three files. While a recipe, an ingredient or the Welcome
+  page uses the picture it is a 409 (711) whose message names them - "used by 2 recipes, 1
+  ingredient and the Welcome page" - and nothing goes. Deleting a recipe or an ingredient leaves
+  its picture in the library.
 
 ## Tests
 
@@ -254,7 +271,7 @@ Test layers, and what each one mocks:
 | `JsonContractIT` | `@SpringBootTest` | serialization contract only |
 | `DataIntegrityIT` | `@SpringBootTest` | nothing - real violations from H2, native SQL in rolled-back transactions, handed to the real handler |
 | `AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` | `@SpringBootTest` + MockMvc | nothing - the real security chain, session and database; one shared context |
-| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT`, `PictureIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
+| `CategoryIT`, `UnitIT`, `TagIT`, `IngredientIT`, `RecipeIT`, `PictureIT`, `PictureUseIT` | `@SpringBootTest` + MockMvc | the sign-in (`@WithMockUser`, `csrf()`); writes against the real constraints |
 | `PictureStorageTest` | plain JUnit on a `@TempDir` | nothing - real files, from pictures `TestPictures` draws, one with an EXIF orientation written by hand |
 
 **`AuthenticationIT`, `RegistrationIT`, `PasswordChangeIT`, `EmailChangeIT`, `PasswordResetIT`, `UsersIT` and the `<Entity>IT` classes are the only ones to exercise controller to service to repository

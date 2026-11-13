@@ -36,6 +36,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -164,6 +165,49 @@ class PictureIT {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.validationExceptions[0].objectName").value("name"))
 				.andExpect(jsonPath("$.validationExceptions[0].message").value("Picture name must be at most 255 characters"));
+	}
+
+	@Test
+	@DisplayName("Given a picture, When PUT a new name and alt text, Then 200, a fresh GET has them, and the files are unchanged")
+	void shouldUpdateNameAndAltText() throws Exception {
+		String id = create(jpeg(800, 600));
+		byte[] before = Files.readAllBytes(storage.file(UUID.fromString(id), PictureSize.SMALL));
+
+		mockMvc.perform(put(PICTURES + "/" + id).with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"id\":\"" + UUID.randomUUID() + "\",\"name\":\"Nyt navn\",\"altText\":\"Ny alt-tekst\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.updatedBy").value("it-user"))
+				.andExpect(jsonPath("$.welcomePage").value(false));
+
+		mockMvc.perform(get(PICTURES + "/" + id))
+				.andExpect(jsonPath("$.name").value("Nyt navn"))
+				.andExpect(jsonPath("$.altText").value("Ny alt-tekst"));
+		assertThat(Files.readAllBytes(storage.file(UUID.fromString(id), PictureSize.SMALL))).isEqualTo(before);
+	}
+
+	@Test
+	@DisplayName("Given a blank name and no alt text, When PUT, Then one 400 naming both")
+	void shouldRequireNameAndAltTextOnUpdate() throws Exception {
+		String id = create(jpeg(400, 300));
+
+		mockMvc.perform(put(PICTURES + "/" + id).with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\" \"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.validationExceptions[*].objectName",
+						org.hamcrest.Matchers.containsInAnyOrder("name", "altText")));
+	}
+
+	@Test
+	@DisplayName("Given no such picture, When PUT, Then 404")
+	void shouldRefuseUpdatingAnUnknownPicture() throws Exception {
+		mockMvc.perform(put(PICTURES + "/" + UUID.randomUUID()).with(csrf())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"Navn\",\"altText\":\"Alt\"}"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.errorCode").value(ApplicationErrorCodes.PICTURE_NOT_FOUND.getCode()));
 	}
 
 	@Test

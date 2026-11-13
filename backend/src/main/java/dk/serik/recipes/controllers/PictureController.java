@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -71,6 +73,13 @@ public class PictureController {
                 .buildAndExpand(saved.getId())
                 .toUri();
         return ResponseEntity.created(location).body(saved);
+    }
+
+    /** Name and alt text; anything else in the body is ignored. The path id is authoritative. */
+    @PutMapping("/{id}")
+    public PictureDTO update(@PathVariable @UUID String id, @Valid @RequestBody PictureDTO pictureDTO) {
+        pictureDTO.setId(id);
+        return pictureService.update(pictureDTO);
     }
 
     @DeleteMapping("/{id}")

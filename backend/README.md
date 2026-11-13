@@ -90,15 +90,20 @@ does. Names compare as Danish: `brød` finds `Brød`, `brod` does not.
 | `/api/v1/recipes` | GET (all, `?name=`, by id), POST, PUT, DELETE |
 
 A recipe's POST and PUT carry its category, tags and ingredient lines by id; a PUT replaces the
-tags and the lines with the lists it sends.
+tags and the lines with the lists it sends. A recipe and an ingredient may also carry a picture,
+`"picture": {"id": ...}`, read back with its name and alt text; a write without one has none. An
+unknown picture is a 400 on `picture`.
 
 | Pictures | |
 |---|---|
 | `GET /api/v1/pictures` | every picture's metadata: id, name, alt text, audit fields |
-| `GET /api/v1/pictures/{id}` | one picture's metadata |
+| `GET /api/v1/pictures/{id}` | one picture's metadata, and where it is used: `recipes` and `ingredients` by id and name, `welcomePage` true or false |
 | `GET /api/v1/pictures/{id}/{size}` | the picture as JPEG, `small`, `medium` or `large` - 400, 800 and 1600 px wide, never enlarged; cached by the browser for a year (`private, immutable`); 404 for an unknown picture or size |
 | `POST /api/v1/pictures` | multipart: `file` (JPEG or PNG, up to 10 MB), `name`, `altText`; 201 with the picture; 400 for a file that is not a picture or a missing field, 413 over 10 MB |
-| `DELETE /api/v1/pictures/{id}` | 204, the row and its three files |
+| `PUT /api/v1/pictures/{id}` | `{"name", "altText"}`, its file never changes; 200 with the picture; 400 for a missing field, 404 for an unknown id |
+| `DELETE /api/v1/pictures/{id}` | 204, the row and its three files; 409 while a recipe, an ingredient or the Welcome page uses it, naming which |
+| `GET /api/v1/welcome-page` | `{"picture"}`: the Welcome page's picture, or `null` |
+| `PUT /api/v1/welcome-page` | `{"picture": {"id": ...}}` or `{"picture": null}`; 200; 400 for an unknown picture |
 
 Errors return a consistent envelope:
 

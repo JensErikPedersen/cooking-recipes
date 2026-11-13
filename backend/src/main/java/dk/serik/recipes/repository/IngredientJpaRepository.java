@@ -16,4 +16,6 @@ public interface IngredientJpaRepository extends JpaRepository<Ingredient, UUID>
 
 	Optional<Ingredient> findByName(String name);
 
+	List<Ingredient> findAllByPictureIdOrderByName(UUID pictureId);
+
 }

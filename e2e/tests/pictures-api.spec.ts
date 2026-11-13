@@ -1,12 +1,15 @@
-import { expect, test } from "@playwright/test";
-import { deleteById } from "../support/api";
+import { expect, type Page, test } from "@playwright/test";
+import { createById, csrfHeader, deleteById } from "../support/api";
 import { drawPicture, pictureOfSize, pictureWidth, uploadPicture } from "../support/pictures";
 
 // The picture library's API, through the frontend origin: the file crosses the Next.js proxy to the
-// backend, which keeps it in three sizes on its volume (docs/PLAN_V8.md Part 3). No page uses it
-// yet. Each test deletes what it uploads.
+// backend, which keeps it in three sizes on its volume (docs/PLAN_V8.md Parts 3 and 4). No page
+// uses it yet. Each test deletes what it creates.
 
 const MB = 1024 * 1024;
+
+// Seeded category "Brød".
+const BROED = "14d4c0b0-46ea-498d-a3a5-56060a3d7a7c";
 
 test.describe("signed in", () => {
   const uploaded: string[] = [];
@@ -82,6 +85,107 @@ test.describe("signed in", () => {
     uploaded.push(id);
 
     expect((await page.request.get(`/api/v1/pictures/${id}/huge`)).status()).toBe(404);
+  });
+});
+
+test.describe("where a picture is used", () => {
+  // Deleted in this order: a picture in use cannot be.
+  const recipes: string[] = [];
+  const ingredients: string[] = [];
+  const pictures: string[] = [];
+
+  test.afterEach(async ({ page }) => {
+    for (const id of recipes.splice(0)) await deleteById(page, "recipes", id);
+    for (const id of ingredients.splice(0)) await deleteById(page, "ingredients", id);
+    for (const id of pictures.splice(0)) await deleteById(page, "pictures", id);
+  });
+
+  async function upload(page: Page, name: string, altText: string) {
+    const response = await uploadPicture(page, await drawPicture(page, 600, 400), name, altText);
+    const { id } = await response.json();
+    pictures.push(id);
+    return id as string;
+  }
+
+  async function putJson(page: Page, path: string, data: unknown) {
+    return page.request.put(path, { headers: await csrfHeader(page), data });
+  }
+
+  const unique = () => crypto.randomUUID().slice(0, 8);
+
+  test("a picture's name and alt text are edited, its files unchanged", async ({ page }) => {
+    const id = await upload(page, "Rugbrød", "Et rugbrød");
+    const before = await (await page.request.get(`/api/v1/pictures/${id}/small`)).body();
+
+    const response = await putJson(page, `/api/v1/pictures/${id}`, { name: "Rugbrød på bræt", altText: "Et skåret rugbrød" });
+
+    expect(response.status()).toBe(200);
+    expect(await (await page.request.get(`/api/v1/pictures/${id}`)).json()).toMatchObject({
+      name: "Rugbrød på bræt",
+      altText: "Et skåret rugbrød",
+    });
+    expect(await (await page.request.get(`/api/v1/pictures/${id}/small`)).body()).toEqual(before);
+  });
+
+  test("a recipe and an ingredient share a picture, and each is named where it is used", async ({ page }) => {
+    const picture = await upload(page, "Mel", "En sæk mel");
+    const recipeName = `Billedbrød ${unique()}`;
+    const recipe = await createById(page, "recipes", { name: recipeName, category: { id: BROED }, picture: { id: picture } });
+    recipes.push(recipe);
+    const ingredientName = `Billedmel ${unique()}`;
+    const ingredient = await createById(page, "ingredients", { name: ingredientName, picture: { id: picture } });
+    ingredients.push(ingredient);
+
+    expect((await (await page.request.get(`/api/v1/recipes/${recipe}`)).json()).picture).toMatchObject({
+      id: picture,
+      name: "Mel",
+      altText: "En sæk mel",
+    });
+    expect((await (await page.request.get(`/api/v1/ingredients/${ingredient}`)).json()).picture.id).toBe(picture);
+    expect(await (await page.request.get(`/api/v1/pictures/${picture}`)).json()).toMatchObject({
+      recipes: [{ id: recipe, name: recipeName }],
+      ingredients: [{ id: ingredient, name: ingredientName }],
+      welcomePage: false,
+    });
+  });
+
+  test("a picture in use cannot be deleted until every page lets it go", async ({ page }) => {
+    const picture = await upload(page, "Køkkenet", "Et køkken i morgenlys");
+    const name = `Billedbrød ${unique()}`;
+    const recipe = await createById(page, "recipes", { name, category: { id: BROED }, picture: { id: picture } });
+    recipes.push(recipe);
+    try {
+      expect((await putJson(page, "/api/v1/welcome-page", { picture: { id: picture } })).status()).toBe(200);
+      expect((await (await page.request.get("/api/v1/welcome-page")).json()).picture.id).toBe(picture);
+
+      const refused = await page.request.delete(`/api/v1/pictures/${picture}`, { headers: await csrfHeader(page) });
+      expect(refused.status()).toBe(409);
+      expect(await refused.json()).toMatchObject({
+        errorCode: 711,
+        message: "Picture 'Køkkenet' is used by 1 recipe and the Welcome page and cannot be deleted",
+      });
+    } finally {
+      await putJson(page, "/api/v1/welcome-page", { picture: null });
+    }
+    expect((await (await page.request.get("/api/v1/welcome-page")).json()).picture).toBeNull();
+
+    // Unlinked from the recipe, which keeps everything else.
+    expect((await putJson(page, `/api/v1/recipes/${recipe}`, { name, category: { id: BROED } })).status()).toBe(200);
+    expect((await (await page.request.get(`/api/v1/recipes/${recipe}`)).json()).picture).toBeUndefined();
+
+    const deleted = await page.request.delete(`/api/v1/pictures/${picture}`, { headers: await csrfHeader(page) });
+    expect(deleted.status()).toBe(204);
+    expect((await page.request.get(`/api/v1/pictures/${picture}/small`)).status()).toBe(404);
+  });
+
+  test("an unknown picture is refused on the field picture", async ({ page }) => {
+    const response = await page.request.post("/api/v1/ingredients", {
+      headers: await csrfHeader(page),
+      data: { name: `Billedmel ${unique()}`, picture: { id: crypto.randomUUID() } },
+    });
+
+    expect(response.status()).toBe(400);
+    expect(await response.json()).toMatchObject({ errorCode: 710, validationExceptions: [{ objectName: "picture" }] });
   });
 });
 

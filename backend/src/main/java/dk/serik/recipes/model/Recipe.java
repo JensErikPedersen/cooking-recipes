@@ -41,6 +41,11 @@ public class Recipe extends BaseIdentifierEntity {
 	)
 	private Set<Tag> tags;
 
+	// Optional, and one picture may be shown on any number of recipes (docs/PLAN_V8.md decision 2).
+	@ManyToOne
+	@JoinColumn(name = "picture_id")
+	private Picture picture;
+
 	public Recipe addRecipeIngredient(RecipeIngredient recipeIngredient) {
 		if(Objects.isNull(recipeIngredients)) {
 			recipeIngredients = new HashSet<>();

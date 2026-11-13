@@ -4,6 +4,10 @@ import org.springframework.http.HttpStatus;
 import dk.serik.recipes.exceptions.ApplicationErrorCodes;
 import dk.serik.recipes.bean.Session;
 import dk.serik.recipes.dto.IngredientDTO;
+import dk.serik.recipes.dto.PictureDTO;
+import dk.serik.recipes.model.Picture;
+import dk.serik.recipes.repository.PictureJpaRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.exceptions.ValidationExceptionEnvelope;
 import dk.serik.recipes.mockutil.MockIngredientUtil;
@@ -41,6 +45,9 @@ public class IngredientServiceTest {
 
 	@Mock
 	private RecipeIngredientJpaRepository recipeIngredientRepository;
+
+	@Mock
+	private PictureJpaRepository pictureRepository;
 
 	@Mock
 	private Session session;
@@ -261,6 +268,38 @@ public class IngredientServiceTest {
 		assertThrows(ServiceException.class, () -> {
 			service.update(MockIngredientUtil.mockHvedemelDTO());
 		}, "Could not update Ingredient with id 5f01d434-5a68-4359-9f2e-0a6793dce48d since it was not found");
+	}
+
+	@Test
+	@DisplayName("Given a new Ingredient with a picture's id, When saved, Then it is saved with that picture")
+	public void shouldSaveWithPicture() {
+		UUID pictureId = UUID.randomUUID();
+		Picture picture = new Picture();
+		ReflectionTestUtils.setField(picture, "id", pictureId);
+		given(pictureRepository.findById(pictureId)).willReturn(Optional.of(picture));
+		given(repository.save(any())).willReturn(MockIngredientUtil.mockHavsalt());
+
+		service.save(IngredientDTO.builder().name("Havsalt").picture(PictureDTO.builder().id(pictureId.toString()).build()).build());
+
+		then(repository).should().save(ingredientCaptor.capture());
+		assertThat(ingredientCaptor.getValue().getPicture()).isSameAs(picture);
+	}
+
+	@Test
+	@DisplayName("Given an unknown picture's id, When updated, Then 400 on the field picture, and nothing is saved")
+	public void shouldRejectUnknownPicture() {
+		UUID pictureId = UUID.randomUUID();
+		given(repository.findById(UUID.fromString("01a50907-8141-4dd1-acdf-c4384669c2b2"))).willReturn(Optional.of(MockIngredientUtil.mockHavsalt()));
+		given(pictureRepository.findById(pictureId)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> service.update(IngredientDTO.builder().id("01a50907-8141-4dd1-acdf-c4384669c2b2").name("Havsalt")
+				.picture(PictureDTO.builder().id(pictureId.toString()).build()).build()))
+				.isInstanceOf(ServiceException.class)
+				.satisfies(ex -> {
+					assertThat(((ServiceException) ex).getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+					assertThat(((ServiceException) ex).getFieldErrors()).extracting(ValidationExceptionEnvelope::getObjectName).containsExactly("picture");
+				});
+		then(repository).should(never()).save(any());
 	}
 
 	private List<Ingredient> mockList() {
