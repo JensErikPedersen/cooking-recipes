@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Parts 2 and 3 done and accepted. Part 4 done, awaiting review.
+Parts 2 to 4 done and accepted. Part 5 done, awaiting review.
 
 ## Shape of the work
 
@@ -327,22 +327,46 @@ What differs from or settles the plan:
 
 Frontend, e2e.
 
-- [ ] Menu entry "Pictures", after Tags, in the header and the burger menu; not on the Welcome
+- [x] Menu entry "Pictures", after Tags, in the header and the burger menu; not on the Welcome
       page's shelf (Part 2)
-- [ ] `/pictures`: the thumbnail grid with the hover of decision 9; "No pictures yet." when empty
-- [ ] `/pictures/[id]`: the read view of decision 7, with where the picture is used, each a link
-- [ ] `/pictures/new`: the upload form; `/pictures/[id]/edit`: name and alt text
-- [ ] Delete, with the 409 shown as the error it is
-- [ ] A `Picture` component: `<img>` with `srcset` and `sizes` (decision 8)
-- [ ] e2e `pictures.spec.ts`: upload, read, edit, delete, the refused delete, a file that is not a
+- [x] `/pictures`: the thumbnail grid with the hover of decision 9; "No pictures yet." when empty
+- [x] `/pictures/[id]`: the read view of decision 7, with where the picture is used, each a link
+- [x] `/pictures/new`: the upload form; `/pictures/[id]/edit`: name and alt text
+- [x] Delete, with the 409 shown as the error it is
+- [x] A `Picture` component: `<img>` with `srcset` and `sizes` (decision 8)
+- [x] e2e `pictures.spec.ts`: upload, read, edit, delete, the refused delete, a file that is not a
       picture refused in the form, the list at three widths in `responsive.spec.ts`
-- [ ] `frontend/CLAUDE.md`: the `Picture` component and the routes
+- [x] `frontend/CLAUDE.md`: the `Picture` component and the routes
 
 **Verify it yourself.** `npm run lint`, `npm run build`, the whole Playwright suite. At phone and
 desktop size: upload a photo, see the thumbnail, hover it on the desktop, open it, edit its alt
 text, delete it. In the browser's network tab, at a screen density of 1 (Playwright's), the phone
 width fetches `small` or `medium`, never `large`; a real phone at density 3 rightly fetches `large`
 for a read view (Part 2).
+
+**Done 2026-11-13.** Lint clean, the build succeeds, and the whole Playwright suite passes on the
+rebuilt stack: 219 tests, where there were 201. `pictures.spec.ts` adds 12 - the menu and the
+empty library, an upload through the form to its read view and the grid, the form while it
+uploads, a file that is not a picture, nothing filled in, edit, delete, the refused delete with
+where the picture is used, the Danish order, the hover and its absence with less motion, and the
+files a phone fetches. `responsive.spec.ts` adds `/pictures` and `/pictures/new` at three widths,
+and `menu.spec.ts` the entry. The backend is unchanged: 302 unit and 233 integration tests.
+Screenshots of the grid, a read view and the refused upload at 375 and 1280 px were looked
+through against Part 2's design. What differs from or settles the plan:
+- **The grid is `EntityList` with a `tile`**, as Recipes is with a `card`: the New button, loading,
+  errors, "No pictures yet." with the empty jar and the Danish order come with it. Not searchable:
+  the backend has no `?name=` for pictures, and the plan asks for none.
+- **The read view shows the audit fields** - created and updated, by whom and when - as decision 7
+  says, which other read views leave to the edit form. Where the picture is used is three rows,
+  Recipes, Ingredients and Welcome page, the first two each a link per use, "None" for none.
+- **`EntityForm` hands its fields whether it is saving**, so the picture's fields can be a disabled
+  fieldset with the "Uploading" line; and **`TextField` takes a `hint`**, for the alt text's.
+- **A file the browser cannot draw is shown by its name alone.** The first screenshot of the
+  refused upload showed the browser's broken-picture icon in the preview.
+- **A missing name or alt text hides a file that is not a picture.** The backend checks the fields
+  before it reads the file, so the file's own refusal comes only once both are filled in.
+- **The hover is Tailwind's `hover:`**, which in version 4 applies only under `(hover: hover)` -
+  decision 9 without a media query of our own - and `motion-safe:`.
 
 ---
 

@@ -26,8 +26,8 @@ export function EntityForm({
   /** The list route, such as "/categories"; the read view is path/id. */
   path: string;
   save: () => Promise<Audited>;
-  /** The fields, given the server's errors by field name. */
-  children: (errors: Record<string, string>) => ReactNode;
+  /** The fields, given the server's errors by field name, and whether a save is under way. */
+  children: (errors: Record<string, string>, saving: boolean) => ReactNode;
 }) {
   const router = useRouter();
   const [error, setError] = useState<unknown>();
@@ -56,7 +56,7 @@ export function EntityForm({
           ]}
         />
       )}
-      <div className="mt-6 flex flex-col gap-4">{children(errors)}</div>
+      <div className="mt-6 flex flex-col gap-4">{children(errors, saving)}</div>
       {/* An error that belongs to no field - not found, a conflict without a field, a failure. */}
       {error !== undefined && Object.keys(errors).length === 0 && <ErrorMessage error={error} />}
       <div className="mt-6 flex gap-2 md:gap-3">

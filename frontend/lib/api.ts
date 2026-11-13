@@ -54,13 +54,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (method !== "GET") {
     headers["X-XSRF-TOKEN"] = await csrfToken();
   }
-  if (body !== undefined) {
+  // A form, such as a picture's upload, goes as multipart: fetch sets its Content-Type, boundary
+  // included. Anything else is JSON.
+  const multipart = body instanceof FormData;
+  if (body !== undefined && !multipart) {
     headers["Content-Type"] = "application/json";
   }
   const response = await fetch(`/api/v1${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   });
   const text = await response.text();
   // A session that ended while a page was open - the backend restarted, or it timed out - answers
@@ -203,6 +206,48 @@ export const units = {
   create: (input: UnitInput) => request<Unit>("POST", "/units", input),
   update: (id: string, input: UnitInput) => request<Unit>("PUT", `/units/${encodeURIComponent(id)}`, input),
   remove: (id: string) => request<void>("DELETE", `/units/${encodeURIComponent(id)}`),
+};
+
+/** A picture in the library. Its files are at pictureUrl(id, size). */
+export interface Picture extends Audited {
+  name: string;
+  altText: string;
+}
+
+/** A single picture, as its read view gets it: with where it is used. */
+export interface PictureWithUses extends Picture {
+  recipes: { id: string; name: string }[];
+  ingredients: { id: string; name: string }[];
+  welcomePage: boolean;
+}
+
+export type PictureInput = Pick<Picture, "name" | "altText">;
+
+/** The three widths the backend keeps of every picture (docs/PLAN_V8.md, decision 4). */
+export const PICTURE_SIZES = { small: 400, medium: 800, large: 1600 } as const;
+
+export const pictureUrl = (id: string, size: keyof typeof PICTURE_SIZES) =>
+  `/api/v1/pictures/${encodeURIComponent(id)}/${size}`;
+
+export const pictures = {
+  list: () => request<Picture[]>("GET", "/pictures"),
+  get: (id: string) => request<PictureWithUses>("GET", `/pictures/${encodeURIComponent(id)}`),
+  /** Multipart: the file with the name and alt text. A file that is not a picture is a 400 on `file`. */
+  upload: (file: File | undefined, input: PictureInput) => {
+    const form = new FormData();
+    // None chosen is the server's to report, as every rule is.
+    if (file) {
+      form.append("file", file);
+    }
+    form.append("name", input.name);
+    form.append("altText", input.altText);
+    return request<Picture>("POST", "/pictures", form);
+  },
+  /** The name and alt text only: a picture's file never changes. */
+  update: (id: string, input: PictureInput) =>
+    request<PictureWithUses>("PUT", `/pictures/${encodeURIComponent(id)}`, input),
+  /** A 409 while a recipe, an ingredient or the Welcome page uses it. */
+  remove: (id: string) => request<void>("DELETE", `/pictures/${encodeURIComponent(id)}`),
 };
 
 /** An account, as an admin sees it. Never a password. */
