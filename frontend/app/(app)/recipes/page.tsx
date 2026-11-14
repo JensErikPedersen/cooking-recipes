@@ -2,6 +2,7 @@
 
 import { recipes } from "@/lib/api";
 import { EntityList } from "@/components/entity-list";
+import { Picture } from "@/components/picture";
 import { categoryPill, tagPill } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
@@ -13,6 +14,12 @@ export default function RecipesPage() {
       newLabel="New recipe"
       load={recipes.list}
       searchable
+      // The full width of the label's field, 3:2, above the name; a card without one is unchanged.
+      cardPicture={(recipe) =>
+        recipe.picture && (
+          <Picture picture={recipe.picture} place="card" lazy className="aspect-[3/2] w-full object-cover" />
+        )
+      }
       card={(recipe) => (
         <ul className="flex flex-wrap gap-2">
           <li className={categoryPill}>{recipe.category.name}</li>

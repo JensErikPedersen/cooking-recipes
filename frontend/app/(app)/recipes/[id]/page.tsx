@@ -9,6 +9,7 @@ import { EntityLoader } from "@/components/entity-loader";
 import { PageHeader } from "@/components/page-header";
 import { ButtonLabel } from "@/components/icons";
 import { Label } from "@/components/label";
+import { readViewColumns, WithPicture } from "@/components/detail-picture";
 import { categoryPill, iconButton, secondaryButton, tagPill, textLink as link } from "@/components/styles";
 import { danish } from "@/lib/sort";
 
@@ -25,21 +26,23 @@ export default function RecipePage({ params }: PageProps<"/recipes/[id]">) {
             </Link>
             <DeleteButton what="recipe" name={recipe.name} remove={() => recipes.remove(recipe.id)} listHref="/recipes" />
           </PageHeader>
-          <DetailList
-            rows={[
-              [
-                "Category",
-                <Link key="category" href={`/categories/${recipe.category.id}`} className={`${categoryPill} hover:underline`}>
-                  {recipe.category.name}
-                </Link>,
-              ],
-              ["Tags", <Tags key="tags" recipe={recipe} />],
-              ["Description", recipe.description],
-            ]}
-          />
+          <WithPicture picture={recipe.picture}>
+            <DetailList
+              rows={[
+                [
+                  "Category",
+                  <Link key="category" href={`/categories/${recipe.category.id}`} className={`${categoryPill} hover:underline`}>
+                    {recipe.category.name}
+                  </Link>,
+                ],
+                ["Tags", <Tags key="tags" recipe={recipe} />],
+                ["Description", recipe.description],
+              ]}
+            />
+          </WithPicture>
           {/* Read at arm's length while cooking: 18 px. On a phone the ingredients come first; from md
               they stand beside the instructions and stay in view while the steps are read. */}
-          <div className="mt-8 grid items-start gap-8 text-lg md:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]">
+          <div className={`mt-8 grid items-start gap-8 text-lg ${readViewColumns}`}>
             <Label className="md:sticky md:top-4">
               <h2 className="text-xl">Ingredients</h2>
               <Ingredients recipe={recipe} />

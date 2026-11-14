@@ -10,15 +10,24 @@ import { secondaryButton } from "@/components/styles";
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} kB`;
 
+/** What the upload form holds until it is sent. */
+export interface PictureDraft {
+  file?: File;
+  name: string;
+  altText: string;
+}
+
 // The file input, visually hidden behind its label drawn as a button: a native input keeps the
 // browser's own picker, the phone's camera and photo library included. A chosen file is shown from
 // the browser before it is sent; a refused one stays shown under the server's message, so another
 // can be chosen (docs/PLAN_V7.md, "The upload form").
 function PictureFileField({
+  id,
   file,
   onChange,
   error,
 }: {
+  id: string;
   file?: File;
   onChange: (file: File) => void;
   error?: string;
@@ -64,53 +73,91 @@ function PictureFileField({
       >
         {file ? "Choose another file" : "Choose a file"}
         <input
-          id="file"
+          id={id}
           name="file"
           type="file"
           accept="image/jpeg,image/png"
           onChange={choose}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "file-hint file-error" : "file-hint"}
+          aria-describedby={error ? `${id}-hint ${id}-error` : `${id}-hint`}
           className="sr-only"
         />
       </label>
-      <p id="file-hint" className="text-sm">
+      <p id={`${id}-hint`} className="text-sm">
         JPEG or PNG, up to 10 MB.
       </p>
-      {error && <FieldError id="file-error">{error}</FieldError>}
+      {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
     </div>
   );
 }
 
+/**
+ * The upload's fields - the file unless editing, the name and the alt text - as a fieldset that is
+ * disabled while it saves. On the Pictures form and in the picker alike; the picker gives its ids a
+ * prefix, since it opens over a form with a Name of its own.
+ */
+export function PictureFields({
+  draft,
+  onChange,
+  errors,
+  saving,
+  withFile = true,
+  idPrefix = "",
+}: {
+  draft: PictureDraft;
+  onChange: (draft: PictureDraft) => void;
+  errors: Record<string, string>;
+  saving: boolean;
+  withFile?: boolean;
+  idPrefix?: string;
+}) {
+  return (
+    <fieldset disabled={saving} className="flex min-w-0 flex-col gap-4">
+      {withFile && (
+        <PictureFileField
+          id={`${idPrefix}file`}
+          file={draft.file}
+          onChange={(file) => onChange({ ...draft, file })}
+          error={errors.file}
+        />
+      )}
+      <TextField
+        label="Name"
+        name={`${idPrefix}name`}
+        value={draft.name}
+        onChange={(name) => onChange({ ...draft, name })}
+        error={errors.name}
+      />
+      <TextField
+        label="Alt text"
+        name={`${idPrefix}altText`}
+        value={draft.altText}
+        onChange={(altText) => onChange({ ...draft, altText })}
+        error={errors.altText}
+        hint="What a screen reader says instead of the picture."
+      />
+      {/* fetch reports no progress, so a line rather than a bar. */}
+      {saving && draft.file && <p role="status">Uploading {draft.file.name}</p>}
+    </fieldset>
+  );
+}
+
+/** Sends a draft: the upload of a new picture. */
+export const uploadDraft = (draft: PictureDraft) => pictures.upload(draft.file, { name: draft.name, altText: draft.altText });
+
 // New is the upload - a file, a name and an alt text; edit changes the name and the alt text only,
 // as a picture's file never changes (docs/PLAN_V8.md, decisions 3 and 7).
 export function PictureForm({ picture }: { picture?: Picture }) {
-  const [file, setFile] = useState<File>();
-  const [name, setName] = useState(picture?.name ?? "");
-  const [altText, setAltText] = useState(picture?.altText ?? "");
+  const [draft, setDraft] = useState<PictureDraft>({ name: picture?.name ?? "", altText: picture?.altText ?? "" });
 
   function save() {
-    const input = { name, altText };
-    return picture ? pictures.update(picture.id, input) : pictures.upload(file, input);
+    return picture ? pictures.update(picture.id, { name: draft.name, altText: draft.altText }) : uploadDraft(draft);
   }
 
   return (
     <EntityForm entity={picture} path="/pictures" save={save}>
       {(errors, saving) => (
-        <fieldset disabled={saving} className="flex min-w-0 flex-col gap-4">
-          {!picture && <PictureFileField file={file} onChange={setFile} error={errors.file} />}
-          <TextField label="Name" name="name" value={name} onChange={setName} error={errors.name} />
-          <TextField
-            label="Alt text"
-            name="altText"
-            value={altText}
-            onChange={setAltText}
-            error={errors.altText}
-            hint="What a screen reader says instead of the picture."
-          />
-          {/* fetch reports no progress, so a line rather than a bar. */}
-          {saving && file && <p role="status">Uploading {file.name}</p>}
-        </fieldset>
+        <PictureFields draft={draft} onChange={setDraft} errors={errors} saving={saving} withFile={!picture} />
       )}
     </EntityForm>
   );

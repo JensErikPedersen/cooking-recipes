@@ -28,6 +28,7 @@ export function EntityList<T extends { id: string; name: string }>({
   searchable = false,
   columns = [],
   card,
+  cardPicture,
   tile,
 }: {
   title: string;
@@ -41,6 +42,8 @@ export function EntityList<T extends { id: string; name: string }>({
   columns?: [header: string, value: (entity: T) => ReactNode][];
   /** What a card shows under the name; given, the list is cards rather than a table. */
   card?: (entity: T) => ReactNode;
+  /** What a card shows above the name - a recipe's picture - if anything. */
+  cardPicture?: (entity: T) => ReactNode;
   /** What fills a tile's square band; given, the list is a grid of tiles. */
   tile?: (entity: T) => ReactNode;
 }) {
@@ -152,6 +155,7 @@ export function EntityList<T extends { id: string; name: string }>({
                 className="group has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-olive"
                 fieldClassName="flex flex-col gap-3.5 group-hover:outline-2 group-has-[a:focus-visible]:outline-2"
               >
+                {cardPicture?.(entity)}
                 <h2 className="text-xl">
                   <Link href={`${path}/${entity.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
                     {entity.name}

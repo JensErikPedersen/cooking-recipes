@@ -144,12 +144,27 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   with `srcset` over the three files the backend keeps (400, 800, 1600 px) and the `sizes` of its
   place, from `PICTURE_PLACES` - the table in `docs/PLAN_V7.md`, "Pictures (version 8)". Never
   `next/image`: its optimizer fetches on the server, without the session cookie. The caller's
-  classes give the box - `aspect-square object-cover` in the grid. `PictureForm` holds the file
-  field: a native file input, `sr-only` inside its label drawn as a secondary button, whose name
+  classes give the box - `aspect-square object-cover` in the grid, `aspect-[3/2]` on a recipe card
+  (`cardPicture` of `EntityList`, above the name), `aspect-[4/3]` on a recipe's or an ingredient's
+  read view (`WithPicture` in `components/detail-picture.tsx`: under the heading on a phone, from
+  `md` heading the 19 rem left column with the details beside it - the columns of the ingredients
+  and instructions, `readViewColumns`). A recipe and an ingredient without a picture look as before.
+  `PictureFields` - in `components/picture-form.tsx`, used by `PictureForm` and the picker - holds
+  the upload's fields; the file field is a native file input, `sr-only` inside its label drawn as a secondary button, whose name
   is "Choose a file", then "Choose another file". A chosen file is shown from the browser with
   `URL.createObjectURL`, or by its name alone if the browser cannot draw it; it is never checked
   here, and its name never fills in the picture's. While it uploads the fields are a disabled
   `<fieldset>` with an "Uploading <file>" status line - `fetch` reports no progress.
+  On the recipe and ingredient forms the picture is `PictureField` (`components/picture-field.tsx`),
+  a group named "Picture": the chosen one as a thumbnail with its name, or "None", then Choose and
+  Remove. Remove only clears the field; a form saved without a picture has none. Choose opens the
+  picker, a modal `<dialog>` mounted while open: the library's tiles, each a button named by the
+  picture's name, the chosen one `aria-pressed` with a ring and a tick, and "Upload new", which turns
+  it into the upload form and chooses what it uploads. The picker is portalled to `document.body`:
+  it opens inside the recipe's `<form>`, and its upload is a form, which may not stand inside
+  another. React still carries a submit up its own tree through the portal, so the upload's submit
+  stops there, or pressing Enter in it saved the recipe. Its fields' ids take the prefix `picker-`,
+  beside the recipe's own Name.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.

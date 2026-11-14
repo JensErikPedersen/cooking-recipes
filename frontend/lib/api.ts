@@ -137,6 +137,7 @@ export interface Recipe extends Audited {
   category: Category;
   tags?: Tag[];
   recipeIngredients?: RecipeIngredientLine[];
+  picture?: Picture;
 }
 
 /**
@@ -150,6 +151,8 @@ export interface RecipeInput {
   category?: { id: string };
   tags: { id: string }[];
   recipeIngredients: { ingredientId?: string; amount?: number; unitId?: string }[];
+  /** Absent for none: a recipe saved without a picture has none. */
+  picture?: { id: string };
 }
 
 export const recipes = {
@@ -164,9 +167,11 @@ export const recipes = {
 export interface Ingredient extends Audited {
   name: string;
   description?: string;
+  picture?: Picture;
 }
 
-export type IngredientInput = Pick<Ingredient, "name" | "description">;
+/** Absent picture for none, as for a recipe. */
+export type IngredientInput = Pick<Ingredient, "name" | "description"> & { picture?: { id: string } };
 
 export const ingredients = {
   /** All, or with a name only those whose name contains it, in any case. */

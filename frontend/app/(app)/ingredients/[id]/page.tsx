@@ -7,6 +7,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { DetailList } from "@/components/detail-list";
 import { EntityLoader } from "@/components/entity-loader";
 import { PageHeader } from "@/components/page-header";
+import { WithPicture } from "@/components/detail-picture";
 import { ButtonLabel } from "@/components/icons";
 import { iconButton, secondaryButton } from "@/components/styles";
 
@@ -34,12 +35,14 @@ export default function IngredientPage({ params }: PageProps<"/ingredients/[id]"
               listHref="/ingredients"
             />
           </PageHeader>
-          <DetailList
-            rows={[
-              ["Name", ingredient.name],
-              ["Description", ingredient.description],
-            ]}
-          />
+          <WithPicture picture={ingredient.picture}>
+            <DetailList
+              rows={[
+                ["Name", ingredient.name],
+                ["Description", ingredient.description],
+              ]}
+            />
+          </WithPicture>
         </>
       )}
     </EntityLoader>

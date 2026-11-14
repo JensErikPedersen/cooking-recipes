@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Parts 2 to 4 done and accepted. Part 5 done, awaiting review.
+Parts 2 to 5 done and accepted. Part 6 done, awaiting review.
 
 ## Shape of the work
 
@@ -374,18 +374,38 @@ through against Part 2's design. What differs from or settles the plan:
 
 Frontend, e2e.
 
-- [ ] The picker of decision 10, using the Pictures upload
-- [ ] The recipe form and the ingredient form: a picture field with Choose and Remove; Upload new
+- [x] The picker of decision 10, using the Pictures upload
+- [x] The recipe form and the ingredient form: a picture field with Choose and Remove; Upload new
       is in the picker (Part 2)
-- [ ] The recipe card and the recipe's read view with its picture, as Part 2 drew them
-- [ ] The ingredient's read view with its picture
-- [ ] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
+- [x] The recipe card and the recipe's read view with its picture, as Part 2 drew them
+- [x] The ingredient's read view with its picture
+- [x] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
       without one unchanged; a picture in use cannot be deleted from the Pictures page
 - [ ] An upload from an iPhone, if one is at hand, to settle the HEIC question of decision 5
 
 **Verify it yourself.** The whole suite. At phone size: give a recipe a new photo from the form,
 see it on the card and the read view; give an ingredient the same picture from the library; try
 to delete it on the Pictures page and read where it is used.
+
+**Done 2026-11-14**, but for the iPhone: no iPhone was at hand, so the HEIC question of decision 5
+is still open and its box unchecked - an upload from one, through the form or the picker, settles
+it. Lint clean, the build succeeds, and the whole Playwright suite passes on the rebuilt stack:
+228 tests, where there were 219. `recipe-pictures.spec.ts` adds 9 - a recipe given a picture from
+the library, shown on its read view and its card; a picture uploaded from the recipe form chosen
+and in the library; an upload refused in the picker, Back and Cancel; the chosen one marked and
+Escape; Remove; a recipe without a picture unchanged; one picture on a recipe and an ingredient,
+refused delete on the Pictures page; the read view's layout at 375 and 1024 px. The backend is
+unchanged. Screenshots of the cards, a recipe's read view, the form's field and the picker at 375
+and 1280 px were looked through against Part 2's design. What differs from or settles the plan:
+- **The picker is portalled to the body**, and its upload's submit stops there. A form may not
+  stand inside another, and React carries a submit up its own tree through a portal: without the
+  stop, pressing Enter in the picker saved the recipe. The test for it was made to fail that way,
+  with the stop taken out, before it was trusted.
+- **The upload's fields are one component**, `PictureFields`, on the Pictures form and in the
+  picker; in the picker their ids take a prefix, beside the recipe's own Name.
+- **Remove only clears the field**, as Part 2 says; the recipe or ingredient saved without a
+  picture has none (Part 4's rule).
+- **The card takes the picture through `cardPicture`**, a slot of `EntityList` above the name.
 
 ---
 
