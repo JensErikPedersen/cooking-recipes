@@ -8,8 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: done.** Drafted and accepted 2026-11-08, the decisions below settled that day; finished
-2026-11-14. Parts 2 to 6 done and accepted. Part 7 done, awaiting review. Open: the iPhone upload
-of Part 6.
+2026-11-14. Parts 2 to 6 done and accepted. Part 7 done, awaiting review.
 
 ## Shape of the work
 
@@ -382,15 +381,15 @@ Frontend, e2e.
 - [x] The ingredient's read view with its picture
 - [x] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
       without one unchanged; a picture in use cannot be deleted from the Pictures page
-- [ ] An upload from an iPhone, if one is at hand, to settle the HEIC question of decision 5
+- [x] An upload from an iPhone, if one is at hand, to settle the HEIC question of decision 5
 
 **Verify it yourself.** The whole suite. At phone size: give a recipe a new photo from the form,
 see it on the card and the read view; give an ingredient the same picture from the library; try
 to delete it on the Pictures page and read where it is used.
 
 **Done 2026-11-14**, but for the iPhone: no iPhone was at hand, so the HEIC question of decision 5
-is still open and its box unchecked - an upload from one, through the form or the picker, settles
-it. Lint clean, the build succeeds, and the whole Playwright suite passes on the rebuilt stack:
+was left open and its box unchecked. Settled in Part 7's review: an iPhone's photos arrive as
+JPEG. Lint clean, the build succeeds, and the whole Playwright suite passes on the rebuilt stack:
 228 tests, where there were 219. `recipe-pictures.spec.ts` adds 9 - a recipe given a picture from
 the library, shown on its read view and its card; a picture uploaded from the recipe form chosen
 and in the library; an upload refused in the picker, Back and Cancel; the chosen one marked and
@@ -438,7 +437,9 @@ and 1440 px, with and without a picture, were looked through against Part 2's de
   chosen by hand on the stack survives a run. The file adds 10 tests: the API one moved, none
   shown, chosen from the library and kept after a reload, uploaded from the page, Remove, the
   refused delete on the Pictures page, and the layout at the four sizes.
-- **The iPhone question stays open**, noted in `future_enhancements.md`; Part 6's box is unchecked.
+- **The iPhone question is settled**: two photos uploaded from an iPhone on review, 2026-11-14,
+  were accepted - the server refuses anything but JPEG and PNG, so iOS converted them, as the
+  input's `accept` lists only JPEG and PNG. Part 6's box is checked.
 - **Docs**: root `CLAUDE.md` (the serial Welcome tests), `frontend/CLAUDE.md` (`WelcomeIntro`),
-  `future_enhancements.md` (HEIC). `README.md`, `backend/README.md` and `backend/CLAUDE.md` were
+  `future_enhancements.md` (HEIC, settled). `README.md`, `backend/README.md` and `backend/CLAUDE.md` were
   read and needed nothing: the Welcome page's endpoints were documented in Part 4.
