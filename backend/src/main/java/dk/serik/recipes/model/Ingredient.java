@@ -2,6 +2,8 @@ package dk.serik.recipes.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.*;
 
@@ -19,6 +21,10 @@ public class Ingredient extends BaseIdentifierEntity {
 	
 	private String description;
 
+	// Optional, and shared as a recipe's is (docs/PLAN_V8.md decision 2).
+	@ManyToOne
+	@JoinColumn(name = "picture_id")
+	private Picture picture;
 
 	@Override
 	public String toString() {

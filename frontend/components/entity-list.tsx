@@ -14,7 +14,8 @@ import { danish } from "@/lib/sort";
 // The list page of an entity type: a New button, then a table that starts with the name, linked to
 // the read view and sorted by it, the Danish way. The API returns rows in storage order. Given a
 // card, the list is cards instead - Recipes (docs/PLAN_V7.md, decision 3) - each a label with the
-// name as its heading, whose link covers the whole card, and what the card adds under it.
+// name as its heading, whose link covers the whole card, and what the card adds under it. Given a
+// tile, it is a grid of square tiles - Pictures - each the tile in a tan band, the name under it.
 //
 // A searchable list has a field above the table. Searching asks the API with the term, which
 // answers the names containing it in any case; an empty field asks for everything again. The page
@@ -27,6 +28,8 @@ export function EntityList<T extends { id: string; name: string }>({
   searchable = false,
   columns = [],
   card,
+  cardPicture,
+  tile,
 }: {
   title: string;
   /** The list route, such as "/units"; the read view is path/id. */
@@ -39,6 +42,10 @@ export function EntityList<T extends { id: string; name: string }>({
   columns?: [header: string, value: (entity: T) => ReactNode][];
   /** What a card shows under the name; given, the list is cards rather than a table. */
   card?: (entity: T) => ReactNode;
+  /** What a card shows above the name - a recipe's picture - if anything. */
+  cardPicture?: (entity: T) => ReactNode;
+  /** What fills a tile's square band; given, the list is a grid of tiles. */
+  tile?: (entity: T) => ReactNode;
 }) {
   const [list, setList] = useState<T[]>();
   const [error, setError] = useState<unknown>();
@@ -109,6 +116,32 @@ export function EntityList<T extends { id: string; name: string }>({
               : `No ${title.toLowerCase()} match "${searched}".`}
           </p>
         </div>
+      ) : tile ? (
+        <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
+          {list
+            .toSorted((a, b) => danish(a.name, b.name))
+            .map((entity) => (
+              // As on a card, the name's link covers the tile. Where there is hover (Tailwind's hover
+              // variant asks for it) and motion is allowed, the band grows and floats above its
+              // neighbours (docs/PLAN_V8.md, decision 9); in focus it gets the ring and stays put.
+              <li key={entity.id} className="group relative hover:z-10">
+                <div
+                  className={
+                    "bg-tan p-1.5 transition duration-160 ease-out motion-reduce:transition-none " +
+                    "motion-safe:group-hover:scale-112 motion-safe:group-hover:shadow-[0_10px_30px] motion-safe:group-hover:shadow-olive/25 " +
+                    "group-has-[a:focus-visible]:outline-2 group-has-[a:focus-visible]:outline-offset-2 group-has-[a:focus-visible]:outline-olive"
+                  }
+                >
+                  {tile(entity)}
+                </div>
+                <h2 className="mt-2 font-sans text-base font-semibold">
+                  <Link href={`${path}/${entity.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
+                    {entity.name}
+                  </Link>
+                </h2>
+              </li>
+            ))}
+        </ul>
       ) : card ? (
         <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {list
@@ -122,6 +155,7 @@ export function EntityList<T extends { id: string; name: string }>({
                 className="group has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-3 has-[a:focus-visible]:outline-olive"
                 fieldClassName="flex flex-col gap-3.5 group-hover:outline-2 group-has-[a:focus-visible]:outline-2"
               >
+                {cardPicture?.(entity)}
                 <h2 className="text-xl">
                   <Link href={`${path}/${entity.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
                     {entity.name}

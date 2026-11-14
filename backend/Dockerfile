@@ -14,6 +14,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home recipes
+# The pictures' files (docs/PLAN_V8.md decision 1), on the pictures-data volume. A named volume takes
+# the owner of the image's directory when it is first created; without this it would be root's, and
+# the backend could not write a picture.
+RUN mkdir -p /data/pictures && chown recipes /data/pictures
+ENV PICTURES_DIR=/data/pictures
 # Not load-bearing: dates are stored in UTC whatever the JVM's zone, and the API sends them with
 # their offset. It keeps the JVM's own clock - logs, the dates in a write's response - in UTC too.
 ENV TZ=UTC

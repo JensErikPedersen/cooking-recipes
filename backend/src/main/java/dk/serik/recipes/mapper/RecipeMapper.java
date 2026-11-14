@@ -33,6 +33,7 @@ public class RecipeMapper {
                 .createdBy(entity.getCreatedBy())
                 .updated(entity.getUpdated())
                 .updatedBy(entity.getUpdatedBy())
+                .picture(PictureMapper.from(entity.getPicture()))
                 .build();
         if(Objects.nonNull(entity.getRecipeIngredients())) {
             // The entity holds its lines in a set; sorted, a GET answers in the same order every time.

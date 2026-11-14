@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -33,6 +34,21 @@ public class ApplicationExceptionHandlerTest {
         // Then
         assertThat(envelope.getMessage()).doesNotContain("SQL", "PUBLIC.RATING", "insert into");
         assertThat(envelope.getErrorCode()).isEqualTo(ApplicationErrorCodes.UNHANDLED_EXCEPTION.getCode());
+    }
+
+    @Test
+    @DisplayName("Given a picture over the upload limit, When handled, Then 413 on the file field")
+    public void shouldRefuseATooLargePictureOnTheFileField() {
+        // Given - When
+        ResponseEntity<ExceptionEnvelope> response =
+                handler.handleMaxUploadSizeExceeded(new MaxUploadSizeExceededException(10 * 1024 * 1024));
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
+        assertThat(response.getBody().getErrorCode()).isEqualTo(ApplicationErrorCodes.PICTURE_TOO_LARGE.getCode());
+        assertThat(response.getBody().getValidationExceptions())
+                .extracting(ValidationExceptionEnvelope::getObjectName, ValidationExceptionEnvelope::getMessage)
+                .containsExactly(tuple("file", "The picture is larger than 10 MB"));
     }
 
     @ParameterizedTest(name = "{0}")

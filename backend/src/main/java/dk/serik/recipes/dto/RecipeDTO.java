@@ -38,9 +38,12 @@ public class RecipeDTO extends BaseIdentityDTO {
 
 	private Set<TagDTO> tags;
 
+	// Optional: null, or absent from a write, is no picture.
+	private PictureDTO picture;
+
 	@Builder
 	@Jacksonized
-	public RecipeDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description, String instructions, String categoryId, String categoryName, List<RecipeIngredientDTO> recipeIngredients, Set<RecipeRatingDTO> recipeRatings, Set<TagDTO> tags) {
+	public RecipeDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description, String instructions, String categoryId, String categoryName, List<RecipeIngredientDTO> recipeIngredients, Set<RecipeRatingDTO> recipeRatings, Set<TagDTO> tags, PictureDTO picture) {
 		super(id, created, createdBy, updated, updatedBy);
 		this.name = name;
 		this.description = description;
@@ -53,6 +56,7 @@ public class RecipeDTO extends BaseIdentityDTO {
 		this.recipeIngredients = recipeIngredients;
 		this.recipeRatings = recipeRatings;
 		this.tags = tags;
+		this.picture = picture;
 	}
 
 

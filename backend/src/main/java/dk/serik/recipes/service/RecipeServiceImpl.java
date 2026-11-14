@@ -47,6 +47,8 @@ public class RecipeServiceImpl implements RecipeService {
 
     private TagJpaRepository tagJpaRepository;
 
+    private PictureJpaRepository pictureJpaRepository;
+
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
     public List<RecipeDTO> findAllByNameContains(String name) {
@@ -82,6 +84,7 @@ public class RecipeServiceImpl implements RecipeService {
         Recipe recipe = getRecipe(recipeDTO);
         rejectDuplicateName(recipeDTO.getName(), recipe.getId());
         handleCategory(recipeDTO, recipe);
+        recipe.setPicture(ServiceArguments.toPicture(recipeDTO.getPicture(), pictureJpaRepository));
         handleTags(recipeDTO, recipe);
         handleRecipeIngredients(recipeDTO, recipe);
         log.info("Saving recipe: {}", recipe);
@@ -111,6 +114,7 @@ public class RecipeServiceImpl implements RecipeService {
         managedRecipe.setDescription(dto.getDescription());
         managedRecipe.setInstructions(dto.getInstructions());
         handleCategory(dto, managedRecipe);
+        managedRecipe.setPicture(ServiceArguments.toPicture(dto.getPicture(), pictureJpaRepository));
         handleTags(dto, managedRecipe);
         handleRecipeIngredients(dto, managedRecipe);
 

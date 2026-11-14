@@ -28,6 +28,8 @@ for (const width of [375, 768, 1024]) {
       "/ingredients",
       "/units/new",
       "/tags",
+      "/pictures",
+      "/pictures/new",
       "/account",
       "/users",
       "/login",

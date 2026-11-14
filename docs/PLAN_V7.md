@@ -334,6 +334,173 @@ dill sprig above it.
      '-------------------------------'
 ```
 
+### Pictures (version 8)
+
+Added in `docs/PLAN_V8.md` Part 2. Decision 4's "no photos" is replaced by V8's picture library;
+the drawings stay, and everything above holds.
+
+**A photo is content, not chrome.** Decision 1's four colours rule the interface, not what a photo
+shows: a photo keeps its own colours, and nothing is tinted or filtered. No text is ever set on a
+picture, so no contrast rule is needed for one. A picture has square corners - a print - and sits
+inside the frame of what holds it: inside a label's hairline on a card, or in a tan band of 6 px
+where it stands alone. No shadow, except the one that floats (below).
+
+**Boxes, by place.** The box is fixed with `aspect-ratio` and the photo fills it with
+`object-fit: cover`, so a page never jumps as pictures load and a portrait photo is cropped to the
+middle rather than stretching a card. Only a picture's own read view shows it whole.
+
+| Place | Ratio | Where it sits |
+|---|---|---|
+| Recipe card | 3:2 | top of the label, inside the field's padding, above the name |
+| Recipe and ingredient read view | 4:3 | phone: under the heading; from `md`: the left column, beside the details |
+| Pictures grid, picker | 1:1 | a tile in a tan band 6 px, the name under it |
+| A picture's read view | its own | whole, at most 70% of the window's height |
+| Welcome page | 4:3 | beside the introduction from `md`, under it on a phone |
+
+**Cards.** A card with a picture has it at the top, the full width of the field; the name and the
+pills follow as before. A card without one is unchanged. In a row where only some cards have a
+picture, the cards still share their height (the grid stretches them) and their names do not line
+up - accepted: a placeholder drawing on every card without a photo would make the list noisy, and
+a picture at the bottom of the card, where names would line up, reads the card upside down.
+
+**A recipe's read view.** On a phone the picture comes right under the heading, the width of the
+page, then the details, the ingredients and the instructions as before. From `md` the read view's
+left column - 19 rem, the ingredients' column - carries the picture above the ingredients, and the
+details stand beside the picture, so the page keeps two columns from the top down. Only the
+ingredients are sticky, as now. Without a picture the page is unchanged. An ingredient's read view
+does the same with its two details.
+
+**The Pictures grid.** Two columns on a phone, three from `md`, four from `lg`, 12 px apart on a
+phone and 20 px from `md`. Each tile is the square thumbnail in its band with the name under it,
+16 px, semibold, Fira Sans - Young Serif is for headings and recipe names, and at two columns on a
+phone it would wrap every name. The name is the link, its `::after` covers the tile, as on a recipe
+card, so the list's names read as everywhere else; the picture keeps its alt text. Sorted the
+Danish way. "No pictures yet." with the empty jar when there are none.
+
+**The hover** (V8 decision 9). Under `@media (hover: hover)` and with motion allowed, the thumbnail
+and its band grow to 112% in 160 ms and float: an olive shadow at 25%, above its neighbours. In
+focus the tile gets the focus ring, without growing. Without hover, a tap opens the read view.
+
+**The picture field on a form.** One field, "Picture", after the description: a 3:2 thumbnail
+120 px wide with the picture's name beside it, and Choose and Remove under it; with none, "None"
+in italics and Choose alone. Choose opens the picker. Remove only clears the field, as a recipe's
+category would be changed; nothing is saved until Save. Below `md` Remove shows the bin, as on an
+ingredient line; Choose keeps its word.
+
+**The picker** (V8 decision 10). The Delete dialog's look, wider - at most 40 rem, the page's width
+less 16 px on each side on a phone - with the heading "Choose a picture", "Upload new" and Cancel
+at its head, then the library's tiles, three columns on a phone, four from `md`, scrolling inside
+the dialog. A tile is a button named by the picture's name; choosing one closes the dialog. The
+picture already chosen has an olive ring of 3 px and a tick. An empty library says "No pictures
+yet." beside Upload new. Upload new turns the dialog into the upload form, with Back to return to
+the tiles; a successful upload chooses the new picture and closes the dialog.
+
+**The upload form**, on `/pictures/new` and in the picker: the file, then Name and Alt text as
+`TextField`s, the alt text with the hint "What a screen reader says instead of the picture." The
+file field is a native `<input type="file" accept="image/jpeg,image/png">`, visually hidden behind
+its label drawn as a secondary button - the label keeps the input's name and its focus ring (by
+`:focus-within`). Its states:
+
+1. **None chosen**: "Choose a file" and the hint "JPEG or PNG, up to 10 MB."
+2. **Chosen**: the file shown from the browser, 120 px wide in a band, its file name and size, and
+   "Choose another file". The name is not filled in from the file name - the server's rules only.
+3. **Uploading**: the form's fieldset disabled, Save (or Upload, in the picker) at half opacity,
+   and a `role="status"` line "Uploading Rugbrød.jpg". No progress bar: `fetch` reports none.
+4. **Refused**: the server's message as the file's `FieldError` - a file that is not a picture,
+   or one larger than 10 MB - with the chosen file still shown, so another can be chosen.
+
+**The Welcome page.** The picture stands beside the introduction from `md` - the text in its
+65 characters on the left, the picture 18 rem wide on the right, in its band - and under the text,
+the page's width, on a phone. The shelf stays the one bold element below them, unchanged: five
+jars, no sixth for Pictures, which is a store of photos, not something a recipe is made of; the
+introduction says pictures exist in one clause. Without a picture the page is as in V7. Choose and
+Remove sit under the picture, as on a form, and save at once - the page has no Save. *Considered:*
+a framed picture standing on the shelf beside the jars - the jars shrink to fit a sixth, and on a
+phone the frame has nowhere to stand; or the picture instead of the Recipes jar - the jars mean
+the sections, and a photo of one dish does not mean Recipes.
+
+**`sizes`** for each place, from the grid at the four sizes of decision 6. Content is 64 rem wide
+including its gutters, so 960 px from `lg` and the window less 64 px from `md`, less 32 px below.
+
+| Place | `sizes` |
+|---|---|
+| Recipe card | `(min-width: 1024px) 250px, (min-width: 768px) calc(50vw - 100px), calc(100vw - 90px)` |
+| Read view, recipe and ingredient | `(min-width: 768px) 304px, calc(100vw - 32px)` |
+| Pictures grid | `(min-width: 1024px) 213px, (min-width: 768px) calc(33vw - 47px), calc(50vw - 34px)` |
+| Picker | `(min-width: 768px) 127px, calc(33vw - 47px)` |
+| A picture's read view | `(min-width: 1024px) 960px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 32px)` |
+| Welcome page | `(min-width: 768px) 288px, calc(100vw - 32px)` |
+
+The browser multiplies by the screen's density before it picks from 400, 800 and 1600 px. So a
+phone at density 3 fetches `large` for a read view (343 px x 3 = 1029 px) and `medium` for a
+thumbnail, as it should for a sharp picture; at density 1 or 2 a phone never needs `large`.
+
+### Wireframes, pictures
+
+**A recipe card with a picture**, beside one without.
+
+```
+ .--------------------------.  .--------------------------.
+(  +----------------------+  )(  Brunkage                  )
+(  |                      |  )(                            )
+(  |   photo, 3:2         |  )(  (Kager)                   )
+(  |                      |  )(                            )
+(  +----------------------+  )(                            )
+(  Fuldkorns hvedebrød       )(                            )
+(  (Brød) [Godt til kaffen]  )(                            )
+ '--------------------------'  '--------------------------'
+```
+
+**A recipe from `md`**, with a picture. The left column is the ingredients' column.
+
+```
+Fuldkorns hvedebrød                                       [Edit] [Delete]
++------------------------+    Category     (Brød)
+|                        |    Tags         [Godt til kaffen]
+|  photo, 4:3, 304 px    |    Description  Et dejligt Fuldkorns brød ...
+|                        |
++------------------------+
+ .------------------------.   Instructions
+(  Ingredients             )  1. Hæld vand og gær i en røremaskine ...
+(   170 gr Fuldkorns ...   )
+ '------------------------'
+```
+
+**The Pictures grid** on a phone, and from `lg`.
+
+```
++---------+ +---------+        +------+ +------+ +------+ +------+
+| [thumb] | | [thumb] |        |      | |      | |      | |      |
++---------+ +---------+        +------+ +------+ +------+ +------+
+Brunkage    Gær i skål         Brunkage Gær i    Kålsalat Rugbrød
+                                        skål
+```
+
+**The picture field and the picker**, on a phone.
+
+```
+Picture                         .-----------------------------------.
++--------+ Rugbrød på bræt      | Choose a picture                  |
+| thumb  |                      | [Upload new]            [Cancel]  |
++--------+                      | +-----+ +-----+ +-----+           |
+[Choose] [bin]                  | |     | | (v) | |     |  chosen:  |
+                                | +-----+ +-----+ +-----+  ring+tick|
+                                | Brunk.. Rugbrød Kålsal..          |
+                                '-----------------------------------'
+```
+
+**The Welcome page from `md`**, with a picture.
+
+```
+Cooking Recipes                                   +------------------+
+Keep your recipes in one place. ...               |  photo, 4:3,     |
+... 65 characters wide                            |  18 rem          |
+                                                  +------------------+
+                                                  [Choose] [Remove]
+   _____      _______      .---.        __         _____
+==================================================================  the shelf, as in V7
+```
+
 ---
 
 ## Part 1: Baseline and scope

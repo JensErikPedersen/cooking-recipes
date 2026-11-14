@@ -17,6 +17,7 @@ import {
 import { EntityForm } from "@/components/entity-form";
 import { ErrorMessage } from "@/components/error-message";
 import { Loading } from "@/components/loading";
+import { PictureField } from "@/components/picture-field";
 import { IngredientLines, newLine, parseAmount, type Line } from "@/components/ingredient-lines";
 import { SelectField } from "@/components/select-field";
 import { TextField } from "@/components/text-field";
@@ -36,6 +37,7 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
   const [description, setDescription] = useState(recipe?.description ?? "");
   const [instructions, setInstructions] = useState(recipe?.instructions ?? "");
   const [categoryId, setCategoryId] = useState(recipe?.category.id ?? "");
+  const [picture, setPicture] = useState(recipe?.picture);
   const [tagIds, setTagIds] = useState<string[]>(recipe?.tags?.map((tag) => tag.id) ?? []);
   const [lines, setLines] = useState<Line[]>(() =>
     (recipe?.recipeIngredients ?? [])
@@ -73,6 +75,7 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
         amount: parseAmount(line.amount),
         unitId: line.unitId || undefined,
       })),
+      picture: picture && { id: picture.id },
     };
     return recipe ? recipes.update(recipe.id, input) : recipes.create(input);
   }
@@ -135,6 +138,7 @@ export function RecipeForm({ recipe }: { recipe?: Recipe }) {
             error={errors.description}
             multiline
           />
+          <PictureField picture={picture} onChange={setPicture} error={errors.picture} />
           <TextField
             label="Instructions"
             name="instructions"

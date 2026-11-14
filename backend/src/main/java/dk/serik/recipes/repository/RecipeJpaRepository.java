@@ -21,4 +21,6 @@ public interface RecipeJpaRepository extends JpaRepository<Recipe, UUID> {
 	// recipe_tag's key is (recipe_id, tag_id), so no recipe is counted twice.
 	long countByTagsId(UUID tagId);
 
+	List<Recipe> findAllByPictureIdOrderByName(UUID pictureId);
+
 }

@@ -17,6 +17,10 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   so a heading is never `font-bold`. One focus ring for every control, olive, in `globals.css`.
 - `/api` belongs to the backend: `rewrites()` in `next.config.ts` forwards `/api/:path*` to it.
   The app has no route handlers of its own; one would have to live outside `/api`.
+- Because `proxy.ts` exists, Next buffers every request body - `/api` included, whatever the
+  matcher says - and cuts it off at `experimental.proxyClientMaxBodySize`. That is set to the
+  backend's `max-request-size` (11 MB); raise both together, or a larger upload arrives truncated
+  and the backend waits on it until the client gives up.
 - The rewrite destination is fixed at **build** time: `next build` evaluates `next.config.ts` and
   writes the URL into `.next/routes-manifest.json`. So `BACKEND_URL` is a Docker build argument,
   derived by Compose from `APPLICATION_PORT`; setting it on the running container does nothing.
@@ -24,7 +28,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
 - The browser only ever talks to this origin, never to the backend directly. There is no CORS.
 - All backend calls go through `lib/api.ts`. Writes send the CSRF token from the `XSRF-TOKEN`
   cookie as `X-XSRF-TOKEN`; logout clears that cookie, so a write that finds none fetches a fresh
-  one first. Non-2xx responses throw `ApiError`, carrying the backend's error envelope.
+  one first. Non-2xx responses throw `ApiError`, carrying the backend's error envelope. A body is
+  JSON, except a `FormData` - a picture's upload - which goes as multipart, its `Content-Type` set
+  by `fetch`.
 - Signed-in pages live in the `app/(app)/` route group, whose layout wraps them in `AppShell`: it
   asks `/api/v1/auth/me` and renders nothing until the session is confirmed. `proxy.ts` (Next 16's
   name for middleware) redirects requests without a `JSESSIONID` cookie before any page renders,
@@ -47,7 +53,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   `EntityList` - New button, a table starting with the linked name, sorted by it, plus the columns
   it is given; "No <things> yet." when empty. Given a `card` instead, as Recipes is, it lists
   cards: each a `Label`, the name its heading, whose link's `::after` covers the card - so the link
-  is still named by the name alone - and what `card` returns under it. The e2e specs read a list's
+  is still named by the name alone - and what `card` returns under it. Given a `tile`, as Pictures
+  is, it is a grid of square tiles, 2, 3 and 4 columns: the tile in a tan band, the name under it as
+  an `h2` in Fira Sans whose link covers the tile. Under the pointer, with motion allowed, the band
+  grows to 112% and floats - Tailwind 4's `hover:` applies only where there is hover, so a phone
+  never sees it; in keyboard focus it gets the ring instead. The e2e specs read a list's
   names, rows or cards alike, with `listNames` in `e2e/support/pages.ts`. A `searchable` one - Recipes, Categories,
   Ingredients and Tags, not Units - has a "Search by name" field that asks the API with
   `?name=`, never filters in the page, and says "No <things> match "<term>"." when nothing does;
@@ -77,7 +87,9 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   refusal inside it with only an OK button, and goes to the list after a delete. Its own buttons
   keep their words.
 - Forms: one `<Entity>Form` per entity, used by both its `new` and `[id]/edit` pages, holds the
-  field state and wraps its `TextField`s in `EntityForm`. `EntityForm` does the rest - the audit
+  field state and wraps its `TextField`s in `EntityForm`, which hands its fields the errors and
+  whether a save is under way. A `TextField` can carry a `hint`, a line under its label that the
+  input names with `aria-describedby`, as it does its error. `EntityForm` does the rest - the audit
   fields when editing, Save and Cancel, errors, and after a save a `router.push` to the read view,
   which loads the entity with its own GET. Never render the save response or the form's state as
   the result: that would hide a backend that drops a field.
@@ -125,6 +137,39 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   the submit handler, as `next` is on the login page. Success goes to `/login?reset`, signed out.
   A token that no longer works is an alert, not a field error, with a link to ask for a new one.
   Both forms have `noValidate` where they hold an email field, as the register form does.
+- Pictures (`docs/PLAN_V8.md`): `/pictures` is the grid, `/pictures/[id]` the read view - the
+  picture whole, at most 70% of the window's height, then its fields, where it is used, each a
+  link, and the audit fields - `/pictures/new` the upload and `/pictures/[id]/edit` the name and
+  alt text only. A picture is shown by `Picture` from `components/picture.tsx`: a plain `<img>`
+  with `srcset` over the three files the backend keeps (400, 800, 1600 px) and the `sizes` of its
+  place, from `PICTURE_PLACES` - the table in `docs/PLAN_V7.md`, "Pictures (version 8)". Never
+  `next/image`: its optimizer fetches on the server, without the session cookie. The caller's
+  classes give the box - `aspect-square object-cover` in the grid, `aspect-[3/2]` on a recipe card
+  (`cardPicture` of `EntityList`, above the name), `aspect-[4/3]` on a recipe's or an ingredient's
+  read view (`WithPicture` in `components/detail-picture.tsx`: under the heading on a phone, from
+  `md` heading the 19 rem left column with the details beside it - the columns of the ingredients
+  and instructions, `readViewColumns`). A recipe and an ingredient without a picture look as before.
+  `PictureFields` - in `components/picture-form.tsx`, used by `PictureForm` and the picker - holds
+  the upload's fields; the file field is a native file input, `sr-only` inside its label drawn as a secondary button, whose name
+  is "Choose a file", then "Choose another file". A chosen file is shown from the browser with
+  `URL.createObjectURL`, or by its name alone if the browser cannot draw it; it is never checked
+  here, and its name never fills in the picture's. While it uploads the fields are a disabled
+  `<fieldset>` with an "Uploading <file>" status line - `fetch` reports no progress.
+  On the recipe and ingredient forms the picture is `PictureField` (`components/picture-field.tsx`),
+  a group named "Picture": the chosen one as a thumbnail with its name, or "None", then Choose and
+  Remove. Remove only clears the field; a form saved without a picture has none. Choose opens the
+  picker, a modal `<dialog>` mounted while open: the library's tiles, each a button named by the
+  picture's name, the chosen one `aria-pressed` with a ring and a tick, and "Upload new", which turns
+  it into the upload form and chooses what it uploads. The picker is portalled to `document.body`:
+  it opens inside the recipe's `<form>`, and its upload is a form, which may not stand inside
+  another. React still carries a submit up its own tree through the portal, so the upload's submit
+  stops there, or pressing Enter in it saved the recipe. Its fields' ids take the prefix `picker-`,
+  beside the recipe's own Name.
+  The Welcome page's picture is `WelcomeIntro` (`components/welcome-picture.tsx`), a client
+  component around the page's heading and introduction: the picture 4:3, in its band, 18 rem beside
+  the text from `md` and under it on a phone, then Choose and Remove, which save at once through
+  `welcomePage` in `lib/api.ts` - the page has no Save. Without a picture, "Choose a picture" under
+  the text. It shows nothing until its picture has loaded; the page is complete without it.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.

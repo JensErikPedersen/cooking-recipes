@@ -7,8 +7,8 @@ as the record; this file plans the seventh round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Part 1 next.
+**Status: done.** Drafted and accepted 2026-11-08, the decisions below settled that day; finished
+2026-11-14. Parts 2 to 7 done and accepted.
 
 ## Shape of the work
 
@@ -159,19 +159,41 @@ time joined `future_enhancements.md` before this part, at the user's request.
 Docs only, with the frontend-design skill. Amends the "Design language" of `docs/PLAN_V7.md`, which
 stays the design's home.
 
-- [ ] Where a picture sits in a recipe card, and the card without one unchanged; its aspect ratio
-- [ ] A recipe's and an ingredient's read view with a picture, on a phone and a desktop
-- [ ] The Pictures grid: columns per size, the thumbnail's frame, the hover from decision 9
-- [ ] The picker dialog and the upload form, with the file field's states: none chosen, chosen,
+- [x] Where a picture sits in a recipe card, and the card without one unchanged; its aspect ratio
+- [x] A recipe's and an ingredient's read view with a picture, on a phone and a desktop
+- [x] The Pictures grid: columns per size, the thumbnail's frame, the hover from decision 9
+- [x] The picker dialog and the upload form, with the file field's states: none chosen, chosen,
       uploading, refused
-- [ ] The Welcome page's picture beside the shelf, V7's one bold element: whether it joins the
+- [x] The Welcome page's picture beside the shelf, V7's one bold element: whether it joins the
       shelf, stands above it, or replaces the drawn jar of Recipes - decided here, with wireframes
-- [ ] The `sizes` value for each place a picture appears, from the grid at the four sizes of V7's
+- [x] The `sizes` value for each place a picture appears, from the grid at the four sizes of V7's
       decision 6
-- [ ] A preview published as a private Artifact, with stand-in pictures, not added to the
+- [x] A preview published as a private Artifact, with stand-in pictures, not added to the
       repository
 
 **Verify it yourself.** Read the amended section; open the preview on a phone and a desktop.
+
+**Done 2026-11-12.** The design is "Pictures (version 8)" in `docs/PLAN_V7.md`, under
+its "Design language", with wireframes of its own. The preview, "Pantry Pictures Preview", is
+https://claude.ai/artifact/NSbW4GZ6ZsGbEPCsxyFY3j - private to its owner; its photos are painted by
+the page, since an Artifact cannot load images from elsewhere. Its Welcome page switches between
+the recommended layout, the alternative on the shelf, and none. The frontend-design skill named
+above is not available in this environment; the design was checked against V7's list of generic
+defaults instead.
+
+In short: 3:2 at the top of a card, inside the label; 4:3 heading the ingredients' column of a
+read view from `md`, under the heading on a phone; square tiles in a tan band, 2, 3 and 4 columns;
+the Welcome picture beside the introduction, the shelf unchanged. A photo keeps its own colours -
+decision 1's palette rules the interface - and never carries text.
+
+Three findings changed later parts, accepted on review the same day and applied above:
+- **Part 5, verify.** "The phone width fetches `small` or `medium`, never `large`" holds only at a
+  screen density of 1 or 2. A phone at density 3 needs `large` for a read view (343 px x 3), and
+  should fetch it. The check belongs at Playwright's density 1.
+- **Part 5, menu.** No sixth jar on the Welcome shelf for Pictures: it is a store of photos, not
+  something a recipe is made of. The menu entry is in the header and the burger menu only.
+- **Part 6, the form.** The form has Choose and Remove; Upload new lives in the picker, as
+  decision 10 already has it, rather than as a third button on the form.
 
 ---
 
@@ -179,22 +201,22 @@ stays the design's home.
 
 Backend, docker, e2e. No link to recipes yet.
 
-- [ ] Changelog `1.7`: table `picture` (`id`, `name`, `alt_text`, the audit columns)
-- [ ] Thumbnailator in `pom.xml`, at its latest stable version
-- [ ] `PictureStorage`: writes the three sizes of decision 4, reads one, deletes all three; unit
+- [x] Changelog `1.7`: table `picture` (`id`, `name`, `alt_text`, the audit columns)
+- [x] Thumbnailator in `pom.xml`, at its latest stable version
+- [x] `PictureStorage`: writes the three sizes of decision 4, reads one, deletes all three; unit
       tests on a `@TempDir` with fixture pictures - a landscape and a portrait JPEG, one with an EXIF
       rotation, a transparent PNG, one smaller than 400 px
-- [ ] `POST /api/v1/pictures`, multipart: the file, a name and an alt text; 201 with the picture.
+- [x] `POST /api/v1/pictures`, multipart: the file, a name and an alt text; 201 with the picture.
       400 for a file that does not decode or a missing name or alt text; 413 above 10 MB
-- [ ] `GET /api/v1/pictures` and `GET /api/v1/pictures/{id}`: the metadata, as for other entities
-- [ ] `GET /api/v1/pictures/{id}/{size}` for `small`, `medium`, `large`: `image/jpeg`, the cache
+- [x] `GET /api/v1/pictures` and `GET /api/v1/pictures/{id}`: the metadata, as for other entities
+- [x] `GET /api/v1/pictures/{id}/{size}` for `small`, `medium`, `large`: `image/jpeg`, the cache
       header of decision 3; 404 for an unknown id or size
-- [ ] Volume `pictures-data` in `docker-compose.yml`; `/data/pictures` in the backend's
+- [x] Volume `pictures-data` in `docker-compose.yml`; `/data/pictures` in the backend's
       `Dockerfile`, owned by `recipes`
-- [ ] e2e `pictures-api.spec.ts`, through `localhost:3000`: upload, list, fetch each size, a
+- [x] e2e `pictures-api.spec.ts`, through `localhost:3000`: upload, list, fetch each size, a
       file that is not a picture refused, a file just under 10 MB accepted and one over refused - the proof that the
       Next.js proxy passes a large body - and 401 signed out; each test deletes what it uploads
-- [ ] `backend/CLAUDE.md` and `backend/README.md`: the endpoints, the storage, the volume
+- [x] `backend/CLAUDE.md` and `backend/README.md`: the endpoints, the storage, the volume
 
 **Verify it yourself.** `./mvnw clean verify` and `npx playwright test pictures-api.spec.ts`. Then,
 signed in at `localhost:3000`, upload a phone photo from the browser's console with a few lines of
@@ -202,29 +224,102 @@ signed in at `localhost:3000`, upload a phone photo from the browser's console w
 again - they survive. List the files with
 `docker compose exec backend ls -l /data/pictures`.
 
+**Done 2026-11-13.** `./mvnw clean verify` green, Failsafe included: 285 unit and 222 integration
+tests (275 and 211 at the baseline). On the rebuilt stack the whole Playwright suite is green, 197
+tests, the baseline's 190 and 7 in `pictures-api.spec.ts`. By hand: a JPEG uploaded through
+`localhost:3000` gave three files owned by `recipes` in `/data/pictures`; after `scripts/stop.sh`
+and `scripts/start.sh` all three were still served, `image/jpeg`, with
+`Cache-Control: max-age=31536000, private, immutable`; deleting the picture removed the row and
+the files. A real phone photo is still the user's own check, with the snippet below.
+- **`experimental.proxyClientMaxBodySize: "11mb"` in `next.config.ts`.** Next cuts every proxied
+  request body off at 10 MB by default, rewrites to the backend included - the `proxy.ts` matcher
+  does not exempt `/api`, as first assumed. The first run of `pictures-api.spec.ts` proved it: an
+  upload of 10.1 MB reached the backend cut at 10 MB, under the file limit but short of its
+  `Content-Length`, and the backend waited until the test timed out. The limit now matches the
+  backend's `max-request-size`; above it the backend answers 413 from the `Content-Length` alone.
+What differs from the plan:
+- **`DELETE /api/v1/pictures/{id}` came forward from Part 4**, without the in-use check: e2e has
+  to remove what it uploads, and nothing links to a picture yet. Part 4 adds the 409.
+- **No committed fixtures** (decision 11). The backend's tests draw their pictures
+  (`TestPictures`), the EXIF orientation written into the JPEG by hand; e2e draws them on a canvas
+  (`e2e/support/pictures.ts`), and makes the 10 MB files by padding a small JPEG after its end
+  marker. No image tool was at hand to make real files, and drawn ones show which way a picture was
+  turned. A real phone photo is still the manual check above.
+- **`java.awt.headless=true`** in the `argLine` of Surefire and Failsafe: in a shell with a
+  `DISPLAY` and no X server, AWT failed every picture test. Spring Boot sets it for the application.
+- **Names are not unique**, unlike the other entities': two photos of one dish may share a name.
+- **The upload is the record `PictureUploadDTO`**, bound with `@Valid @ModelAttribute`, so a
+  missing file, name or alt text is one 400 naming each field.
+- **The row is flushed before resizing**: the 5 second transaction timeout is checked per
+  statement, and a large photo's resizing would otherwise come before the insert.
+- Error codes 700s: 701 id, 710 not found, 720 not a picture, 721 too large.
+
+To upload a photo by hand, signed in at `localhost:3000`, in the browser's console:
+
+```js
+const input = Object.assign(document.createElement("input"), { type: "file" });
+input.onchange = async () => {
+  const form = new FormData();
+  form.append("file", input.files[0]);
+  form.append("name", "Test");
+  form.append("altText", "A test photo");
+  const csrf = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]);
+  const response = await fetch("/api/v1/pictures", { method: "POST", body: form, headers: { "X-XSRF-TOKEN": csrf } });
+  const picture = await response.json();
+  console.log(response.status, picture);
+  ["small", "medium", "large"].forEach((size) => window.open(`/api/v1/pictures/${picture.id}/${size}`));
+};
+input.click();
+```
+
 ---
 
 ## Part 4: Pictures in the API: edit, delete, and where they are used
 
 Backend, e2e.
 
-- [ ] Changelog `1.8`: `recipe.picture_id`, `ingredient.picture_id`, table `welcome_page` with its
+- [x] Changelog `1.8`: `recipe.picture_id`, `ingredient.picture_id`, table `welcome_page` with its
       one row; foreign keys to `picture`
-- [ ] `RecipeDTO` and `IngredientDTO` carry a `picture` reference, written and read as `category`
+- [x] `RecipeDTO` and `IngredientDTO` carry a `picture` reference, written and read as `category`
       is; an unknown picture id is a 400
-- [ ] `GET` and `PUT /api/v1/welcome-page`: the Welcome page's picture, or none
-- [ ] `PUT /api/v1/pictures/{id}`: name and alt text only (decision 3)
-- [ ] The picture DTO says where it is used: the recipes and ingredients, by id and name, and
+- [x] `GET` and `PUT /api/v1/welcome-page`: the Welcome page's picture, or none
+- [x] `PUT /api/v1/pictures/{id}`: name and alt text only (decision 3)
+- [x] The picture DTO says where it is used: the recipes and ingredients, by id and name, and
       whether the Welcome page uses it
-- [ ] `DELETE /api/v1/pictures/{id}`: 409 `PICTURE_IN_USE` while in use (decision 6), else the row
+- [x] `DELETE /api/v1/pictures/{id}`: 409 `PICTURE_IN_USE` while in use (decision 6), else the row
       and the three files
-- [ ] Unit and integration tests for each; e2e `pictures-api.spec.ts` extended with linking,
+- [x] Unit and integration tests for each; e2e `pictures-api.spec.ts` extended with linking,
       unlinking and the refused delete
-- [ ] `backend/CLAUDE.md`, `backend/README.md`, and the error code in their list
+- [x] `backend/CLAUDE.md`, `backend/README.md`, and the error code in their list
 
 **Verify it yourself.** `./mvnw clean verify` and the e2e spec. Link a picture to a recipe through
 the API, try to delete the picture (409 naming the recipe), unlink it and delete it (204); its
 files are gone from `/data/pictures`.
+
+**Done 2026-11-13.** `./mvnw clean verify` green: 302 unit and 233 integration tests (285 and 222
+after Part 3) - `PictureServiceTest`, `WelcomePageServiceTest`, picture cases in the recipe and
+ingredient service tests, edit in `PictureIT`, and `PictureUseIT` for linking, unlinking, the
+Welcome page and the refused delete. Changelog `1.8` applied to the stack's existing database. The
+whole Playwright suite green, 201 tests: `pictures-api.spec.ts` gained 4 - edit, a recipe and an
+ingredient sharing a picture, the refused delete until the recipe and the Welcome page let go, an
+unknown picture refused. Nothing is left behind in `picture`, `welcome_page` or the volume.
+What differs from or settles the plan:
+- **A write without a picture has none.** A recipe's or an ingredient's PUT that leaves out
+  `picture` unlinks it, as a missing description clears the description. The tags and lines work
+  the other way, absent meaning "leave as is", but for one reference Jackson cannot tell absent
+  from `null`, and the form's Remove needs one of them to mean none. Until Part 6 the forms send
+  no picture, so editing a recipe or an ingredient in the browser unlinks its picture; no page
+  shows one before then.
+- **An unknown picture is a 400 (710) on the field `picture`**, as the plan says, though the same
+  code is the 404 of an unknown picture's address. An unknown category on a recipe is still a 404.
+- **Where it is used is on a single picture only** - `GET /pictures/{id}` and the PUT's response.
+  The list would cost three queries a picture, and the grid does not show it.
+- **`PICTURE_IN_USE` is 711.** The message names each use: "used by 2 recipes, 1 ingredient and
+  the Welcome page".
+- **The Welcome page's row** has a fixed id from the changelog and `created_by` `system`; the
+  service reads the one row there is.
+- **`PUT /api/v1/pictures/{id}` takes JSON**, the `PictureDTO` with `@NotBlank` and `@Size(255)`
+  on name and alt text; anything else in the body is ignored.
 
 ---
 
@@ -232,21 +327,46 @@ files are gone from `/data/pictures`.
 
 Frontend, e2e.
 
-- [ ] Menu entry "Pictures", in the header, the burger menu and on the Welcome page's list of
-      sections if Part 2 says so
-- [ ] `/pictures`: the thumbnail grid with the hover of decision 9; "No pictures yet." when empty
-- [ ] `/pictures/[id]`: the read view of decision 7, with where the picture is used, each a link
-- [ ] `/pictures/new`: the upload form; `/pictures/[id]/edit`: name and alt text
-- [ ] Delete, with the 409 shown as the error it is
-- [ ] A `Picture` component: `<img>` with `srcset` and `sizes` (decision 8)
-- [ ] e2e `pictures.spec.ts`: upload, read, edit, delete, the refused delete, a file that is not a
+- [x] Menu entry "Pictures", after Tags, in the header and the burger menu; not on the Welcome
+      page's shelf (Part 2)
+- [x] `/pictures`: the thumbnail grid with the hover of decision 9; "No pictures yet." when empty
+- [x] `/pictures/[id]`: the read view of decision 7, with where the picture is used, each a link
+- [x] `/pictures/new`: the upload form; `/pictures/[id]/edit`: name and alt text
+- [x] Delete, with the 409 shown as the error it is
+- [x] A `Picture` component: `<img>` with `srcset` and `sizes` (decision 8)
+- [x] e2e `pictures.spec.ts`: upload, read, edit, delete, the refused delete, a file that is not a
       picture refused in the form, the list at three widths in `responsive.spec.ts`
-- [ ] `frontend/CLAUDE.md`: the `Picture` component and the routes
+- [x] `frontend/CLAUDE.md`: the `Picture` component and the routes
 
 **Verify it yourself.** `npm run lint`, `npm run build`, the whole Playwright suite. At phone and
 desktop size: upload a photo, see the thumbnail, hover it on the desktop, open it, edit its alt
-text, delete it. In the browser's network tab, the phone width fetches `small` or `medium`, never
-`large`.
+text, delete it. In the browser's network tab, at a screen density of 1 (Playwright's), the phone
+width fetches `small` or `medium`, never `large`; a real phone at density 3 rightly fetches `large`
+for a read view (Part 2).
+
+**Done 2026-11-13.** Lint clean, the build succeeds, and the whole Playwright suite passes on the
+rebuilt stack: 219 tests, where there were 201. `pictures.spec.ts` adds 12 - the menu and the
+empty library, an upload through the form to its read view and the grid, the form while it
+uploads, a file that is not a picture, nothing filled in, edit, delete, the refused delete with
+where the picture is used, the Danish order, the hover and its absence with less motion, and the
+files a phone fetches. `responsive.spec.ts` adds `/pictures` and `/pictures/new` at three widths,
+and `menu.spec.ts` the entry. The backend is unchanged: 302 unit and 233 integration tests.
+Screenshots of the grid, a read view and the refused upload at 375 and 1280 px were looked
+through against Part 2's design. What differs from or settles the plan:
+- **The grid is `EntityList` with a `tile`**, as Recipes is with a `card`: the New button, loading,
+  errors, "No pictures yet." with the empty jar and the Danish order come with it. Not searchable:
+  the backend has no `?name=` for pictures, and the plan asks for none.
+- **The read view shows the audit fields** - created and updated, by whom and when - as decision 7
+  says, which other read views leave to the edit form. Where the picture is used is three rows,
+  Recipes, Ingredients and Welcome page, the first two each a link per use, "None" for none.
+- **`EntityForm` hands its fields whether it is saving**, so the picture's fields can be a disabled
+  fieldset with the "Uploading" line; and **`TextField` takes a `hint`**, for the alt text's.
+- **A file the browser cannot draw is shown by its name alone.** The first screenshot of the
+  refused upload showed the browser's broken-picture icon in the preview.
+- **A missing name or alt text hides a file that is not a picture.** The backend checks the fields
+  before it reads the file, so the file's own refusal comes only once both are filled in.
+- **The hover is Tailwind's `hover:`**, which in version 4 applies only under `(hover: hover)` -
+  decision 9 without a media query of our own - and `motion-safe:`.
 
 ---
 
@@ -254,17 +374,38 @@ text, delete it. In the browser's network tab, the phone width fetches `small` o
 
 Frontend, e2e.
 
-- [ ] The picker of decision 10, using the Pictures upload
-- [ ] The recipe form and the ingredient form: a picture field with Choose, Upload new and Remove
-- [ ] The recipe card and the recipe's read view with its picture, as Part 2 drew them
-- [ ] The ingredient's read view with its picture
-- [ ] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
+- [x] The picker of decision 10, using the Pictures upload
+- [x] The recipe form and the ingredient form: a picture field with Choose and Remove; Upload new
+      is in the picker (Part 2)
+- [x] The recipe card and the recipe's read view with its picture, as Part 2 drew them
+- [x] The ingredient's read view with its picture
+- [x] e2e: choose from the library, upload new from the form, remove, the card shows it, a recipe
       without one unchanged; a picture in use cannot be deleted from the Pictures page
-- [ ] An upload from an iPhone, if one is at hand, to settle the HEIC question of decision 5
+- [x] An upload from an iPhone, if one is at hand, to settle the HEIC question of decision 5
 
 **Verify it yourself.** The whole suite. At phone size: give a recipe a new photo from the form,
 see it on the card and the read view; give an ingredient the same picture from the library; try
 to delete it on the Pictures page and read where it is used.
+
+**Done 2026-11-14**, but for the iPhone: no iPhone was at hand, so the HEIC question of decision 5
+was left open and its box unchecked. Settled in Part 7's review: an iPhone's photos arrive as
+JPEG. Lint clean, the build succeeds, and the whole Playwright suite passes on the rebuilt stack:
+228 tests, where there were 219. `recipe-pictures.spec.ts` adds 9 - a recipe given a picture from
+the library, shown on its read view and its card; a picture uploaded from the recipe form chosen
+and in the library; an upload refused in the picker, Back and Cancel; the chosen one marked and
+Escape; Remove; a recipe without a picture unchanged; one picture on a recipe and an ingredient,
+refused delete on the Pictures page; the read view's layout at 375 and 1024 px. The backend is
+unchanged. Screenshots of the cards, a recipe's read view, the form's field and the picker at 375
+and 1280 px were looked through against Part 2's design. What differs from or settles the plan:
+- **The picker is portalled to the body**, and its upload's submit stops there. A form may not
+  stand inside another, and React carries a submit up its own tree through a portal: without the
+  stop, pressing Enter in the picker saved the recipe. The test for it was made to fail that way,
+  with the stop taken out, before it was trusted.
+- **The upload's fields are one component**, `PictureFields`, on the Pictures form and in the
+  picker; in the picker their ids take a prefix, beside the recipe's own Name.
+- **Remove only clears the field**, as Part 2 says; the recipe or ingredient saved without a
+  picture has none (Part 4's rule).
+- **The card takes the picture through `cardPicture`**, a slot of `EntityList` above the name.
 
 ---
 
@@ -272,10 +413,33 @@ to delete it on the Pictures page and read where it is used.
 
 Frontend, e2e, docs.
 
-- [ ] The Welcome page's picture as Part 2 placed it, with Choose and Remove through the picker
-- [ ] e2e: set, show, remove; the picture in use there cannot be deleted
-- [ ] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
+- [x] The Welcome page's picture as Part 2 placed it, with Choose and Remove through the picker
+- [x] e2e: set, show, remove; the picture in use there cannot be deleted
+- [x] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
       `README.md`, `backend/README.md`, `future_enhancements.md`), status done
 
 **Verify it yourself.** The whole suite green; walk the Welcome page at the four sizes with and
 without a picture.
+
+**Done 2026-11-14.** Lint clean, the build succeeds, and on a freshly built stack: 302 unit and 233
+integration tests, Part 4's numbers - the backend is unchanged since - and 237 Playwright tests,
+where version 7 ended at 190 and Part 6 at 228. Screenshots of the Welcome page at 375, 768, 1024
+and 1440 px, with and without a picture, were looked through against Part 2's design. On the way:
+- **`WelcomeIntro`**, a client component around the page's heading and introduction, holds the
+  picture and its Choose and Remove, which save at once; the page itself stays a server component.
+  It shows nothing until the picture has loaded, so the page never waits for it. Without a picture
+  the introduction stands as in V7, with "Choose a picture" under it.
+- **The picker is Part 6's**, `PicturePicker`, now exported; Upload new chooses and saves at once.
+- **The introduction names pictures in one clause**, "a picture if you like", as Part 2 asked.
+- **Every test that sets the Welcome page is in `welcome-picture.spec.ts`, serial**: the page has
+  one picture for every account and the suite runs fully parallel. The API test of Part 4 that set
+  it moved there from `pictures-api.spec.ts`. Each test puts back what the page had, so a picture
+  chosen by hand on the stack survives a run. The file adds 10 tests: the API one moved, none
+  shown, chosen from the library and kept after a reload, uploaded from the page, Remove, the
+  refused delete on the Pictures page, and the layout at the four sizes.
+- **The iPhone question is settled**: two photos uploaded from an iPhone on review, 2026-11-14,
+  were accepted - the server refuses anything but JPEG and PNG, so iOS converted them, as the
+  input's `accept` lists only JPEG and PNG. Part 6's box is checked.
+- **Docs**: root `CLAUDE.md` (the serial Welcome tests), `frontend/CLAUDE.md` (`WelcomeIntro`),
+  `future_enhancements.md` (HEIC, settled). `README.md`, `backend/README.md` and `backend/CLAUDE.md` were
+  read and needed nothing: the Welcome page's endpoints were documented in Part 4.

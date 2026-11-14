@@ -20,12 +20,16 @@ public class IngredientDTO extends BaseIdentityDTO {
     @Size(max = 255, message = "{dk.serik.models.ingredient.description.size.message}")
     private String description;
 
+    // Optional: null, or absent from a write, is no picture.
+    private PictureDTO picture;
+
     @Builder
     @Jacksonized
-    public IngredientDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description) {
+    public IngredientDTO(String id, OffsetDateTime created, String createdBy, OffsetDateTime updated, String updatedBy, String name, String description, PictureDTO picture) {
         super(id, created, createdBy, updated, updatedBy);
         this.name = name;
         this.description = description;
+        this.picture = picture;
     }
 
     @Override
@@ -33,6 +37,7 @@ public class IngredientDTO extends BaseIdentityDTO {
         return "IngredientDTO{" +
                 "name='" + name + '\'' +
                 ", description='" + description + '\'' +
+                ", picture=" + picture +
                 ", id='" + getId() + '\'' +
                 ", created=" + getCreated() +
                 ", createdBy='" + getCreatedBy() + '\'' +

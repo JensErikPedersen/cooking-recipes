@@ -21,6 +21,7 @@ public class IngredientMapper {
                 .created(entity.getCreated())
                 .updated(entity.getUpdated())
                 .updatedBy(entity.getUpdatedBy())
+                .picture(PictureMapper.from(entity.getPicture()))
                 .build();
         log.debug("Mapped DTO: {}", dto);
         return dto;

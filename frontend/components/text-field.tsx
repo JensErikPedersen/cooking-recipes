@@ -12,6 +12,7 @@ export function TextField({
   multiline = false,
   type = "text",
   autoComplete,
+  hint,
 }: {
   label: string;
   name: string;
@@ -21,14 +22,18 @@ export function TextField({
   multiline?: boolean;
   type?: "text" | "password" | "email";
   autoComplete?: string;
+  /** A line under the label saying what the field is for. */
+  hint?: string;
 }) {
   const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(" ");
   const props = {
     id: name,
     name,
     value,
     "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? errorId : undefined,
+    "aria-describedby": describedBy || undefined,
     className: input,
   };
 
@@ -37,6 +42,11 @@ export function TextField({
       <label htmlFor={name} className="font-semibold">
         {label}
       </label>
+      {hint && (
+        <p id={hintId} className="text-sm">
+          {hint}
+        </p>
+      )}
       {multiline ? (
         <textarea rows={3} {...props} onChange={(event) => onChange(event.target.value)} />
       ) : (

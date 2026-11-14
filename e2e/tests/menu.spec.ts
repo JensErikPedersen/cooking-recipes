@@ -6,7 +6,7 @@ import { menuButton } from "../support/pages";
 // disclosure that also holds the account and Log out; from md always in the header. Every test here
 // is signed in as the admin from .env, so Users is among the entries.
 
-const ENTRIES = ["Recipes", "Categories", "Ingredients", "Units", "Tags", "Users"];
+const ENTRIES = ["Recipes", "Categories", "Ingredients", "Units", "Tags", "Pictures", "Users"];
 
 const nav = (page: Page) => page.getByRole("navigation", { name: "Main" });
 // Beside the menu: in the phone panel with it, in the band from md.

@@ -8,6 +8,10 @@ const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   // Self-contained server.js plus only the files it needs, for the Docker image.
   output: "standalone",
+  // Next cuts every proxied request body off at this size, /api rewrites included, whatever proxy.ts
+  // matches. Kept at the backend's max-request-size, so a picture up to 10 MB arrives whole and a
+  // larger one gets the backend's 413 instead of a truncated body the backend waits on forever.
+  experimental: { proxyClientMaxBodySize: "11mb" },
   // The browser only ever talks to this origin. /api is forwarded server-side to the backend,
   // which is why there is no CORS configuration anywhere.
   async rewrites() {

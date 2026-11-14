@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -66,6 +67,20 @@ public class ApplicationExceptionHandler {
                 .description("Reference: " + reference)
                 .errorCode(ApplicationErrorCodes.UNHANDLED_EXCEPTION.getCode())
                 .build());
+    }
+
+    // A picture over spring.servlet.multipart.max-file-size, refused while the request is read -
+    // before any controller. Reported on the form's file field, as a picture that does not decode is.
+    @ExceptionHandler(value = { MaxUploadSizeExceededException.class })
+    @ResponseBody
+    public ResponseEntity<ExceptionEnvelope> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        logger.info("Upload refused: {}", ex.getMessage());
+        return handleBusinessException(ServiceException.builder()
+                .message("The picture is larger than 10 MB")
+                .code(ApplicationErrorCodes.PICTURE_TOO_LARGE.getCode())
+                .httpStatus(HttpStatus.CONTENT_TOO_LARGE)
+                .field("file")
+                .build(), null);
     }
 
     // Not an ErrorResponse, so handled on its own. Its message names Java types; it is not echoed.

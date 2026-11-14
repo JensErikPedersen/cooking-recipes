@@ -13,6 +13,7 @@ const NAVIGATION = [
   { href: "/ingredients", label: "Ingredients" },
   { href: "/units", label: "Units" },
   { href: "/tags", label: "Tags" },
+  { href: "/pictures", label: "Pictures" },
 ];
 
 // For an admin only, after the entity types.

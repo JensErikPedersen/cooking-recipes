@@ -64,6 +64,9 @@ public class RecipeServiceTest {
     @Mock
     private TagJpaRepository tagJpaRepository;
 
+    @Mock
+    private PictureJpaRepository pictureJpaRepository;
+
     @InjectMocks
     private RecipeServiceImpl service;
 
@@ -571,6 +574,30 @@ public class RecipeServiceTest {
                 .isInstanceOf(ServiceException.class)
                 .extracting("code", "httpStatus")
                 .containsExactly(ApplicationErrorCodes.TAG_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
+        verify(recipeJpaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given an unknown picture's id, When saved, Then 400 on the field picture, and nothing is saved")
+    void shouldRejectSaveWithUnknownPicture() {
+        UUID pictureId = UUID.randomUUID();
+        when(categoryJpaRepository.findById(UUID.fromString("913a5159-3717-4b9d-a290-0158d31ea8ab")))
+                .thenReturn(Optional.of(MockCategoryUtil.mockBread()));
+        when(pictureJpaRepository.findById(pictureId)).thenReturn(Optional.empty());
+        RecipeDTO toBeSaved = RecipeDTO.builder()
+                .name("Hvedebrød")
+                .categoryId("913a5159-3717-4b9d-a290-0158d31ea8ab")
+                .picture(dk.serik.recipes.dto.PictureDTO.builder().id(pictureId.toString()).build())
+                .build();
+
+        assertThatThrownBy(() -> service.save(toBeSaved))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(((ServiceException) ex).getFieldErrors())
+                            .extracting("objectName", "message")
+                            .containsExactly(tuple("picture", "This picture does not exist"));
+                });
         verify(recipeJpaRepository, never()).save(any());
     }
 }

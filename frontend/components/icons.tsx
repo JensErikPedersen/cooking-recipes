@@ -43,6 +43,11 @@ export function ButtonLabel({ icon, children }: { icon: IconName; children: Reac
   );
 }
 
+// The picker's mark on the picture already chosen: the tick of Save.
+export function TickIcon({ className }: { className: string }) {
+  return <Icon path={ICONS.save} className={className} />;
+}
+
 // The Menu button's: three bars, a cross while the menu is open.
 export function MenuIcon({ open }: { open: boolean }) {
   return <Icon path={open ? ICONS.cancel : ICONS.menu} className="size-5" />;

@@ -125,6 +125,8 @@ photos, by its decision 4. Three things were left out of version 8 by decision.
 3. **JPEG and PNG only** (decision 5). Java's ImageIO reads neither WebP nor HEIC. WebP would take
    a reader plugin such as TwelveMonkeys' `imageio-webp`. HEIC has no maintained pure-Java reader,
    so it would mean a native library, or converting in the browser before upload.
+   An iPhone does not need it: its photos, uploaded through the browser's file picker, arrive as
+   JPEG, since the input's `accept` does not list HEIC (tried on review of `docs/PLAN_V8.md`).
 
 **Value.** Small next to what version 8 delivers. Each is worth its work only if someone asks for
 it in use.

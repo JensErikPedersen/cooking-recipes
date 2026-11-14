@@ -1,0 +1,55 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!--
+      Where a picture is shown (docs/PLAN_V8.md decision 2): one each, by a nullable column, so many
+      recipes and ingredients may share a picture. RESTRICT, as every foreign key here: a picture in
+      use is refused by PictureServiceImpl first, with a reason, and by these as the backstop.
+    -->
+    <changeSet author="jense" id="20261113-picture-links">
+        <addColumn tableName="recipe">
+            <column name="picture_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="recipe" baseColumnNames="picture_id"
+                                 constraintName="fk_recipe_picture"
+                                 referencedTableName="picture" referencedColumnNames="id"
+                                 onDelete="RESTRICT" onUpdate="RESTRICT"/>
+        <addColumn tableName="ingredient">
+            <column name="picture_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="ingredient" baseColumnNames="picture_id"
+                                 constraintName="fk_ingredient_picture"
+                                 referencedTableName="picture" referencedColumnNames="id"
+                                 onDelete="RESTRICT" onUpdate="RESTRICT"/>
+    </changeSet>
+
+    <!--
+      The Welcome page is not an entity of its own, so its picture is the one row of this table,
+      created here. No context filter: the tests need the row as well.
+    -->
+    <changeSet author="jense" id="20261113-welcome-page">
+        <createTable tableName="welcome_page">
+            <column name="id" type="VARCHAR(36)">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="picture_id" type="VARCHAR(36)"/>
+            <column defaultValueComputed="CURRENT_TIMESTAMP" name="created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column defaultValueComputed="CURRENT_TIMESTAMP" name="updated" type="datetime"/>
+            <column name="updated_by" type="VARCHAR(64)"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="welcome_page" baseColumnNames="picture_id"
+                                 constraintName="fk_welcome_page_picture"
+                                 referencedTableName="picture" referencedColumnNames="id"
+                                 onDelete="RESTRICT" onUpdate="RESTRICT"/>
+        <insert tableName="welcome_page">
+            <column name="id" value="7f3c1e52-0b8a-4d6e-9a41-5c2d8e7f6a10"/>
+            <column name="created_by" value="system"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

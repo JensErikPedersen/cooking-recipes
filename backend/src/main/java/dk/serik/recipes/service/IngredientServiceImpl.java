@@ -7,6 +7,7 @@ import dk.serik.recipes.exceptions.ServiceException;
 import dk.serik.recipes.mapper.IngredientMapper;
 import dk.serik.recipes.model.Ingredient;
 import dk.serik.recipes.repository.IngredientJpaRepository;
+import dk.serik.recipes.repository.PictureJpaRepository;
 import dk.serik.recipes.repository.RecipeIngredientJpaRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class IngredientServiceImpl implements IngredientService {
 
     private IngredientJpaRepository repository;
     private RecipeIngredientJpaRepository recipeIngredientRepository;
+    private PictureJpaRepository pictureRepository;
     private Session session;
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED, propagation = Propagation.REQUIRED, readOnly = true, timeout = 5)
@@ -67,6 +69,7 @@ public class IngredientServiceImpl implements IngredientService {
             Ingredient entity = new Ingredient();
             entity.setDescription(dto.getDescription());
             entity.setName(dto.getName());
+            entity.setPicture(ServiceArguments.toPicture(dto.getPicture(), pictureRepository));
             entity.setCreatedBy(session.getUserName());
             Ingredient managedIngredient = repository.save(entity);
             return IngredientMapper.from(managedIngredient);
@@ -127,6 +130,7 @@ public class IngredientServiceImpl implements IngredientService {
             rejectDuplicateName(dto.getName(), managedIngredient.getId());
             managedIngredient.setDescription(dto.getDescription());
             managedIngredient.setName(dto.getName());
+            managedIngredient.setPicture(ServiceArguments.toPicture(dto.getPicture(), pictureRepository));
             Ingredient savedIngredient = repository.save(managedIngredient);
             return IngredientMapper.from(savedIngredient);
         } else {
