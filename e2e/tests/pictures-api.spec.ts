@@ -3,8 +3,8 @@ import { createById, csrfHeader, deleteById } from "../support/api";
 import { drawPicture, pictureOfSize, pictureWidth, uploadPicture } from "../support/pictures";
 
 // The picture library's API, through the frontend origin: the file crosses the Next.js proxy to the
-// backend, which keeps it in three sizes on its volume (docs/PLAN_V8.md Parts 3 and 4). No page
-// uses it yet. Each test deletes what it creates.
+// backend, which keeps it in three sizes on its volume (docs/PLAN_V8.md Parts 3 and 4). What sets
+// the Welcome page's picture is in welcome-picture.spec.ts. Each test deletes what it creates.
 
 const MB = 1024 * 1024;
 
@@ -147,35 +147,6 @@ test.describe("where a picture is used", () => {
       ingredients: [{ id: ingredient, name: ingredientName }],
       welcomePage: false,
     });
-  });
-
-  test("a picture in use cannot be deleted until every page lets it go", async ({ page }) => {
-    const picture = await upload(page, "Køkkenet", "Et køkken i morgenlys");
-    const name = `Billedbrød ${unique()}`;
-    const recipe = await createById(page, "recipes", { name, category: { id: BROED }, picture: { id: picture } });
-    recipes.push(recipe);
-    try {
-      expect((await putJson(page, "/api/v1/welcome-page", { picture: { id: picture } })).status()).toBe(200);
-      expect((await (await page.request.get("/api/v1/welcome-page")).json()).picture.id).toBe(picture);
-
-      const refused = await page.request.delete(`/api/v1/pictures/${picture}`, { headers: await csrfHeader(page) });
-      expect(refused.status()).toBe(409);
-      expect(await refused.json()).toMatchObject({
-        errorCode: 711,
-        message: "Picture 'Køkkenet' is used by 1 recipe and the Welcome page and cannot be deleted",
-      });
-    } finally {
-      await putJson(page, "/api/v1/welcome-page", { picture: null });
-    }
-    expect((await (await page.request.get("/api/v1/welcome-page")).json()).picture).toBeNull();
-
-    // Unlinked from the recipe, which keeps everything else.
-    expect((await putJson(page, `/api/v1/recipes/${recipe}`, { name, category: { id: BROED } })).status()).toBe(200);
-    expect((await (await page.request.get(`/api/v1/recipes/${recipe}`)).json()).picture).toBeUndefined();
-
-    const deleted = await page.request.delete(`/api/v1/pictures/${picture}`, { headers: await csrfHeader(page) });
-    expect(deleted.status()).toBe(204);
-    expect((await page.request.get(`/api/v1/pictures/${picture}/small`)).status()).toBe(404);
   });
 
   test("an unknown picture is refused on the field picture", async ({ page }) => {

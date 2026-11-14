@@ -73,8 +73,8 @@ export function PictureField({
 // The picker (docs/PLAN_V8.md, decision 10): the library's thumbnails to choose from, and Upload
 // new, which turns it into the upload form and chooses what it uploads. A modal <dialog>, mounted
 // while open. Portalled to the body: it opens from inside the recipe's form, and its upload is a
-// form of its own, which may not stand inside another.
-function PicturePicker({
+// form of its own, which may not stand inside another. The Welcome page uses it as well.
+export function PicturePicker({
   chosenId,
   onChoose,
   onClose,

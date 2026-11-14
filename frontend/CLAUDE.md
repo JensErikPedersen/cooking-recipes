@@ -165,6 +165,11 @@ the root `CLAUDE.md`; this file holds only what is specific to `frontend/`.
   another. React still carries a submit up its own tree through the portal, so the upload's submit
   stops there, or pressing Enter in it saved the recipe. Its fields' ids take the prefix `picker-`,
   beside the recipe's own Name.
+  The Welcome page's picture is `WelcomeIntro` (`components/welcome-picture.tsx`), a client
+  component around the page's heading and introduction: the picture 4:3, in its band, 18 rem beside
+  the text from `md` and under it on a phone, then Choose and Remove, which save at once through
+  `welcomePage` in `lib/api.ts` - the page has no Save. Without a picture, "Choose a picture" under
+  the text. It shows nothing until its picture has loaded; the page is complete without it.
 - Dates arrive as ISO-8601 with their offset and are shown with `formatDateTime` from
   `lib/date.ts`: `yyyy-MM-dd HH:mm` in the viewer's own time zone, without a zone label. That is the
   browser's zone because pages render in the browser, after their data has loaded.

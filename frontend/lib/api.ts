@@ -255,6 +255,17 @@ export const pictures = {
   remove: (id: string) => request<void>("DELETE", `/pictures/${encodeURIComponent(id)}`),
 };
 
+/** The Welcome page's picture, or none: one resource, read and replaced (docs/PLAN_V8.md, decision 2). */
+export interface WelcomePage {
+  picture?: Picture | null;
+}
+
+export const welcomePage = {
+  get: () => request<WelcomePage>("GET", "/welcome-page"),
+  /** None for no picture: the page lets go of it, which stays in the library. */
+  update: (picture?: Pick<Picture, "id">) => request<WelcomePage>("PUT", "/welcome-page", { picture: picture ?? null }),
+};
+
 /** An account, as an admin sees it. Never a password. */
 export interface User extends Audited {
   username: string;

@@ -7,8 +7,9 @@ as the record; this file plans the seventh round.
 Nothing proceeds from one part to the next without review and acceptance. Check off each box as it
 completes, and record what was actually done underneath the part when it differs from the plan.
 
-**Status: accepted.** Drafted and accepted 2026-11-08, the decisions below settled that day.
-Parts 2 to 5 done and accepted. Part 6 done, awaiting review.
+**Status: done.** Drafted and accepted 2026-11-08, the decisions below settled that day; finished
+2026-11-14. Parts 2 to 6 done and accepted. Part 7 done, awaiting review. Open: the iPhone upload
+of Part 6.
 
 ## Shape of the work
 
@@ -413,10 +414,31 @@ and 1280 px were looked through against Part 2's design. What differs from or se
 
 Frontend, e2e, docs.
 
-- [ ] The Welcome page's picture as Part 2 placed it, with Choose and Remove through the picker
-- [ ] e2e: set, show, remove; the picture in use there cannot be deleted
-- [ ] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
+- [x] The Welcome page's picture as Part 2 placed it, with Choose and Remove through the picker
+- [x] e2e: set, show, remove; the picture in use there cannot be deleted
+- [x] The record: final numbers, every doc swept (root, backend and frontend `CLAUDE.md`,
       `README.md`, `backend/README.md`, `future_enhancements.md`), status done
 
 **Verify it yourself.** The whole suite green; walk the Welcome page at the four sizes with and
 without a picture.
+
+**Done 2026-11-14.** Lint clean, the build succeeds, and on a freshly built stack: 302 unit and 233
+integration tests, Part 4's numbers - the backend is unchanged since - and 237 Playwright tests,
+where version 7 ended at 190 and Part 6 at 228. Screenshots of the Welcome page at 375, 768, 1024
+and 1440 px, with and without a picture, were looked through against Part 2's design. On the way:
+- **`WelcomeIntro`**, a client component around the page's heading and introduction, holds the
+  picture and its Choose and Remove, which save at once; the page itself stays a server component.
+  It shows nothing until the picture has loaded, so the page never waits for it. Without a picture
+  the introduction stands as in V7, with "Choose a picture" under it.
+- **The picker is Part 6's**, `PicturePicker`, now exported; Upload new chooses and saves at once.
+- **The introduction names pictures in one clause**, "a picture if you like", as Part 2 asked.
+- **Every test that sets the Welcome page is in `welcome-picture.spec.ts`, serial**: the page has
+  one picture for every account and the suite runs fully parallel. The API test of Part 4 that set
+  it moved there from `pictures-api.spec.ts`. Each test puts back what the page had, so a picture
+  chosen by hand on the stack survives a run. The file adds 10 tests: the API one moved, none
+  shown, chosen from the library and kept after a reload, uploaded from the page, Remove, the
+  refused delete on the Pictures page, and the layout at the four sizes.
+- **The iPhone question stays open**, noted in `future_enhancements.md`; Part 6's box is unchecked.
+- **Docs**: root `CLAUDE.md` (the serial Welcome tests), `frontend/CLAUDE.md` (`WelcomeIntro`),
+  `future_enhancements.md` (HEIC). `README.md`, `backend/README.md` and `backend/CLAUDE.md` were
+  read and needed nothing: the Welcome page's endpoints were documented in Part 4.

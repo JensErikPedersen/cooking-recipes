@@ -13,6 +13,7 @@ export const PICTURE_PLACES = {
   readView: "(min-width: 1024px) 960px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 32px)",
   /** The picture field on a form. */
   thumbnail: "120px",
+  welcome: "(min-width: 768px) 288px, calc(100vw - 32px)",
 } as const;
 
 const srcSet = (id: string) =>

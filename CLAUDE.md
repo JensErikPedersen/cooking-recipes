@@ -92,6 +92,8 @@ Accounts have no delete endpoint: `e2e/support/accounts.ts` removes them with SQ
 read the mail from Mailpit's API (`e2e/support/mailpit.ts`, `http://localhost:8025`, overridden by
 `MAILPIT_URL`) and delete what they read.
 They also assume the seeds are intact: after deleting a seeded row by hand, restore it or reseed.
+The Welcome page has one picture for every account, so every test that sets it is in
+`welcome-picture.spec.ts`, run one after another, each putting back what the page had before.
 
 ## Technical Decisions
 
