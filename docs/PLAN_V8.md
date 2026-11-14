@@ -8,7 +8,7 @@ Nothing proceeds from one part to the next without review and acceptance. Check 
 completes, and record what was actually done underneath the part when it differs from the plan.
 
 **Status: done.** Drafted and accepted 2026-11-08, the decisions below settled that day; finished
-2026-11-14. Parts 2 to 6 done and accepted. Part 7 done, awaiting review.
+2026-11-14. Parts 2 to 7 done and accepted.
 
 ## Shape of the work
 
